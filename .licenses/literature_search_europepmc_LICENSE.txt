@@ -1,0 +1,6 @@
+Notification recorded: 2026-08-13T11:35:47+0900
+
+The user was notified to review the Europe PMC terms at https://europepmc.org/
+and to check the license of every retrieved paper for restrictions before reuse
+or redistribution. This record does not grant rights to any paper or dataset.
+

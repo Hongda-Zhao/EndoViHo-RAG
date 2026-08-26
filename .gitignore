@@ -1,0 +1,16 @@
+.DS_Store
+.env
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+.tools/
+.uv-cache/
+.venv/
+__pycache__/
+*.egg-info/
+*.py[cod]
+*.so
+build/
+dist/
+htmlcov/
+.coverage

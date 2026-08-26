@@ -1,0 +1,8 @@
+Notification recorded: 2026-08-13T11:35:47+0900
+
+The user was notified to review the PubMed disclaimer at
+https://pubmed.ncbi.nlm.nih.gov/disclaimer/ and NCBI policies at
+https://www.ncbi.nlm.nih.gov/home/about/policies/, and to check the license of
+every retrieved paper for restrictions before reuse or redistribution. This
+record does not grant rights to any paper or dataset.
+
