@@ -1,0 +1,116 @@
+{
+  "audit_artifact_schema": "endoviho-milestone1-source-audit-v1",
+  "generated_at": "2026-08-26T05:48:00Z",
+  "source": {
+    "source_snapshot_key": "study-defined:10.1101/2025.04.19.649669:v4:data-s1",
+    "canonical_url": "https://www.biorxiv.org/content/biorxiv/early/2026/05/21/2025.04.19.649669/DC6/embed/media-6.xlsx?download=true",
+    "canonical_filename": "649669_file12.xlsx",
+    "canonical_worksheet": "S3",
+    "canonical_byte_size": 83851778,
+    "canonical_sha256": "79b5d99c095b359d93c834014863fffbbd5968a1dbadafe6a77133a1d690f800",
+    "remote_checksum_verified": true
+  },
+  "inputs_and_tools": {
+    "manifest_path": "data/manifests/milestone1_zhao_v4_data_s1.json",
+    "manifest_sha256": "afa5982542c592aaec6ec1033e0ac9ebbd3786e881baed0d81a1a602a30adf0d",
+    "importer_path": "src/eve_relation_rag/importers/data_s1.py",
+    "importer_sha256": "e9ff3cfcbcb3f20a6971b245ddd2d7fbbbe552a96021f33c8ac70a6f8c7be514",
+    "audit_module_path": "src/eve_relation_rag/importers/audit.py",
+    "audit_module_sha256": "93cbead58cdfca828a97c33bed1ab21a6d31c6115e52835a67e139f40f640b98",
+    "staging_module_path": "src/eve_relation_rag/ingestion/staging.py",
+    "staging_module_sha256": "d66113be75cd02dc5353fb2cce7784d0a7e6c7f6597cf89ed805913569a97ffb",
+    "execution_code_sha256": "6e112712651bbdfdf96848d857a381a6f7d4e6f618f6f4cbd1a1c6cc7aaf42d6",
+    "importer_method_run_identity": "zhao-data-s1-import-v2",
+    "python": "CPython 3.12.14",
+    "xlsx_reader": "Python standard-library zipfile+xml.etree.ElementTree streaming parser",
+    "ncbi_datasets_cli": "18.36.0",
+    "ncbi_datasets_cli_binary_sha256": "c2c38cb70dcce8a75fa9ad616a537d4365eabc2c4fee43e0412e41673e7a239f",
+    "ncbi_assembly_report_sha256": "adcbef683cbc1ad592464e6a7ec64bd3d5612b91e4d44fb531d5d4cfdf4d81d4",
+    "ncbi_assembly_report_byte_size": 39377,
+    "ncbi_sequence_report_sha256": "c96695fc44481f4b08c6bd4e56a439efb9baaf9332c8337d048fe5dab345e425",
+    "ncbi_sequence_report_byte_size": 59941556,
+    "ncbi_sequence_report_records": 220512
+  },
+  "report": {
+    "schema_version": "data-s1-import-audit-v1",
+    "passed": true,
+    "expected_counts": {
+      "source_records": 39495,
+      "source_high": 71,
+      "source_low": 39424,
+      "assemblies": 10,
+      "source_organism_names": 9,
+      "contigs": 12233,
+      "unique_source_occurrence_keys": 39495,
+      "vr_type_integration": 38968,
+      "vr_type_viral_contig": 527
+    },
+    "counts": {
+      "source_records": 39495,
+      "source_high": 71,
+      "source_low": 39424,
+      "normalized_candidate": 38968,
+      "quarantine": 527,
+      "vr_type_integration": 38968,
+      "vr_type_viral_contig": 527,
+      "vr_type_other": 0,
+      "assembly_resolution_exact": 39495,
+      "assembly_resolution_not_exact": 0,
+      "contig_resolution_exact": 39495,
+      "contig_resolution_not_exact": 0,
+      "missing_locus_key": 0,
+      "missing_organism_name": 0,
+      "invalid_call_key_format": 0,
+      "invalid_locus_key_format": 0,
+      "call_key_preimage_error": 0,
+      "call_key_preimage_mismatch": 0,
+      "locus_key_preimage_error": 0,
+      "locus_key_preimage_mismatch": 0
+    },
+    "distinct_counts": {
+      "assemblies": 10,
+      "contigs": 12233,
+      "source_organism_names": 9,
+      "source_locators": 39495,
+      "call_keys": 39495,
+      "locus_keys": 39495
+    },
+    "duplicate_counts": {
+      "call_key_values": 0,
+      "call_key_extra_occurrences": 0,
+      "locus_key_values": 0,
+      "locus_key_extra_occurrences": 0,
+      "source_locator_values": 0,
+      "source_locator_extra_occurrences": 0
+    },
+    "issue_counts": {
+      "viral_contig_policy_quarantine": 527
+    },
+    "key_digests": {
+      "scheme": "sha256-canonical-json-sorted-key-multiset-v1",
+      "sorted_call_keys_sha256": "0b204b937aa53bcb286f555e85817d360ba5288ad23e3ba865191179730debae",
+      "sorted_locus_keys_sha256": "cfba1fa2f70f6ea7f297fbffa67ac6f76c67e11be23687bc688896a2830b4fcc"
+    },
+    "mismatches": []
+  },
+  "resolution_notes": {
+    "assemblies_current": 9,
+    "assemblies_previous_exact_version_retained": 1,
+    "previous_assembly_accession": "GCA_946811455.1",
+    "selected_contig_length_mismatches": 0
+  },
+  "release_readiness": {
+    "public_release_ready": false,
+    "release_membership_created": false,
+    "flank_assessment_status": "not_assessed",
+    "inclusion_decision_status": "not_recorded",
+    "publication_transition_status": "disabled_until_validation_receipt_workflow",
+    "blockers": [
+      "independent_left_and_right_flank_assessments_not_recorded",
+      "explicit_inclusion_decisions_not_recorded",
+      "complete_ncbi_taxonomy_merged_deleted_history_not_bound",
+      "ictv_msl41_vmr_snapshot_not_bound",
+      "validated_publication_transition_disabled_pending_immutable_validator_receipt"
+    ]
+  }
+}

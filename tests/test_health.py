@@ -18,3 +18,14 @@ def test_health_endpoint_returns_stable_english_payload() -> None:
 def test_scientific_query_route_is_not_implemented() -> None:
     with TestClient(app) as client:
         assert client.get("/query").status_code == 404
+
+
+def test_openapi_description_reports_staging_boundary() -> None:
+    with TestClient(app) as client:
+        response = client.get("/openapi.json")
+
+    assert response.status_code == 200
+    assert response.json()["info"]["description"] == (
+        "Milestone 1 verified staging truth layer. No scientific query route or public EVE "
+        "release is available."
+    )

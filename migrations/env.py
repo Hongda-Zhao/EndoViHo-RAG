@@ -4,6 +4,7 @@ from alembic import context
 from sqlalchemy import engine_from_config, pool
 
 from eve_relation_rag.config import get_settings
+from eve_relation_rag.db import Base
 
 config = context.config
 
@@ -13,8 +14,7 @@ if config.config_file_name is not None:
 database_url = get_settings().database_url.replace("%", "%%")
 config.set_main_option("sqlalchemy.url", database_url)
 
-# Milestone 0 intentionally has no domain metadata or tables.
-target_metadata = None
+target_metadata = Base.metadata
 
 
 def run_migrations_offline() -> None:

@@ -1,0 +1,209 @@
+{
+  "manifest_schema": "endoviho-source-manifest-v1",
+  "manifest_status": "staging-source-verified-release-evidence-pending",
+  "source_snapshot_key": "study-defined:10.1101/2025.04.19.649669:v4:data-s1",
+  "primary_source": {
+    "authors_short": "Zhao et al.",
+    "title": "Lineage-specific accumulation of endogenous dsDNA viral elements across eukaryotes",
+    "doi": "10.1101/2025.04.19.649669",
+    "version": "v4",
+    "posted_date": "2026-05-21",
+    "canonical_url": "https://www.biorxiv.org/content/10.1101/2025.04.19.649669v4",
+    "license": "CC-BY-NC-ND-4.0"
+  },
+  "dataset": {
+    "version_doi": "10.5281/zenodo.20336193",
+    "concept_doi": "10.5281/zenodo.15323144",
+    "record_url": "https://zenodo.org/records/20336193",
+    "license": "CC-BY-4.0",
+    "access_state_observed": "restricted",
+    "published_date": "2026-05-22"
+  },
+  "artifact": {
+    "source_label": "Supplementary Data S1",
+    "native_filename": "649669_file12.xlsx",
+    "accepted_local_filename": "649669_file12.xlsx",
+    "media_url": "https://www.biorxiv.org/content/biorxiv/early/2026/05/21/2025.04.19.649669/DC6/embed/media-6.xlsx?download=true",
+    "byte_size": 83851778,
+    "sha256": "79b5d99c095b359d93c834014863fffbbd5968a1dbadafe6a77133a1d690f800",
+    "license_key": "CC-BY-NC-ND-4.0",
+    "license_basis": "Conservative license for the canonical bioRxiv-hosted supplement; the separately recorded Zenodo dataset metadata declares CC-BY-4.0.",
+    "worksheet": "S3",
+    "used_range": "A1:V781112",
+    "populated_columns": "A:U",
+    "remote_checksum_verified": true,
+    "retrieved_at": "2026-08-26T05:42:37Z",
+    "http_metadata": {
+      "source_page": "https://www.biorxiv.org/content/10.1101/2025.04.19.649669v4.supplementary-material",
+      "supplement_id": "DC6",
+      "media_id": "media-6",
+      "content_type": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "content_disposition": "attachment; filename=media-6.xlsx",
+      "last_modified": "Tue, 26 May 2026 00:41:28 GMT",
+      "etag": "W/\"502c3b2b-5a8a-3723-b7f7-7f09513058cb\"",
+      "headers_verified_at": "2026-08-26T05:46:56Z"
+    }
+  },
+  "derived_local_working_copy": {
+    "filename": "Data S1.xlsx",
+    "worksheet": "Data S1",
+    "byte_size": 83851798,
+    "sha256": "13ad4690712da6c3d2b40113a5c6780ca7c8a649198f71bf65c3386ddd84ac94",
+    "cell_data_equivalent_to_canonical": true,
+    "equivalence_audit": {
+      "archive_members_only_in_either_copy": 0,
+      "worksheet_uncompressed_bytes": 594558051,
+      "worksheet_different_bytes": 4,
+      "worksheet_difference": "selection activeCell/sqref only: U4 in canonical, O1 in working copy",
+      "workbook_difference": "sheet renamed S3 to Data S1 plus window/revision metadata",
+      "document_property_difference": "sheet title and modified timestamp metadata"
+    },
+    "release_artifact": false
+  },
+  "source_schema": {
+    "A": "Assembly",
+    "B": "Contig",
+    "C": "VR",
+    "D": "HCVR",
+    "E": "Contig Length",
+    "F": "Start",
+    "G": "End",
+    "H": "Length",
+    "I": "Annoated Viral Proportion",
+    "J": "Viral Major Taxon",
+    "K": "Eukaryote Classification",
+    "L": "Phylum",
+    "M": "Class",
+    "N": "Order",
+    "O": "Family",
+    "P": "Genus",
+    "Q": "Organism Name",
+    "R": "VR Type",
+    "S": "Unique Rate",
+    "T": "Conserved OG",
+    "U": "Busco score"
+  },
+  "selection": {
+    "assembly_allowlist": [
+      "GCA_015947965.1",
+      "GCA_016617855.1",
+      "GCA_016746295.1",
+      "GCA_028554795.2",
+      "GCA_029931535.1",
+      "GCA_943736005.1",
+      "GCA_944589985.1",
+      "GCA_945859735.2",
+      "GCA_946811455.1",
+      "GCA_963210365.1"
+    ],
+    "viral_major_taxon": "Orthopolintovirales",
+    "host_class": "Bivalvia",
+    "include_all_vr_values": true
+  },
+  "source_confidence_policy": {
+    "scheme": "zhao-biorxiv-v4-hcvr-status-v1",
+    "source_high_when": "HCVR == Yes",
+    "source_low_when": "otherwise",
+    "creates_release_membership": false
+  },
+  "coordinate_policy": {
+    "canonical_system": "0-based-half-open",
+    "validation": "0 <= Start < End <= Contig Length and Length == End - Start",
+    "coordinate_in_locus_identity": false
+  },
+  "identity_policy": {
+    "key": "zhao-v4-contig-source-occurrence-v1",
+    "preimage_fields": [
+      "source_snapshot_key",
+      "assembly_accession_version",
+      "sequence_accession_version",
+      "native_vr_token",
+      "identity_policy_key"
+    ]
+  },
+  "call_identity_policy": {
+    "key_schema": "zhao-data-s1-detection-call-v2",
+    "method_run_identity": "zhao-data-s1-import-v2",
+    "preimage_fields": [
+      "artifact_sha256",
+      "source_snapshot_key",
+      "worksheet",
+      "assembly_accession_version",
+      "sequence_accession_version",
+      "native_vr_token",
+      "method_run_identity",
+      "key_schema"
+    ]
+  },
+  "source_record_identity_policy": {
+    "key_schema": "zhao-data-s1-source-record-v1",
+    "preimage_fields": [
+      "artifact_sha256",
+      "source_snapshot_key",
+      "worksheet",
+      "excel_row",
+      "key_schema"
+    ]
+  },
+  "assembly_resolution": {
+    "authority": "NCBI Datasets v2",
+    "source_snapshot_key": "authority:ncbi-datasets-v2:18.36.0:20260826:pilot-resolution",
+    "datasets_cli_version": "18.36.0",
+    "datasets_cli_binary_sha256": "c2c38cb70dcce8a75fa9ad616a537d4365eabc2c4fee43e0412e41673e7a239f",
+    "dataformat_used": false,
+    "retrieved_at": "2026-08-26T05:28:34Z",
+    "commands": [
+      "datasets summary genome accession <approved-ten-accessions> --as-json-lines",
+      "datasets summary genome accession <approved-ten-accessions> --report sequence --as-json-lines"
+    ],
+    "license_or_usage_basis": {
+      "key": "NCBI-MOLECULAR-DATA-USAGE-POLICY",
+      "url": "https://www.ncbi.nlm.nih.gov/home/about/policies/",
+      "summary": "NCBI itself places no restrictions on molecular-data use or distribution; third-party rights may still apply and the NCBI disclaimer must be preserved."
+    },
+    "assembly_report": {
+      "local_audit_path": ".artifacts/milestone1/ncbi/assembly_data_report.jsonl",
+      "sha256": "adcbef683cbc1ad592464e6a7ec64bd3d5612b91e4d44fb531d5d4cfdf4d81d4",
+      "byte_size": 39377,
+      "media_type": "application/x-ndjson",
+      "records": 10
+    },
+    "sequence_report": {
+      "local_audit_path": ".artifacts/milestone1/ncbi/sequence_report.jsonl",
+      "sha256": "c96695fc44481f4b08c6bd4e56a439efb9baaf9332c8337d048fe5dab345e425",
+      "byte_size": 59941556,
+      "media_type": "application/x-ndjson",
+      "records": 220512
+    },
+    "resolution_result": {
+      "assemblies_resolved_exact": 10,
+      "assembly_status_current": 9,
+      "assembly_status_previous": 1,
+      "assembly_status_previous_accession": "GCA_946811455.1",
+      "selected_contigs_resolved_exact": 12233,
+      "selected_contig_length_mismatches": 0
+    }
+  },
+  "expected_counts": {
+    "source_records": 39495,
+    "source_high": 71,
+    "source_low": 39424,
+    "assemblies": 10,
+    "source_organism_names": 9,
+    "contigs": 12233,
+    "unique_source_occurrence_keys": 39495,
+    "vr_type_integration": 38968,
+    "vr_type_viral_contig": 527
+  },
+  "release_policy": {
+    "viral_contig_like_default": "quarantine",
+    "requires_exact_assembly_accession_version": true,
+    "requires_exact_sequence_accession_version": true,
+    "requires_single_exact_interval": true,
+    "requires_complete_provenance": true,
+    "requires_left_flank_supported": true,
+    "requires_right_flank_supported": true,
+    "requires_explicit_include_decision": true,
+    "requires_remote_artifact_verification": true
+  }
+}

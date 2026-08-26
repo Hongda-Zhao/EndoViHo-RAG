@@ -18,7 +18,10 @@ settings = get_settings()
 app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
-    description="Milestone 0 service scaffold. No scientific query routes are available.",
+    description=(
+        "Milestone 1 verified staging truth layer. No scientific query route or public EVE "
+        "release is available."
+    ),
 )
 
 

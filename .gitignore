@@ -4,6 +4,7 @@
 .pytest_cache/
 .ruff_cache/
 .tools/
+.artifacts/
 .uv-cache/
 .venv/
 __pycache__/
