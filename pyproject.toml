@@ -13,8 +13,12 @@ dependencies = [
   "psycopg[binary]>=3.2,<4",
   "pydantic-settings>=2.7,<3",
   "sqlalchemy>=2.0,<3",
+  "typer>=0.12,<1",
   "uvicorn[standard]>=0.34,<1",
 ]
+
+[project.scripts]
+eve-relation-rag = "eve_relation_rag.cli:app"
 
 [dependency-groups]
 dev = [

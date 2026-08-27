@@ -1,6 +1,7 @@
 from functools import lru_cache
 from typing import Literal
 
+from pydantic import SecretStr
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -18,9 +19,8 @@ class Settings(BaseSettings):
     app_name: str = "EVE Relation RAG"
     app_version: str = "V0"
     environment: Literal["development", "test", "production"] = "development"
-    database_url: str = (
-        "postgresql+psycopg://eve:eve_dev_password@localhost:5432/eve_relation_rag"
-    )
+    database_url: str = "postgresql+psycopg://eve:eve_dev_password@localhost:5432/eve_relation_rag"
+    cursor_hmac_secret: SecretStr | None = None
 
 
 @lru_cache

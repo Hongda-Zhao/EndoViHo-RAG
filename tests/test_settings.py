@@ -11,6 +11,7 @@ def test_settings_use_milestone_zero_defaults(
         "EVE_RAG_APP_VERSION",
         "EVE_RAG_ENVIRONMENT",
         "EVE_RAG_DATABASE_URL",
+        "EVE_RAG_CURSOR_HMAC_SECRET",
     ):
         monkeypatch.delenv(variable_name, raising=False)
 
@@ -19,6 +20,7 @@ def test_settings_use_milestone_zero_defaults(
     assert settings.app_version == "V0"
     assert settings.environment == "development"
     assert settings.database_url.endswith("/eve_relation_rag")
+    assert settings.cursor_hmac_secret is None
 
 
 def test_settings_accept_prefixed_environment_variables(
@@ -29,7 +31,10 @@ def test_settings_accept_prefixed_environment_variables(
         "EVE_RAG_DATABASE_URL",
         "postgresql+psycopg://test:test@database:5432/test_database",
     )
+    monkeypatch.setenv("EVE_RAG_CURSOR_HMAC_SECRET", "x" * 32)
 
     settings = Settings(_env_file=None)
     assert settings.environment == "test"
     assert settings.database_url.endswith("/test_database")
+    assert settings.cursor_hmac_secret is not None
+    assert settings.cursor_hmac_secret.get_secret_value() == "x" * 32

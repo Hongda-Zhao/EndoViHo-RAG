@@ -2,34 +2,44 @@
 
 > Product version: V0
 >
-> Current milestone: Milestone 2 — Draft B M2.0/M2.1 schema-only foundation
+> Current milestone: Milestone 2 — Draft B M2.0-M2.5 complete
 >
-> Status: verified M2.0/M2.1 implementation; M2.2+ and public release intentionally blocked
+> Status: full M2 mechanics implemented; real public-release activation intentionally blocked
 >
 > Last verified: 2026-08-27 (Asia/Tokyo)
 
-## Milestone 2 M2.0/M2.1 outcome
+## Milestone 2 outcome
 
-The merged Milestone 2 contract is approved as Draft B, but implementation authority stops at
-M2.1. M2.0 maps the existing 32-table Milestone 1 truth layer to the future public retrieval
-semantics. M2.1 adds only immutable, strict Pydantic schemas for six QueryPlan variants,
-PlanningAudit, six StructuredResult variants, resolved entities, typed errors, and canonical plan
-JSON/SHA-256. Query-success models bind the returned result to the exact plan hash, release key,
-intent/result kind, metric or page limit, and detail identity.
+The approved merged Draft B is implemented through M2.5. M2.0 maps the existing 32-table
+Milestone 1 truth layer to public retrieval semantics; M2.1 provides the strict plan/result/error
+schemas. M2.2 adds deterministic controlled-English parsing and exact release-scoped resolution.
+M2.3 adds the published-release capability gate, semantic validator, fixed SQLAlchemy compiler,
+membership-rooted repository, and all five metrics. M2.4 adds HMAC-SHA-256 keyset cursors and
+deterministic presentation. M2.5 composes the same application through FastAPI and Typer, freezes
+the 31-case controlled-English planning/contract benchmark, and verifies facts separately through
+a PostgreSQL production-path matrix.
 
-This phase adds no parser, resolver, publication capability, compiler, repository query, cursor
-implementation, API/CLI surface, renderer, database session, or Alembic migration. The current
-candidate release therefore still cannot produce a public scientific success response.
+No M2 migration or scientific data mutation was required. The current candidate still cannot
+produce a public success response: the production gate requires `published` plus a trusted,
+immutable validation receipt and rejects the real pilot before resolver or fact retrieval.
 
 Key artifacts:
 
 - `docs/milestone_2_contract.md`: approved merged Draft B and staged M2.0-M2.5 boundary.
 - `docs/milestone_2_schema_mapping.md`: read-only M1-to-M2 authority and projection map.
 - `src/eve_relation_rag/planning/query_plans.py`: strict plans, audits, canonical JSON, and hash.
+- `src/eve_relation_rag/planning/parser.py` and `resolver.py`: controlled grammar and exact
+  release-scoped entity resolution.
 - `src/eve_relation_rag/retrieval/structured/results.py`: strict result and error envelopes.
-- `tests/planning/` and `tests/retrieval/`: accepted/rejected schema and cross-model tests.
+- `src/eve_relation_rag/retrieval/structured/`: capability gate, validator, compiler, repository,
+  cursor, pagination, service, serialization, and presentation.
+- `src/eve_relation_rag/api/app.py` and `src/eve_relation_rag/cli.py`: question-first public
+  adapters over one application service.
+- `tests/benchmark/`: 31-case controlled-English planning and contract oracle.
+- `tests/retrieval/structured/test_m23_postgres.py`: production compiler/repository fact matrix;
+  `tests/planning/` and the remaining retrieval tests cover schema and boundary behavior.
 
-### Frozen M2.1 parameters
+### Frozen Milestone 2 parameters
 
 | Parameter | Approved value |
 |---|---|
@@ -41,7 +51,11 @@ Key artifacts:
 | Page limit | default 50; strict range 1..100 |
 | Canonical plan hash | SHA-256 of sorted canonical JSON; only cursor is normalized to null |
 | Release syntax | exact `release:endoviho-rag:v0:YYYYMMDD:NNN`; status remains gate-owned |
-| Schema-focused tests | 54 passed |
+| Release authorization | exact key, `published`, valid manifest, trusted immutable receipt |
+| Resolver order | assembly, locus, snapshot-qualified term, canonical name, curated alias |
+| Cursor | forward keyset; HMAC-SHA-256; runtime secret at least 32 bytes |
+| Public adapters | `POST /v0/structured/plan`, `POST /v0/structured/query`, Typer CLI |
+| Query technology excluded | arbitrary SQL, LLMs, embeddings, and literature retrieval |
 
 ## Milestone 1 retained outcome
 
@@ -72,7 +86,10 @@ curation decisions, and public release membership remain separate objects.
   immutable validation-receipt workflow exists.
 - Immutable published-release guards and support for distinct source occurrences sharing an
   exact interval.
-- FastAPI liveness endpoint, deterministic tests, Ruff, mypy, and PostgreSQL-backed CI.
+- Complete M2 deterministic structured-query stack with six intents, five metrics, AND-only
+  filters, exact membership projections, and tests-only synthetic success capabilities.
+- FastAPI liveness/structured endpoints, Typer CLI, deterministic tests, Ruff, mypy, and
+  PostgreSQL-backed CI.
 
 ## Frozen pilot results
 
@@ -191,17 +208,16 @@ until a trusted, immutable validation receipt can authorize it. Published or dep
 release-scoped rows remain immutable; corrections require a new release and explicit
 supersession.
 
-## API and deferred scope
+## API, CLI, and deferred scope
 
-Implemented API surface is limited to `GET /health`. There is no scientific `/query` route and
-no endpoint that claims a published release.
+Implemented API surface is `GET /health`, `POST /v0/structured/plan`, and
+`POST /v0/structured/query`. The CLI exposes `structured plan` and `structured query`. These
+interfaces do not claim that the candidate is published: the real candidate returns
+`release_not_published` with `fact_retrieval_executed = false`.
 
-Deferred beyond the currently authorized M2.1 boundary:
+Deferred beyond Milestone 2:
 
-- controlled-English parser and release-scoped entity resolver (M2.2);
-- published-release capability gate, fixed compiler, and structured repository queries (M2.3);
-- signed keyset cursor, serializers, and optional deterministic renderer (M2.4);
-- scientific query API and CLI composition (M2.5);
+- trusted immutable validation-receipt and publication workflow;
 - literature ingestion, chunking, full-text/vector retrieval, and citations;
 - embedding or LLM providers;
 - complete global Zhao et al. data beyond the ten-assembly pilot;
@@ -216,7 +232,9 @@ Deferred beyond the currently authorized M2.1 boundary:
 | Project Python | CPython `3.12.14` |
 | Environment/lock manager | `uv 0.12.5` |
 | API | FastAPI |
+| CLI | Typer `0.27.1` |
 | Validation | Pydantic v2, database constraints, audit, release validator |
+| Cursor authentication | HMAC-SHA-256; no default secret or bypass |
 | Database | PostgreSQL 16 / pgvector image |
 | Migration | Alembic head `0005_m1_fail_closed_publication` |
 | Tests | pytest, including PostgreSQL integration tests |
@@ -241,10 +259,13 @@ uv run mypy src
 uv run alembic check
 ```
 
-CI runs the migration, complete pytest suite, Ruff, and mypy against PostgreSQL. Branch
+CI runs the migration, Alembic model-drift check, complete pytest suite, Ruff, and mypy against
+PostgreSQL. Branch
 protection/required-check enforcement is a GitHub repository setting and is not asserted by the
 local checkout.
 
-Final local verification on 2026-08-27 completed with 200 tests passed, Ruff clean, mypy strict
-clean, all seven new Python files formatted, and `alembic check` reporting no new upgrade
-operations.
+Final local full-M2 verification on 2026-08-27 completed with `364 passed` and one upstream
+FastAPI/Starlette TestClient deprecation warning. Ruff, mypy strict (`40` source files), lockfile
+reproducibility, targeted formatting, and `alembic check` all passed; Alembic reported no new
+upgrade operations. These checks remain mandatory in CI and do not change the candidate-only
+publication state.

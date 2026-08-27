@@ -48,7 +48,7 @@ The existing pilot is a staging truth layer, not a public EVE release:
 | Published releases | 0 | Production M2 success path is unavailable. |
 | Trusted immutable validation receipts | 0 / no table | `QueryableRelease` cannot be issued. |
 
-A real request for the current release must stop at the future `PublishedReleaseGate` with
+A real request for the current release must stop at the production `PublishedReleaseGate` with
 `release_not_published`, `fact_retrieval_executed = false`, no entity suggestions, and no public
 fact repository call. It must not turn the unavailable public scope into a successful zero.
 
@@ -107,7 +107,7 @@ receipt-attested dependency graph
 receipt-attested complete_lineage_closure_roles
 ```
 
-No M2.0/M2.1 code may invent these values. A separately approved receipt workflow and migration
+No Milestone 2 code may invent these values. A separately approved receipt workflow and migration
 must exist before the production gate can return success.
 
 ## 4. Public membership graph
@@ -197,7 +197,7 @@ Important cardinality rules:
 | M1 object | Existing semantics | M2 mapping |
 |---|---|---|
 | `LineageSnapshot` | Stable `snapshot_key`; `domain = host|viral`; `scheme_kind = formal_taxonomy|study_defined`; authority namespace, version, source artifact, SHA-256. Host study-defined snapshots are forbidden. | Supplies snapshot-qualified resolver namespace and `LineageRef` metadata. |
-| `ReleaseLineageSnapshot` | Pins at most one snapshot per release role when that role is present. | The only source of a lineage role accepted by a query capability; the future gate validates every role required by a query. |
+| `ReleaseLineageSnapshot` | Pins at most one snapshot per release role when that role is present. | The only source of a lineage role accepted by a query capability; the production gate must validate every role required by a query. |
 | `LineageTerm` | `term_key` is unique only within one snapshot; also has canonical name, rank, authority local ID, and locator. | Resolve and return as `(snapshot_key, term_key, role)`, never as a bare display name. |
 | `LineageAlias` | Alias rows are scoped to snapshot/term; collisions across terms remain legal; locale defaults to `en`. | Exact English alias resolution may return multiple candidates and must fail ambiguous. |
 | `LineageClosure` | Same-snapshot `(ancestor, descendant, depth)` closure; depth 0 is the self-row. | Used only when the receipt attests that the exact role has complete closure. |
@@ -306,7 +306,7 @@ eligibility.
 | M2 object | Existing source | Required mapping rule |
 |---|---|---|
 | `PublishedReleaseGate` | `Dataset`, `DatasetRelease`, dependency-binding tables, and future receipt store | Reject before entity/fact lookup unless exact release, `published`, manifest, dependencies, and receipt all verify. |
-| `QueryableRelease` | No persistent table; future package-private capability | Contains internal release ID plus stable release metadata, verified dependency role bindings, receipt key/hash, and receipt-attested complete closure roles. Never accepted from HTTP/CLI. |
+| `QueryableRelease` | No persistent table; package-private gate-issued capability with no current production issuance path | Contains internal release ID plus stable release metadata, verified dependency role bindings, receipt key/hash, and receipt-attested complete closure roles. Never accepted from HTTP/CLI. |
 | `ResolvedEntity` | Membership-scoped assembly/locus rows; lineage rows in the exact capability-pinned snapshot and role | Returns stable keys and snapshot metadata, never numeric database IDs. Exact lineage resolution may select a non-represented closure ancestor; only suggestions are restricted to the represented public universe. |
 
 ### 8.2 Filter-to-schema mapping
@@ -391,7 +391,7 @@ status, or manufacture a published release.
 
 ## 12. Current gaps
 
-The following are real missing capabilities, not values that M2.0/M2.1 may infer:
+The following are real missing capabilities, not values that Milestone 2 may infer:
 
 1. no trusted immutable validation-receipt object or workflow;
 2. no persistent binding from a receipt to the exact manifest/dependency graph;
@@ -401,20 +401,20 @@ The following are real missing capabilities, not values that M2.0/M2.1 may infer
 5. no complete frozen NCBI Taxonomy dump with merged/deleted history;
 6. no required formal ICTV MSL41/VMR snapshot binding for a public release;
 7. no closure-completeness field or receipt attestation; current closures are self-only;
-8. no scientific query endpoint, resolver, planner, compiler, repository, or M2 CLI;
-9. no demonstrated need for additional query indexes; Draft B authorizes no migration.
+8. no demonstrated need for additional query indexes; Draft B authorizes no M2 migration.
 
-These gaps do not authorize weakening the publication boundary. M2.1 may define strict schemas
-and tests, and later authorized mechanics may use tests-only constrained fixtures, but production
-fact retrieval remains closed.
+These gaps do not authorize weakening the publication boundary. Full M2 mechanics use tests-only
+constrained capabilities for successful composition tests, while production fact retrieval
+remains closed.
 
-## 13. Preconditions before M2.2
+## 13. M2.2 authorization record and production preconditions
 
-### 13.1 Required to begin M2.2 implementation
+### 13.1 Preconditions satisfied before M2.2 implementation
 
-M2.2 is not currently authorized. Before starting it, all of the following are required:
+The user subsequently authorized M2.2-M2.5 on 2026-08-27. Before implementation, the following
+conditions were checked:
 
-1. a new explicit user instruction authorizing M2.2;
+1. an explicit user instruction authorized all remaining M2 work;
 2. this M2.0 mapping reviewed against the then-current ORM and Alembic head, with no unexplained
    schema drift;
 3. M2.1 strict QueryPlan, PlanningAudit, response/error, projection, pagination, and metric schemas
@@ -425,11 +425,11 @@ M2.2 is not currently authorized. Before starting it, all of the following are r
 6. the production release gate continues to reject the real candidate before entity resolution
    or suggestions.
 
-M2.2 parser/resolver mechanics may later be tested against synthetic membership-scoped data only
-after authorization. They must implement exact role-qualified lineage resolution, candidate-safe
-suggestion universes, complete condition coverage, and current fail-closed descendant behavior.
+M2.2 parser/resolver mechanics are tested against tests-only data. They implement exact
+role-qualified lineage resolution, candidate-safe suggestion universes, complete condition
+coverage, and current fail-closed descendant behavior.
 
-### 13.2 Required for production success, but not for schema-only M2.1
+### 13.2 Required for production success after Milestone 2
 
 The following are separate publication prerequisites and must not be faked merely to test M2:
 
