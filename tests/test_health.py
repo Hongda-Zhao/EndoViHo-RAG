@@ -15,17 +15,19 @@ def test_health_endpoint_returns_stable_english_payload() -> None:
     }
 
 
-def test_scientific_query_route_is_not_implemented() -> None:
+def test_legacy_unversioned_query_route_is_not_implemented() -> None:
     with TestClient(app) as client:
         assert client.get("/query").status_code == 404
 
 
-def test_openapi_description_reports_staging_boundary() -> None:
+def test_openapi_description_reports_m2_surface_and_publication_boundary() -> None:
     with TestClient(app) as client:
         response = client.get("/openapi.json")
 
     assert response.status_code == 200
     assert response.json()["info"]["description"] == (
-        "Milestone 1 verified staging truth layer. No scientific query route or public EVE "
-        "release is available."
+        "Milestone 2 deterministic structured-query surface over immutable published releases. "
+        "The current pilot remains candidate-only and is rejected by the publication gate."
     )
+    assert "/v0/structured/plan" in response.json()["paths"]
+    assert "/v0/structured/query" in response.json()["paths"]

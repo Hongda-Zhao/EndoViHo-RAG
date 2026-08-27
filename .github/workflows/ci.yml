@@ -46,6 +46,9 @@ jobs:
       - name: Apply database migrations
         run: uv run alembic upgrade head
 
+      - name: Check migration-model parity
+        run: uv run alembic check
+
       - name: Run tests
         run: uv run pytest
 

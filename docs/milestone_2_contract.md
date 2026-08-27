@@ -1,6 +1,6 @@
 # Milestone 2 structured retrieval contract — Approved Draft B
 
-> Status: **APPROVED FOR M2.0 AND M2.1 IMPLEMENTATION; M2.2+ NOT AUTHORIZED**
+> Status: **APPROVED AND IMPLEMENTED FOR M2.0-M2.5; PUBLICATION AND M3 NOT AUTHORIZED**
 >
 > Project: EndoViHo-RAG
 >
@@ -11,8 +11,9 @@
 ## 1. Purpose and authority
 
 This document is the approved implementation contract for Milestone 2. The user approved the
-merged Draft B on 2026-08-27, with implementation authority limited to M2.0 and M2.1. Later
-subphases require a new explicit instruction.
+merged Draft B on 2026-08-27, first authorized M2.0/M2.1, and then explicitly authorized all
+remaining M2 work on 2026-08-27. That later authorization covers M2.2-M2.5 implementation, but
+not release publication, mutation of staged scientific truth, or Milestone 3.
 
 Instruction precedence remains:
 
@@ -141,7 +142,7 @@ Rules:
   `1..4096` unpadded base64url characters (`A-Z`, `a-z`, `0-9`, `_`, or `-`). These are
   transport bounds, not fuzzy matching rules.
 
-The approved future API surface is:
+The implemented API surface is:
 
 ```text
 POST /v0/structured/plan
@@ -910,7 +911,7 @@ state, or quarantine details.
 **Approved decision:** the CLI and API call the same planner, validator, gate, compiler, and
 repository services.
 
-Approved future commands:
+Approved implemented commands:
 
 ```text
 eve-relation-rag structured plan \
@@ -934,8 +935,8 @@ eve-relation-rag structured query \
 - Exit `4`: `release_not_found`, `release_not_published`, or dependency-incomplete.
 - Exit `5`: database, result-integrity, or internal error.
 
-Typer is approved for the future CLI specified by the build guide. It is not currently a project
-dependency and is added only during the separately authorized API/CLI subphase, not M2.0 or M2.1.
+Typer was added as a locked dependency during the authorized M2.5 API/CLI subphase. It remains a
+transport adapter over the same application service used by FastAPI.
 
 ## 14. Verification and acceptance
 
@@ -1039,7 +1040,7 @@ public EVE dataset.
 | ORM/compiler | SQLAlchemy 2.x expression API; no arbitrary SQL |
 | Schema validation | Pydantic v2 strict frozen models |
 | API | FastAPI |
-| CLI | Typer, deferred until the API/CLI subphase |
+| CLI | Typer, implemented in the M2.5 API/CLI subphase |
 | Tests | pytest with PostgreSQL integration tests |
 | Static checks | Ruff and mypy strict mode |
 | Query language | deterministic controlled English only |
@@ -1073,8 +1074,9 @@ The user approved all M2-D01 through M2-D12 decisions in this merged Draft B, in
 10. typed results, stable limitations/errors, API/CLI status mappings, and tests-only capability
     isolation without modifying or bypassing migration `0005`.
 
-Current implementation authority is limited to M2.0 and M2.1. Nothing in this approval authorizes
-M2.2, M2.3, M2.4, M2.5, release publication, or mutation of the Milestone 1 truth layer.
+Implementation authority now covers M2.0 through M2.5. It still does not authorize release
+publication, a bypass or alteration of migration `0005`, mutation of the Milestone 1 truth layer,
+or Milestone 3.
 
 ## 18. Approved implementation sequence
 
@@ -1105,22 +1107,22 @@ schema-level validation and canonicalization tests
 M2.1 must not import database sessions or execute queries. It must not implement parser,
 resolver, compiler, repository, API routes, CLI commands, renderer, or release capability.
 
-### M2.2 — parser and resolver (not authorized)
+### M2.2 — parser and resolver (implemented)
 
 Deterministic controlled-English parser, mention extraction, exact resolver, curated aliases,
 suggestions, and condition coverage.
 
-### M2.3 — validator and structured retrieval (not authorized)
+### M2.3 — validator and structured retrieval (implemented)
 
 Published-release capability gate, semantic validator, fixed SQLAlchemy compiler, repositories,
 metrics, public membership projections, and read-only execution.
 
-### M2.4 — pagination and deterministic presentation (not authorized)
+### M2.4 — pagination and deterministic presentation (implemented)
 
 HMAC keyset cursor, total-before-page behavior, serializers, and optional deterministic English
 or table renderer derived only from StructuredResult.
 
-### M2.5 — API, CLI, benchmark, and documentation (not authorized)
+### M2.5 — API, CLI, benchmark, and documentation (implemented)
 
 FastAPI routes, Typer commands, README examples, complete structured benchmark, and final status
 update. Completion never automatically authorizes Milestone 3.
@@ -1141,10 +1143,13 @@ M2.5 will contain at least 30 controlled-English gold questions:
 
 Each case freezes its request, status, intent, resolved entities, canonical plan, exact result
 keys, exact numbers, limitations, provenance, and applied constraints. Expected and actual sets
-must be exactly equal; subset acceptance is forbidden. This benchmark target is approved but is
-not part of the currently authorized M2.0/M2.1 implementation.
+must be exactly equal; subset acceptance is forbidden. The 31-case catalog is the
+controlled-English planning and contract oracle; it is not, by itself, evidence that every case
+executed through SQL. A separate PostgreSQL production-fact matrix executes every intent, filter
+class, combined source-and-virus filtering, and all five metrics through the fixed compiler and
+membership-rooted repository. Both layers are required for M2.5 acceptance.
 
-## 20. M2.0 and M2.1 exit conditions
+## 20. Full Milestone 2 exit conditions
 
 - `docs/milestone_2_schema_mapping.md` matches the current ORM and Alembic head.
 - All six plan variants have exact accepted and rejected schema tests.
@@ -1158,7 +1163,8 @@ not part of the currently authorized M2.0/M2.1 implementation.
 - A query success binds its canonical plan hash, exact release key, intent/result kind, aggregate
   metric, list limit, and detail identity to the returned result.
 - Result projections use exact M1 public key and coordinate grammars without querying data.
-- No parser, resolver, compiler, repository, API route, CLI command, renderer, or M2 database
-  migration is present.
+- Parser, release-scoped resolver, gate, semantic validator, fixed compiler, membership-rooted
+  repository, signed cursor, deterministic renderer, API, CLI, and benchmark are present.
+- No M2 database migration was needed, and migration `0005` remains the publication boundary.
 - `uv run pytest`, `uv run ruff check .`, `uv run mypy src`, and `uv run alembic check` pass.
-- `docs/development_status.md` records M2.0/M2.1 completion and the continued publication gate.
+- `docs/development_status.md` records full M2 completion and the continued publication gate.
