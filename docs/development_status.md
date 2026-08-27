@@ -2,13 +2,48 @@
 
 > Product version: V0
 >
-> Current milestone: Milestone 1 — confirmed contracts and truth layer
+> Current milestone: Milestone 2 — Draft B M2.0/M2.1 schema-only foundation
 >
-> Status: verified staging implementation; public release intentionally blocked
+> Status: verified M2.0/M2.1 implementation; M2.2+ and public release intentionally blocked
 >
-> Last verified: 2026-08-26 (Asia/Tokyo)
+> Last verified: 2026-08-27 (Asia/Tokyo)
 
-## Outcome
+## Milestone 2 M2.0/M2.1 outcome
+
+The merged Milestone 2 contract is approved as Draft B, but implementation authority stops at
+M2.1. M2.0 maps the existing 32-table Milestone 1 truth layer to the future public retrieval
+semantics. M2.1 adds only immutable, strict Pydantic schemas for six QueryPlan variants,
+PlanningAudit, six StructuredResult variants, resolved entities, typed errors, and canonical plan
+JSON/SHA-256. Query-success models bind the returned result to the exact plan hash, release key,
+intent/result kind, metric or page limit, and detail identity.
+
+This phase adds no parser, resolver, publication capability, compiler, repository query, cursor
+implementation, API/CLI surface, renderer, database session, or Alembic migration. The current
+candidate release therefore still cannot produce a public scientific success response.
+
+Key artifacts:
+
+- `docs/milestone_2_contract.md`: approved merged Draft B and staged M2.0-M2.5 boundary.
+- `docs/milestone_2_schema_mapping.md`: read-only M1-to-M2 authority and projection map.
+- `src/eve_relation_rag/planning/query_plans.py`: strict plans, audits, canonical JSON, and hash.
+- `src/eve_relation_rag/retrieval/structured/results.py`: strict result and error envelopes.
+- `tests/planning/` and `tests/retrieval/`: accepted/rejected schema and cross-model tests.
+
+### Frozen M2.1 parameters
+
+| Parameter | Approved value |
+|---|---|
+| Plan version / route | `endoviho-query-plan-v0.1` / `structured` |
+| Response / result schema | `structured-query-response-v1` / `structured-result-v1` |
+| Plan intents / result data kinds | 6 / 6 |
+| Exact aggregate metrics | 5, including `distinct_contig_count` |
+| Filter combination | AND only; at most 3 distinct filter types |
+| Page limit | default 50; strict range 1..100 |
+| Canonical plan hash | SHA-256 of sorted canonical JSON; only cursor is normalized to null |
+| Release syntax | exact `release:endoviho-rag:v0:YYYYMMDD:NNN`; status remains gate-owned |
+| Schema-focused tests | 54 passed |
+
+## Milestone 1 retained outcome
 
 Milestone 1 implements the approved Draft B pilot as an auditable staging truth layer. It does
 not claim that the staged rows are publishable EVEs. All selected source rows have deterministic
@@ -161,9 +196,12 @@ supersession.
 Implemented API surface is limited to `GET /health`. There is no scientific `/query` route and
 no endpoint that claims a published release.
 
-Deferred beyond Milestone 1:
+Deferred beyond the currently authorized M2.1 boundary:
 
-- structured retrieval, resolver, query planning, and query API;
+- controlled-English parser and release-scoped entity resolver (M2.2);
+- published-release capability gate, fixed compiler, and structured repository queries (M2.3);
+- signed keyset cursor, serializers, and optional deterministic renderer (M2.4);
+- scientific query API and CLI composition (M2.5);
 - literature ingestion, chunking, full-text/vector retrieval, and citations;
 - embedding or LLM providers;
 - complete global Zhao et al. data beyond the ten-assembly pilot;
@@ -200,8 +238,13 @@ uv run python scripts/stage_milestone1.py
 uv run pytest
 uv run ruff check .
 uv run mypy src
+uv run alembic check
 ```
 
 CI runs the migration, complete pytest suite, Ruff, and mypy against PostgreSQL. Branch
 protection/required-check enforcement is a GitHub repository setting and is not asserted by the
 local checkout.
+
+Final local verification on 2026-08-27 completed with 200 tests passed, Ruff clean, mypy strict
+clean, all seven new Python files formatted, and `alembic check` reporting no new upgrade
+operations.
