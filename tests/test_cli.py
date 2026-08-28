@@ -4,6 +4,7 @@ import json
 from pathlib import Path
 
 import pytest
+from click import unstyle
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -49,9 +50,10 @@ def test_literature_admin_commands_expose_an_explicit_uv_lock_path() -> None:
         result = runner.invoke(app, ["literature", command, "--help"])
 
         assert result.exit_code == 0, result.output
-        assert "--uv-lock-path" in result.stdout
-        assert "Exact approved uv.lock" in result.stdout
-        assert "required outside a source" in result.stdout
+        help_text = unstyle(result.stdout)
+        assert "--uv-lock-path" in help_text
+        assert "Exact approved uv.lock" in help_text
+        assert "required outside a source" in help_text
 
 
 def test_uv_lock_path_fails_closed_outside_a_source_checkout(
