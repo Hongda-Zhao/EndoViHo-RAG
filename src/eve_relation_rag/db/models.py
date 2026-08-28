@@ -8,6 +8,7 @@ membership by itself.
 from datetime import datetime
 from typing import Any
 
+from pgvector.sqlalchemy import VECTOR
 from sqlalchemy import (
     BigInteger,
     Boolean,
@@ -23,7 +24,7 @@ from sqlalchemy import (
     func,
     text,
 )
-from sqlalchemy.dialects.postgresql import JSONB
+from sqlalchemy.dialects.postgresql import JSONB, TSVECTOR
 from sqlalchemy.orm import Mapped, mapped_column
 
 from eve_relation_rag.db.base import Base
@@ -1553,3 +1554,550 @@ class ReleaseAssertionMembership(Base):
     created_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), nullable=False, server_default=func.now()
     )
+
+
+class LiteraturePolicy(Base):
+    """Immutable versioned parser, chunking, FTS, retrieval, or anchor policy."""
+
+    __tablename__ = "literature_policy"
+    __table_args__ = (
+        UniqueConstraint("id", "policy_kind", name="uq_literature_policy_id_kind"),
+        CheckConstraint(
+            "policy_kind IN ('parser', 'chunking', 'fts', 'retrieval', 'anchor')",
+            name="valid_policy_kind",
+        ),
+        CheckConstraint(SHA256_CHECK.format(column="policy_sha256"), name="valid_policy_sha256"),
+        CheckConstraint(SHA256_CHECK.format(column="code_sha256"), name="valid_code_sha256"),
+        CheckConstraint("jsonb_typeof(policy_json) = 'object'", name="policy_json_is_object"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    policy_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    policy_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    schema_version: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_json: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    policy_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    code_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class EmbeddingModel(Base):
+    """Immutable exact embedding model and processing identity."""
+
+    __tablename__ = "embedding_model"
+    __table_args__ = (
+        UniqueConstraint("id", "model_key", name="uq_embedding_model_id_key"),
+        CheckConstraint(
+            "provider_kind IN ('local_hf', 'deterministic_fake')",
+            name="valid_provider_kind",
+        ),
+        CheckConstraint("dimension = 384", name="dimension_is_384"),
+        CheckConstraint("max_sequence_tokens = 512", name="max_sequence_is_512"),
+        CheckConstraint("pooling = 'cls'", name="pooling_is_cls"),
+        CheckConstraint("l2_normalized", name="requires_l2_normalization"),
+        CheckConstraint("similarity = 'cosine'", name="similarity_is_cosine"),
+        CheckConstraint(
+            SHA256_CHECK.format(column="artifact_manifest_sha256"),
+            name="valid_artifact_manifest_sha256",
+        ),
+        CheckConstraint("jsonb_typeof(model_metadata) = 'object'", name="metadata_is_object"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    model_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    provider_kind: Mapped[str] = mapped_column(String(32), nullable=False)
+    repository_id: Mapped[str] = mapped_column(String(255), nullable=False)
+    revision: Mapped[str] = mapped_column(String(128), nullable=False)
+    dimension: Mapped[int] = mapped_column(Integer, nullable=False)
+    max_sequence_tokens: Mapped[int] = mapped_column(Integer, nullable=False)
+    pooling: Mapped[str] = mapped_column(String(32), nullable=False)
+    l2_normalized: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    passage_prefix: Mapped[str] = mapped_column(Text, nullable=False)
+    query_prefix: Mapped[str] = mapped_column(Text, nullable=False)
+    similarity: Mapped[str] = mapped_column(String(32), nullable=False)
+    license_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    artifact_manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    model_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class CorpusRelease(Base):
+    """Exact immutable-policy corpus release with fail-closed publication state."""
+
+    __tablename__ = "corpus_release"
+    __table_args__ = (
+        UniqueConstraint(
+            "id",
+            "parser_policy_id",
+            "chunking_policy_id",
+            name="uq_corpus_release_chunk_policies",
+        ),
+        UniqueConstraint("id", "embedding_model_id", name="uq_corpus_release_embedding_model"),
+        CheckConstraint(
+            "corpus_release_key ~ '^corpus:endoviho-rag:v0:[0-9]{8}:[0-9]{3}$'",
+            name="valid_corpus_release_key",
+        ),
+        CheckConstraint(
+            "status IN ('candidate', 'validated', 'published', 'retired', 'rejected')",
+            name="valid_status",
+        ),
+        CheckConstraint(
+            "(status IN ('published', 'retired') AND published_at IS NOT NULL) OR "
+            "(status NOT IN ('published', 'retired') AND published_at IS NULL)",
+            name="publication_fields_match_status",
+        ),
+        CheckConstraint(SHA256_CHECK.format(column="manifest_sha256"), name="valid_manifest"),
+        CheckConstraint(
+            SHA256_CHECK.format(column="policy_graph_sha256"), name="valid_policy_graph"
+        ),
+        CheckConstraint("manifest_document_count > 0", name="positive_document_count"),
+        CheckConstraint(
+            "expected_chunk_count_min > 0 AND expected_chunk_count_max >= expected_chunk_count_min",
+            name="valid_chunk_count_range",
+        ),
+        CheckConstraint(
+            "supersedes_release_id IS NULL OR supersedes_release_id <> id",
+            name="does_not_supersede_self",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    corpus_release_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    purpose: Mapped[str] = mapped_column(Text, nullable=False)
+    status: Mapped[str] = mapped_column(
+        String(32), nullable=False, server_default=text("'candidate'")
+    )
+    manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_graph_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    manifest_document_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    expected_chunk_count_min: Mapped[int] = mapped_column(Integer, nullable=False)
+    expected_chunk_count_max: Mapped[int] = mapped_column(Integer, nullable=False)
+    parser_policy_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("literature_policy.id", ondelete="RESTRICT"), nullable=False
+    )
+    chunking_policy_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("literature_policy.id", ondelete="RESTRICT"), nullable=False
+    )
+    fts_policy_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("literature_policy.id", ondelete="RESTRICT"), nullable=False
+    )
+    retrieval_policy_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("literature_policy.id", ondelete="RESTRICT"), nullable=False
+    )
+    anchor_policy_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("literature_policy.id", ondelete="RESTRICT"), nullable=False
+    )
+    embedding_model_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("embedding_model.id", ondelete="RESTRICT"), nullable=False
+    )
+    published_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+    supersedes_release_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("corpus_release.id", ondelete="RESTRICT")
+    )
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class Document(Base):
+    """Immutable source artifact, normalized text, metadata, and license identity."""
+
+    __tablename__ = "document"
+    __table_args__ = (
+        CheckConstraint(
+            "document_key ~ '^document:sha256:[0-9a-f]{64}$'", name="valid_document_key"
+        ),
+        CheckConstraint(
+            SHA256_CHECK.format(column="source_artifact_sha256"), name="valid_source_sha256"
+        ),
+        CheckConstraint(
+            SHA256_CHECK.format(column="normalized_document_sha256"),
+            name="valid_normalized_sha256",
+        ),
+        CheckConstraint("byte_size > 0 AND byte_size <= 52428800", name="valid_byte_size"),
+        CheckConstraint(
+            "media_type IN ('text/markdown', 'text/plain', 'application/xml')",
+            name="valid_media_type",
+        ),
+        CheckConstraint(
+            "license_review_status IN "
+            "('approved', 'pending', 'rejected', 'unknown', 'incompatible')",
+            name="valid_license_status",
+        ),
+        CheckConstraint(
+            "NOT retrieval_text_allowed OR license_review_status = 'approved'",
+            name="text_return_requires_approved_license",
+        ),
+        CheckConstraint("jsonb_typeof(authors) = 'array'", name="authors_is_array"),
+        CheckConstraint(
+            "jsonb_typeof(bibliographic_metadata) = 'object'", name="metadata_is_object"
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    document_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    source_artifact_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    normalized_document_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    byte_size: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    media_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    document_version: Mapped[str] = mapped_column(String(255), nullable=False)
+    title: Mapped[str] = mapped_column(Text, nullable=False)
+    authors: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    doi: Mapped[str | None] = mapped_column(String(255))
+    pmid: Mapped[str | None] = mapped_column(String(32))
+    pmcid: Mapped[str | None] = mapped_column(String(35))
+    source_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    retrieved_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    declared_license: Mapped[str] = mapped_column(String(255), nullable=False)
+    license_evidence_uri: Mapped[str] = mapped_column(Text, nullable=False)
+    license_review_status: Mapped[str] = mapped_column(String(32), nullable=False)
+    retrieval_text_allowed: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    bibliographic_metadata: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class CorpusDocumentMembership(Base):
+    """Explicit exact document membership in one corpus release."""
+
+    __tablename__ = "corpus_document_membership"
+    __table_args__ = (
+        UniqueConstraint("release_id", "manifest_row", name="uq_corpus_membership_manifest_row"),
+        CheckConstraint("manifest_row > 0", name="positive_manifest_row"),
+    )
+
+    release_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("corpus_release.id", ondelete="RESTRICT"), primary_key=True
+    )
+    document_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("document.id", ondelete="RESTRICT"), primary_key=True
+    )
+    manifest_row: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class DocumentChunk(Base):
+    """Corpus-scoped normalized chunk with stable locator and FTS vector."""
+
+    __tablename__ = "document_chunk"
+    __table_args__ = (
+        UniqueConstraint("release_id", "id", name="uq_document_chunk_release_id"),
+        UniqueConstraint(
+            "release_id",
+            "document_id",
+            "chunk_index",
+            name="uq_document_chunk_document_index",
+        ),
+        CheckConstraint("chunk_key ~ '^chunk:sha256:[0-9a-f]{64}$'", name="valid_chunk_key"),
+        CheckConstraint(SHA256_CHECK.format(column="text_sha256"), name="valid_text_sha256"),
+        CheckConstraint("length(text) > 0", name="nonempty_text"),
+        CheckConstraint("token_count > 0 AND token_count <= 448", name="valid_token_count"),
+        CheckConstraint("jsonb_typeof(section_path) = 'array'", name="section_path_is_array"),
+        CheckConstraint("jsonb_typeof(locator) = 'object'", name="locator_is_object"),
+        ForeignKeyConstraint(
+            ["release_id", "document_id"],
+            ["corpus_document_membership.release_id", "corpus_document_membership.document_id"],
+            name="fk_document_chunk_corpus_membership",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["release_id", "parser_policy_id", "chunking_policy_id"],
+            [
+                "corpus_release.id",
+                "corpus_release.parser_policy_id",
+                "corpus_release.chunking_policy_id",
+            ],
+            name="fk_document_chunk_release_policies",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    chunk_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    release_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    document_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    parser_policy_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    chunking_policy_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    chunk_index: Mapped[int] = mapped_column(Integer, nullable=False)
+    section_path: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    block_type: Mapped[str] = mapped_column(String(64), nullable=False)
+    locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    locator_text: Mapped[str] = mapped_column(Text, nullable=False)
+    text: Mapped[str] = mapped_column(Text, nullable=False)
+    text_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    token_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    fts_document: Mapped[str] = mapped_column(TSVECTOR, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class DocumentEmbedding(Base):
+    """One exact model-qualified, normalized passage vector per chunk."""
+
+    __tablename__ = "document_embedding"
+    __table_args__ = (
+        UniqueConstraint(
+            "release_id", "chunk_id", "embedding_model_id", name="uq_chunk_model_embedding"
+        ),
+        CheckConstraint("embedding_mode = 'passage'", name="passage_embeddings_only"),
+        CheckConstraint(
+            SHA256_CHECK.format(column="embedding_sha256"), name="valid_embedding_sha256"
+        ),
+        CheckConstraint(
+            "vector_norm(embedding) BETWEEN 0.99999 AND 1.00001",
+            name="unit_normalized_embedding",
+        ),
+        ForeignKeyConstraint(
+            ["release_id", "chunk_id"],
+            ["document_chunk.release_id", "document_chunk.id"],
+            name="fk_document_embedding_chunk_same_release",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["release_id", "embedding_model_id"],
+            ["corpus_release.id", "corpus_release.embedding_model_id"],
+            name="fk_document_embedding_release_model",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    release_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    chunk_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    embedding_model_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    embedding: Mapped[list[float]] = mapped_column(VECTOR(384), nullable=False)
+    embedding_mode: Mapped[str] = mapped_column(String(16), nullable=False)
+    embedding_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class DocumentAnchor(Base):
+    """Typed corpus retrieval signal with explicit provenance, never truth."""
+
+    __tablename__ = "document_anchor"
+    __table_args__ = (
+        UniqueConstraint(
+            "release_id",
+            "anchor_key",
+            name="uq_document_anchor_release_anchor_key",
+        ),
+        CheckConstraint("anchor_key ~ '^anchor:sha256:[0-9a-f]{64}$'", name="valid_anchor_key"),
+        CheckConstraint(
+            "anchor_type IN ('locus', 'assembly', 'lineage', 'method', 'document', 'keyword')",
+            name="valid_anchor_type",
+        ),
+        CheckConstraint(
+            "(anchor_type = 'locus' AND locus_key IS NOT NULL AND "
+            "assembly_key IS NULL AND lineage_snapshot_key IS NULL AND "
+            "lineage_term_key IS NULL AND method_definition_key IS NULL AND "
+            "target_document_key IS NULL AND doi IS NULL AND pmid IS NULL AND "
+            "pmcid IS NULL AND keyword_phrase IS NULL) OR "
+            "(anchor_type = 'assembly' AND assembly_key IS NOT NULL AND "
+            "locus_key IS NULL AND lineage_snapshot_key IS NULL AND "
+            "lineage_term_key IS NULL AND method_definition_key IS NULL AND "
+            "target_document_key IS NULL AND doi IS NULL AND pmid IS NULL AND "
+            "pmcid IS NULL AND keyword_phrase IS NULL) OR "
+            "(anchor_type = 'lineage' AND lineage_snapshot_key IS NOT NULL AND "
+            "lineage_term_key IS NOT NULL AND locus_key IS NULL AND assembly_key IS NULL AND "
+            "method_definition_key IS NULL AND target_document_key IS NULL AND doi IS NULL AND "
+            "pmid IS NULL AND pmcid IS NULL AND keyword_phrase IS NULL) OR "
+            "(anchor_type = 'method' AND method_definition_key IS NOT NULL AND "
+            "locus_key IS NULL AND assembly_key IS NULL AND lineage_snapshot_key IS NULL AND "
+            "lineage_term_key IS NULL AND target_document_key IS NULL AND doi IS NULL AND "
+            "pmid IS NULL AND pmcid IS NULL AND keyword_phrase IS NULL) OR "
+            "(anchor_type = 'document' AND "
+            "num_nonnulls(target_document_key, doi, pmid, pmcid) = 1 AND "
+            "locus_key IS NULL AND assembly_key IS NULL AND lineage_snapshot_key IS NULL AND "
+            "lineage_term_key IS NULL AND method_definition_key IS NULL AND "
+            "keyword_phrase IS NULL) OR "
+            "(anchor_type = 'keyword' AND keyword_phrase IS NOT NULL AND "
+            "locus_key IS NULL AND assembly_key IS NULL AND lineage_snapshot_key IS NULL AND "
+            "lineage_term_key IS NULL AND method_definition_key IS NULL AND "
+            "target_document_key IS NULL AND doi IS NULL AND pmid IS NULL AND pmcid IS NULL)",
+            name="typed_target_matches_anchor_type",
+        ),
+        CheckConstraint(SHA256_CHECK.format(column="anchor_sha256"), name="valid_anchor_sha256"),
+        CheckConstraint("manifest_row > 0", name="positive_manifest_row"),
+        CheckConstraint("jsonb_typeof(source_locator) = 'object'", name="locator_is_object"),
+        ForeignKeyConstraint(
+            ["release_id", "document_id"],
+            ["corpus_document_membership.release_id", "corpus_document_membership.document_id"],
+            name="fk_document_anchor_corpus_membership",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    anchor_key: Mapped[str] = mapped_column(String(255), nullable=False)
+    release_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    document_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    anchor_type: Mapped[str] = mapped_column(String(32), nullable=False)
+    locus_key: Mapped[str | None] = mapped_column(String(255))
+    assembly_key: Mapped[str | None] = mapped_column(String(255))
+    lineage_snapshot_key: Mapped[str | None] = mapped_column(String(255))
+    lineage_term_key: Mapped[str | None] = mapped_column(String(255))
+    method_definition_key: Mapped[str | None] = mapped_column(String(255))
+    target_document_key: Mapped[str | None] = mapped_column(String(255))
+    doi: Mapped[str | None] = mapped_column(String(255))
+    pmid: Mapped[str | None] = mapped_column(String(32))
+    pmcid: Mapped[str | None] = mapped_column(String(35))
+    keyword_phrase: Mapped[str | None] = mapped_column(Text)
+    manifest_row: Mapped[int] = mapped_column(Integer, nullable=False)
+    curation_method: Mapped[str] = mapped_column(String(255), nullable=False)
+    source_locator: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    anchor_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class CorpusImportRun(Base):
+    """Checksum-bound, terminally accounted literature import execution."""
+
+    __tablename__ = "corpus_import_run"
+    __table_args__ = (
+        UniqueConstraint("id", "release_id", name="uq_corpus_import_run_release_id"),
+        CheckConstraint("run_key ~ '^corpus-import:sha256:[0-9a-f]{64}$'", name="valid_run_key"),
+        CheckConstraint(
+            "status IN ('running', 'succeeded', 'failed', 'cancelled')", name="valid_status"
+        ),
+        CheckConstraint(
+            "(status = 'running' AND finished_at IS NULL) OR "
+            "(status <> 'running' AND finished_at IS NOT NULL)",
+            name="finish_matches_status",
+        ),
+        CheckConstraint(SHA256_CHECK.format(column="manifest_sha256"), name="valid_manifest"),
+        CheckConstraint(SHA256_CHECK.format(column="code_sha256"), name="valid_code"),
+        CheckConstraint(SHA256_CHECK.format(column="parameters_sha256"), name="valid_parameters"),
+        CheckConstraint("jsonb_typeof(parameters) = 'object'", name="parameters_is_object"),
+        CheckConstraint("jsonb_typeof(terminal_counts) = 'object'", name="counts_is_object"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    run_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    release_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("corpus_release.id", ondelete="RESTRICT"), nullable=False
+    )
+    manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    importer_version: Mapped[str] = mapped_column(String(128), nullable=False)
+    code_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    parameters: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    parameters_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    terminal_counts: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    status: Mapped[str] = mapped_column(String(32), nullable=False)
+    started_at: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False)
+    finished_at: Mapped[datetime | None] = mapped_column(DateTime(timezone=True))
+
+
+class CorpusImportLedger(Base):
+    """One terminal import outcome for every manifest document row."""
+
+    __tablename__ = "corpus_import_ledger"
+    __table_args__ = (
+        UniqueConstraint("run_id", "manifest_row", name="uq_corpus_ledger_run_row"),
+        CheckConstraint("manifest_row > 0", name="positive_manifest_row"),
+        CheckConstraint(
+            "outcome IN ('imported', 'reused', 'rejected', 'failed')", name="valid_outcome"
+        ),
+        CheckConstraint(SHA256_CHECK.format(column="source_sha256"), name="valid_source_sha256"),
+        CheckConstraint("chunk_count >= 0", name="nonnegative_chunk_count"),
+        CheckConstraint("jsonb_typeof(details) = 'object'", name="details_is_object"),
+        ForeignKeyConstraint(
+            ["run_id", "release_id"],
+            ["corpus_import_run.id", "corpus_import_run.release_id"],
+            name="fk_corpus_ledger_run_same_release",
+            ondelete="RESTRICT",
+        ),
+        ForeignKeyConstraint(
+            ["release_id", "document_id"],
+            ["corpus_document_membership.release_id", "corpus_document_membership.document_id"],
+            name="fk_corpus_ledger_document_membership",
+            ondelete="RESTRICT",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    run_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    release_id: Mapped[int] = mapped_column(BigInteger, nullable=False)
+    manifest_row: Mapped[int] = mapped_column(Integer, nullable=False)
+    document_id: Mapped[int | None] = mapped_column(BigInteger)
+    outcome: Mapped[str] = mapped_column(String(32), nullable=False)
+    reason_code: Mapped[str | None] = mapped_column(String(128))
+    source_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    chunk_count: Mapped[int] = mapped_column(Integer, nullable=False)
+    details: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+class CorpusValidationReceipt(Base):
+    """Immutable manifest, rebuild, integrity, and benchmark validation receipt."""
+
+    __tablename__ = "corpus_validation_receipt"
+    __table_args__ = (
+        CheckConstraint(
+            "receipt_key ~ '^corpus-receipt:sha256:[0-9a-f]{64}$'", name="valid_receipt_key"
+        ),
+        CheckConstraint("status IN ('passed', 'failed')", name="valid_status"),
+        CheckConstraint("NOT trusted OR status = 'passed'", name="trusted_receipt_must_pass"),
+        CheckConstraint(SHA256_CHECK.format(column="manifest_sha256"), name="valid_manifest"),
+        CheckConstraint(
+            SHA256_CHECK.format(column="policy_graph_sha256"), name="valid_policy_graph"
+        ),
+        CheckConstraint(SHA256_CHECK.format(column="rebuild_sha256"), name="valid_rebuild"),
+        CheckConstraint(SHA256_CHECK.format(column="benchmark_sha256"), name="valid_benchmark"),
+        CheckConstraint(SHA256_CHECK.format(column="receipt_sha256"), name="valid_receipt"),
+        CheckConstraint("jsonb_typeof(validation_report) = 'object'", name="report_is_object"),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    receipt_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    release_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("corpus_release.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    trusted: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    policy_graph_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    rebuild_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    benchmark_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    receipt_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    validation_report: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+Index("ix_corpus_release_status", CorpusRelease.status)
+Index("ix_document_chunk_release_document", DocumentChunk.release_id, DocumentChunk.document_id)
+Index(
+    "ix_document_chunk_fts_document_gin",
+    DocumentChunk.fts_document,
+    postgresql_using="gin",
+)
+Index(
+    "ix_document_embedding_hnsw_cosine",
+    DocumentEmbedding.embedding,
+    postgresql_using="hnsw",
+    postgresql_with={"m": 16, "ef_construction": 64},
+    postgresql_ops={"embedding": "vector_cosine_ops"},
+)
+Index("ix_document_anchor_release_type", DocumentAnchor.release_id, DocumentAnchor.anchor_type)
+Index(
+    "uq_corpus_validation_receipt_passing_release",
+    CorpusValidationReceipt.release_id,
+    unique=True,
+    postgresql_where=text("status = 'passed' AND trusted"),
+)

@@ -1,4 +1,5 @@
 from functools import lru_cache
+from pathlib import Path
 from typing import Literal
 
 from pydantic import SecretStr
@@ -21,6 +22,11 @@ class Settings(BaseSettings):
     environment: Literal["development", "test", "production"] = "development"
     database_url: str = "postgresql+psycopg://eve:eve_dev_password@localhost:5432/eve_relation_rag"
     cursor_hmac_secret: SecretStr | None = None
+    embedding_provider: Literal["local_bge"] = "local_bge"
+    embedding_model_path: Path | None = None
+    embedding_artifact_manifest_path: Path | None = None
+    embedding_artifact_manifest_sha256: str | None = None
+    corpus_import_root: Path | None = None
 
 
 @lru_cache

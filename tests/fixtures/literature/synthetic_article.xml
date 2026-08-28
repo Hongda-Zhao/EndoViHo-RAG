@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<article article-type="research-article">
+  <front>
+    <article-meta>
+      <title-group>
+        <article-title>Synthetic JATS Retrieval Article</article-title>
+      </title-group>
+      <abstract>
+        <p>This fabricated abstract tests safe JATS locators and carries no biological claim.</p>
+      </abstract>
+    </article-meta>
+  </front>
+  <body>
+    <sec id="methods">
+      <title>Methods</title>
+      <p>The synthetic procedure preserves exact checksums and refuses implicit corpus aliases.</p>
+      <fig id="fig-1">
+        <caption><p>Figure 1. Fabricated caption for deterministic tests.</p></caption>
+      </fig>
+    </sec>
+    <sec id="results">
+      <title>Results</title>
+      <p>No scientific result is claimed by this fixture.</p>
+      <table-wrap id="table-1">
+        <caption><p>Table 1. Synthetic values.</p></caption>
+        <table><tbody><tr><td>GCA_000000001.1</td><td>fixture-only</td></tr></tbody></table>
+      </table-wrap>
+    </sec>
+  </body>
+</article>

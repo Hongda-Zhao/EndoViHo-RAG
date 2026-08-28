@@ -3,7 +3,29 @@
 An auditable hybrid RAG system for finding known endogenous viral elements across structured
 data and literature.
 
-## Current state: Milestone 2 structured retrieval complete
+## Current state: Milestone 3 complete; pilot literature corpus published
+
+Milestone 3 implements the fixed-corpus literature path: checksum-bound local Markdown,
+plain-text, and safe JATS ingestion; stable locators; BGE-tokenizer chunking; PostgreSQL English
+FTS; local 384D embeddings; pgvector HNSW cosine search; deterministic RRF; typed curated
+anchors; strict `RetrievedChunks`; independent rebuild validation; benchmark receipts; and
+fail-closed publication.
+
+The approved 11-document Europe PMC pilot, `corpus:endoviho-rag:v0:20260828:001`, is published
+with 1,464 chunks, 1,464 embeddings, and 22 curated anchors. Its v2 retrieval policy fuses three
+equal RRF60 branches: English weighted FTS, full-chunk dense retrieval, and title/abstract dense
+retrieval, each at depth 100. The 13-question pinned-model pilot passed with Recall@5
+`0.846153846154`, Recall@10 `1.000000000000`, citation validity `1.000000000000`, and locator
+validity `1.000000000000`; responses use `retrieved-chunks-v2`.
+
+The release is bound to corpus manifest
+`1497ea3383bea64d2bc4f17d2376dceb537b4f6c6f57ccb6eaf667b6589732f0`, anchor manifest
+`75a523bc6408f13b07ba283e6539734ec3b694f3dab59994a464d40d98b01fca`, and model artifact
+manifest `0dc66d301fc8305bae93aa197200a176a61be13a302c3fee430cd2efc744241a`. Direct literature
+retrieval remains a developer CLI command; there is no public literature HTTP route, and
+Milestone 4 has not started.
+
+## Milestone 2 structured retrieval retained
 
 Milestone 2 provides a deterministic controlled-English parser, release-scoped resolver,
 published-release capability gate, fixed SQLAlchemy compiler, membership-rooted repository,
@@ -35,8 +57,9 @@ al. v4 pilot covers ten assembly accession.versions and all 39,495 selected VR r
 creates an inclusion decision or public release membership. The repository currently contains
 no flank assessments, inclusion decisions, or public locus memberships.
 
-The PostgreSQL schema contains 32 domain tables and Alembic head
-`0005_m1_fail_closed_publication`. It separates physical source records from method-specific
+The PostgreSQL schema contains 43 domain tables and Alembic head
+`0010_m3_lock_hardening`: 32 structured truth tables plus 11 independent literature
+tables. The structured layer still separates physical source records from method-specific
 detection calls, as well as loci, placements, assertions, evidence, decisions, and release
 membership, so neither repeated analyses nor records sharing an interval are silently merged.
 
@@ -55,12 +78,20 @@ audit boundary.
 
 ## Public-release boundary
 
-Verified staging is not a published EVE release. Migration `0005_m1_fail_closed_publication`
+Verified structured staging is not a published EVE release. Migration
+`0005_m1_fail_closed_publication`
 hard-disables database status promotion to `validated` or `published` until a trusted, immutable
 validation-receipt workflow is implemented. Publication also remains fail-closed until all
 candidate memberships have independent supported left and right flank assessments, an explicit
 authorized inclusion decision, complete frozen NCBI Taxonomy history, and the required ICTV
 snapshot/release binding. Corrections to a published release must create a new immutable release.
+
+The literature corpus has a separate, completed publication lifecycle. Database administration
+is the trusted control plane for staging, receipt creation, and status transitions; these guards
+do not attempt to defend against a malicious database administrator. A status value alone does
+not authorize retrieval: the application gate also verifies the exact manifest, immutable
+receipt evidence, policy identities and hashes, recomputed policy graph, approved model artifact,
+license boundary, and complete embeddings before issuing a query capability.
 
 ## Local development
 
@@ -81,6 +112,18 @@ uv run alembic check
 uv run uvicorn eve_relation_rag.api.app:app --reload
 ```
 
+The local BGE runtime is a separately locked optional dependency. Install it only on a host that
+holds the exact approved, locally verified model artifacts:
+
+```sh
+uv sync --locked --dev --extra local-embeddings
+```
+
+Configure `EVE_RAG_EMBEDDING_MODEL_PATH`,
+`EVE_RAG_EMBEDDING_ARTIFACT_MANIFEST_PATH`, and
+`EVE_RAG_EMBEDDING_ARTIFACT_MANIFEST_SHA256` with that exact package. Mutating corpus operations
+also require an explicit `--import-root`; there is no model, corpus, or checksum default.
+
 Set `EVE_RAG_CURSOR_HMAC_SECRET` to at least 32 random bytes before a structured fact query; no
 default cursor key or bypass exists. The liveness endpoint is `GET /health`; the structured
 question-first endpoints are `POST /v0/structured/plan` and `POST /v0/structured/query`.
@@ -95,9 +138,27 @@ uv run eve-relation-rag structured query \
   --question "Count distinct included loci in this release."
 ```
 
-These examples intentionally demonstrate the real publication refusal until a trusted immutable
-receipt and all biological inclusion gates exist. Stop services with `docker compose down` and
-`colima stop`; the PostgreSQL named volume is preserved unless explicitly removed.
+The M3 developer namespace contains these explicit, checksum-bound operations:
+
+```text
+eve-relation-rag literature manifest-validate
+eve-relation-rag literature corpus-stage
+eve-relation-rag literature benchmark
+eve-relation-rag literature corpus-validate
+eve-relation-rag literature corpus-publish
+eve-relation-rag literature retrieve
+```
+
+All mutating and evaluation commands require the exact approved inputs they consume:
+`corpus-stage` binds corpus, anchor, and model artifacts, while `benchmark` and
+`corpus-validate` additionally bind the benchmark definition. They never download documents or a
+model, infer `latest`, or publish implicitly. Publication requires the exact manifest and
+immutable passing receipt checksums.
+
+The structured examples intentionally demonstrate refusal for the candidate-only Zhao release;
+that boundary is independent of the published literature corpus. Stop services with
+`docker compose down` and `colima stop`; the PostgreSQL named volume is preserved unless
+explicitly removed.
 
 Detailed implementation status and scientific semantics are recorded in
 `docs/development_status.md` and `docs/data_semantics.md`.

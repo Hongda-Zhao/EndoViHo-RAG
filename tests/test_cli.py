@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+from pathlib import Path
 
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
@@ -9,9 +10,37 @@ import eve_relation_rag.cli as cli_module
 from eve_relation_rag.api.app import app as api_app
 from eve_relation_rag.bootstrap import get_structured_query_application
 from eve_relation_rag.cli import app
+from eve_relation_rag.literature.contracts import RetrievedChunks
 from tests.support.m2 import TEST_RELEASE_KEY, make_aggregate_application
 
 runner = CliRunner()
+LITERATURE_FIXTURE_ROOT = Path(__file__).parent / "fixtures" / "literature"
+
+
+class _FakeLiteratureService:
+    def retrieve(self, invocation: object) -> RetrievedChunks:
+        del invocation
+        return RetrievedChunks(
+            result_schema_version="retrieved-chunks-v2",
+            status="ok",
+            corpus_release_key="corpus:endoviho-rag:v0:20990101:001",
+            corpus_manifest_sha256="a" * 64,
+            retrieval_policy_key=(
+                "retrieval:postgres16-english-bge-hnsw-summary-rrf60-v2"
+            ),
+            embedding_model_key=(
+                "embedding:hf:BAAI-bge-small-en-v1.5@"
+                "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a:cls-l2norm-v1"
+            ),
+            query_sha256="b" * 64,
+            requested_top_k=8,
+            returned_count=0,
+            retrieval_executed=True,
+            anchor_mode="none",
+            anchors_applied=(),
+            warnings=("no_chunks_retrieved",),
+            chunks=(),
+        )
 
 
 def test_cli_and_api_return_semantically_identical_canonical_json(monkeypatch: object) -> None:
@@ -131,3 +160,59 @@ def test_cli_missing_required_option_uses_stable_json_envelope() -> None:
     assert body["response_kind"] == "error"
     assert body["error"]["code"] == "request_schema_invalid"
     assert body["error"]["field_errors"][0]["field"] == "question"
+
+
+def test_literature_retrieve_emits_stable_typed_json(monkeypatch: object) -> None:
+    monkeypatch.setattr(  # type: ignore[attr-defined]
+        cli_module,
+        "get_literature_retrieval_service",
+        lambda: _FakeLiteratureService(),
+    )
+
+    result = runner.invoke(
+        app,
+        [
+            "literature",
+            "retrieve",
+            "--corpus-release-key",
+            "corpus:endoviho-rag:v0:20990101:001",
+            "--question",
+            "What methods were used?",
+        ],
+    )
+
+    assert result.exit_code == 0, result.output
+    body = json.loads(result.stdout)
+    assert body["result_schema_version"] == "retrieved-chunks-v2"
+    assert body["retrieval_executed"] is True
+
+
+def test_literature_manifest_validate_requires_exact_approved_checksum() -> None:
+    manifest_path = LITERATURE_FIXTURE_ROOT / "synthetic_corpus_manifest.json"
+    valid = runner.invoke(
+        app,
+        [
+            "literature",
+            "manifest-validate",
+            "--manifest-path",
+            str(manifest_path),
+            "--approved-manifest-sha256",
+            "887bd65b23cc9eca80657250dd0a5233e48c58a5c6a3072b13f2278485ee0b1a",
+        ],
+    )
+    invalid = runner.invoke(
+        app,
+        [
+            "literature",
+            "manifest-validate",
+            "--manifest-path",
+            str(manifest_path),
+            "--approved-manifest-sha256",
+            "0" * 64,
+        ],
+    )
+
+    assert valid.exit_code == 0
+    assert json.loads(valid.stdout)["status"] == "valid"
+    assert invalid.exit_code == 2
+    assert json.loads(invalid.stderr)["status"] == "error"
