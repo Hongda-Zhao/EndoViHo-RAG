@@ -27,6 +27,9 @@ class Settings(BaseSettings):
     embedding_artifact_manifest_path: Path | None = None
     embedding_artifact_manifest_sha256: str | None = None
     corpus_import_root: Path | None = None
+    llm_provider: Literal["disabled"] = "disabled"
+    hybrid_binding_manifest_path: Path | None = None
+    hybrid_binding_manifest_sha256: str | None = None
 
 
 @lru_cache

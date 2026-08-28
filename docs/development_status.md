@@ -2,11 +2,198 @@
 
 > Product version: V0
 >
-> Current milestone: Milestone 3 — complete; approved pilot literature corpus published
+> Current milestone: Milestone 4 — engineering mechanism **FULFILLED**; real activation blocked
 >
-> Status: M3.0–M3.5 complete; real 11-document v2 corpus validated, receipted, and published
+> Status: M4.0–M4.5 and all final local acceptance gates are complete; the PR exit gate is
+> fulfilled, while real activation remains intentionally blocked
 >
 > Last verified: 2026-08-28 (Asia/Tokyo)
+
+## Milestone 4 status — mechanism FULFILLED, activation blocked
+
+The user approved Milestone 4 Contract Draft A and authorized implementation through a pull
+request. The current branch is `codex/milestone-4-hybrid-rag`, based on M3 merge commit
+`46e2155811978d407776894caab01f19504edb2b`. The routed-RAG mechanism is present in the working
+tree and its final repository-wide local acceptance gates passed. This status records engineering
+mechanism fulfillment and PR readiness; pull-request and remote-CI state are tracked separately.
+It does **not** claim real provider generation or real Zhao hybrid activation.
+
+| Classification | Current state |
+|---|---|
+| Engineering mechanism | **FULFILLED**: strict contracts, four-route router, binding registry, anchor resolver, ContextPack, provider protocol, composer, validators, deterministic rendering, shared application, API, CLI, and deterministic tests passed the final local gates |
+| Milestone fulfillment | **FULFILLED locally on 2026-08-28**; requested PR is authorized, while remote CI remains a separate external result |
+| Real literature answer generation | Blocked: production bootstrap supplies no composer and `llm_provider` accepts only `disabled` |
+| Real Zhao hybrid activation | Blocked independently by structured publication, exact binding, structured-target anchors, provider/egress approval, and human semantic review |
+
+Implemented M4 components:
+
+- strict immutable `rag-query-request-v1`, route, binding, context, provider, draft,
+  composition, answer, execution-flag, and error contracts with canonical JSON/SHA-256 identities;
+- a side-effect-free deterministic router that imports no database, embedding, or LLM runtime;
+- an exact checksum-approved local binding-manifest registry, loaded lazily only for a hybrid
+  request and unavailable by default;
+- round-trip validation of M2 `QuerySuccess`, trusted extraction of exact structured targets, and
+  capability-scoped lookup of existing M3 anchors with manifest-row, typed-shape, preimage,
+  anchor-key, and checksum validation;
+- immutable `ContextPack` construction, a dependency-free runtime-checkable `LLMProvider`
+  protocol, exact provider/prompt identity checks, one-call/no-retry composition, constrained
+  drafts, all-or-none mechanical validation, and deterministic application rendering;
+- one fixed route orchestration service with explicit actual-call flags and no fallback to a
+  different route, release, corpus, or unvalidated partial answer;
+- public `POST /v0/query` and `eve-relation-rag rag query`, both using the same application and
+  canonical `rag-error-v1`/success serialization while preserving all existing M2/M3 adapters;
+- a checksum-bound 30-case router benchmark with route counts `5 structured / 5 literature /
+  10 hybrid / 10 unsupported` and manifest SHA-256
+  `ad4142226ec986efec6dc26ee8125e679b12489d5322ec797e0acfd7fd66e356`;
+- a checksum-bound 14-case mechanical-generation benchmark with 13 hybrid cases across all six
+  structured result variants plus unsupported zero-call refusal, manifest SHA-256
+  `538294e55050d9f1d2a56949849878d94cf5383e1c1049785f219c49c8e20cfa`.
+
+Primary implementation evidence:
+
+| Area | Local source |
+|---|---|
+| Contracts, responses, limits | `src/eve_relation_rag/hybrid/contracts.py` |
+| Router | `src/eve_relation_rag/planning/router.py` |
+| Exact binding manifest | `src/eve_relation_rag/hybrid/bindings.py` |
+| Corpus-scoped structured anchors | `src/eve_relation_rag/retrieval/hybrid/anchors.py` |
+| Context/provider/composition/validation | `src/eve_relation_rag/generation/` |
+| Fixed route orchestration | `src/eve_relation_rag/application/rag.py` |
+| Production-safe composition | `src/eve_relation_rag/bootstrap.py`, `src/eve_relation_rag/config/settings.py` |
+| Public adapters | `src/eve_relation_rag/api/app.py`, `src/eve_relation_rag/cli.py` |
+| Deterministic benchmarks | `tests/fixtures/m4/router_cases.json`, `generation_cases.json`, and matching `tests/benchmark/test_m4_*_benchmark.py` |
+
+### Exact M4 route grammar
+
+The outer router preserves the original printable-ASCII, single-line question and selects only
+these fixed families. It does not decide scientific truth; an inner structured clause is still
+subject to the unchanged M2 parser, audit, resolver, and release gate.
+
+Clients cannot submit the route, a query plan/result, SQL, anchors, `ContextPack`, provider/model
+identity, sampling controls, prompt policy, or citation IDs. Those values remain server-owned.
+
+| Route | Exact question family | Required selector shape | Downstream behavior |
+|---|---|---|---|
+| `structured` | M2 `show`, `list`, or `count` family, with no literature suffix | `release_key` only; no corpus key or `literature_top_k` | unchanged M2 query once; no literature or generation |
+| `literature` | case-insensitive `Explain the literature evidence for <topic>`, `Explain the literature methods for <topic>`, or `Explain the literature limitations for <topic>` | `corpus_release_key` only; no release key or page | exact M3 retrieval once; generate once only when chunks exist |
+| `hybrid` | one M2 clause followed by exactly one terminal ` and explain the literature evidence`, ` and explain the literature methods`, or ` and explain the literature limitations` suffix | both exact release keys; optional page and `literature_top_k` | binding preflight, M2 query, trusted anchors, M3 retrieval, then generation when chunks exist |
+| `unsupported` | every other family, selector mismatch, duplicate suffix, or prohibited topic | any | zero release, database, embedding, retrieval, or generation side effects |
+
+The prohibited-topic vocabulary includes prevalence, biological absence, infection inference,
+co-divergence, independent integration events, host-lineage comparison, new EVE detection,
+sequence upload, BLAST/HMMER/Foldseek, phylogenetic placement, live web search, arbitrary or
+text-to-SQL, multilingual output, and multi-turn memory. There is no invalid-structured-to-
+literature fallback.
+
+### Exact binding and execution order
+
+A hybrid request first checks a strict local
+`hybrid-release-binding-manifest-v1`. Each entry binds one exact structured release key and
+manifest SHA-256 to one exact corpus release key and manifest SHA-256; the manifest carries its
+own canonical self-excluding checksum, and configuration must separately pin that checksum.
+Missing path/checksum, malformed or duplicate entries, an unapproved pair, or a gate-issued
+manifest mismatch returns `hybrid_binding_unavailable` before fact retrieval. Draft A approves
+no real manifest; tests inject only tests-owned bindings. Production configuration requires both
+`EVE_RAG_HYBRID_BINDING_MANIFEST_PATH` and
+`EVE_RAG_HYBRID_BINDING_MANIFEST_SHA256`; neither has an approved real value in M4.
+
+The hybrid call order is fixed:
+
+```text
+route
+-> exact binding preflight
+-> published structured-release authorization
+-> published corpus authorization
+-> unchanged M2 QuerySuccess
+-> trusted target extraction and exact same-corpus anchor resolution
+-> one M3 retrieval
+-> ContextPack
+-> one provider call when configured and evidence exists
+-> all-or-none mechanical validation
+-> deterministic HybridRouteAnswer
+```
+
+Any upstream refusal stops all downstream calls. Empty literature retrieval returns
+`insufficient_evidence` on a literature route; a hybrid route preserves the unchanged structured
+result, adds the explicit insufficiency limitation, and does not call generation.
+
+### Frozen M4 limits and trust boundary
+
+| Parameter | Approved and implemented value |
+|---|---|
+| Public question | one printable-ASCII line, 1..2,000 characters |
+| M4 literature `top_k` | default `8`, strict `1..8` even though direct M3 retrieval supports up to 20 |
+| Context | canonical `context-pack-v1`, maximum `131,072` UTF-8 bytes and 8 chunks; no silent truncation |
+| Answer-instruction policy | `answer:endoviho-rag:v0:grounded-document-claims-v1` |
+| Answer-instruction source SHA-256 | `7f30766995041305f47c8ef867103af42d3f2394fc72eef37f3e42a2ad3f7684` |
+| Canonical `AnswerInstructions` SHA-256 | `4e906e96688e67956017ee7935952d9aedb2926e087f15bae050a343a58be8c1` |
+| Structured anchor targets/system anchors | maximum `64`; exact locus/assembly/lineage/method only; no fuzzy/document/keyword inference |
+| Generated claims | maximum `16`; continuous `C1..Cn`; each claim cites 1..4 current `D#` chunks |
+| Claim/evidence text | claim at most 1,000 printable-ASCII characters; each exact evidence span at most 500 |
+| Provider output | maximum `32,768` UTF-8 bytes |
+| Sampling/retry | `temperature = 0`; `retry_count = 0`; one provider call only |
+| Provider deadline | the provider must enforce its pinned `timeout_seconds`; composer maps expiry to a sanitized failure and never retries |
+| Validation scope | `mechanical`; exact citations/spans and provenance do not prove semantic entailment |
+| Persistence | none for prompts, provider output, claims, or generated answers |
+
+`ContextPack` is the only factual value admitted to an LLM boundary. It contains the original
+question, exact `RetrievedChunks`, fixed checksum-pinned answer instructions, and—only for
+hybrid—the validated M2 plan and unchanged structured result. It excludes engines/sessions, SQL,
+capabilities, settings, credentials, embeddings, hidden documents, external results, provider
+background knowledge, and conversation history. Every trust boundary uses strict JSON
+round-trip validation so unchecked `model_copy` mutations do not bypass validation.
+
+The mechanical validator checks current-response citation identity, exact evidence-span
+membership, context/provider/prompt hashes, structured preservation, identifier and numeric-token
+provenance, forbidden-inference phrases, required limitations, and size/count constraints. Final
+generation records state `validation_scope = "mechanical"`. This proves contract conformance and
+traceability only; real activation additionally requires a checksum-bound human claim-support
+benchmark with zero unsupported claims.
+
+### Production-safe disabled state and real blockers
+
+Production settings define `llm_provider: Literal["disabled"] = "disabled"`, and
+`get_rag_query_application()` always passes `composer=None`. No remote provider SDK, API key,
+model revision, prompt-egress approval, or provider-selectable HTTP/CLI field exists. A literature
+or hybrid request that reaches non-empty generation therefore returns
+`llm_provider_unavailable`; `/health`, unsupported, structured, and existing M2/M3 operations do
+not construct an LLM provider.
+
+Real Zhao hybrid activation remains blocked because:
+
+1. `release:endoviho-rag:v0:20260826:001` is candidate-only and cannot pass the M2 publication
+   gate;
+2. no real dataset/corpus binding manifest and independently approved checksum exist;
+3. published corpus `corpus:endoviho-rag:v0:20260828:001` has document and keyword anchors but
+   no locus, assembly, lineage, or method anchors derivable from `StructuredResult`;
+4. no production provider/generation policy or structured/document egress permission is
+   approved; and
+5. no checksum-bound human semantic-support benchmark has been approved and passed.
+
+Synthetic successes, release/corpus capabilities, bindings, structured-target anchors, and
+providers remain under `tests/` and are not selectable through settings, API, or CLI.
+
+### M4 final local acceptance gates — FULFILLED
+
+The final evidence below was recorded from the consolidated working tree. It closes the M4
+engineering-mechanism and local PR exit gates, but not the separate real-activation gate:
+
+| Gate | Final local result |
+|---|---|
+| Full pre-existing plus M4 pytest suite with local PostgreSQL | `682 passed, 1 warning` |
+| Frozen M2/M3/M4 benchmark selection | `72 passed`, including the checksum-bound router and mechanical-generation gates |
+| Real-state fail-closed boundary | confirmed: Zhao remains candidate-only; no approved real binding, structured-target anchors, provider/egress policy, or human semantic benchmark exists |
+| Ruff | full repository passed |
+| strict mypy | passed for `78 source files` |
+| `uv lock --check` | passed with `92 packages` |
+| Alembic current database | exactly one head, `0010_m3_lock_hardening`; `alembic check` reported no drift |
+| Alembic clean-history replay | a temporary empty PostgreSQL database upgraded from `0001_empty_baseline` through `0010_m3_lock_hardening`; final `alembic check` reported no drift; the temporary database was deleted |
+| Production-boundary audit | production has no selectable fake or real binding manifest and composes no LLM; synthetic capabilities, bindings, anchors, and providers remain tests-owned |
+| Schema/data mutation audit | M4 added no migration, schema change, production-data mutation, or generated-answer persistence path |
+| Documentation and patch hygiene | Markdown parse/local-link checks and `git diff --check` passed |
+
+The requested PR may therefore be opened. A future remote-CI result is not part of this local
+fulfillment record and real hybrid activation remains blocked.
 
 ## Milestone 3 outcome
 
@@ -35,7 +222,8 @@ Implemented scope:
 - independent rebuild validation, deterministic and pinned-model benchmark tiers, trusted receipt
   creation, and exact manifest/receipt publication commands;
 - developer CLI commands for manifest validation, staging, benchmarking, validation, publication,
-  and direct retrieval. No public literature HTTP route or Milestone 4 LLM path was added.
+  and direct retrieval. M3 itself added no public literature HTTP route or LLM path; the later M4
+  engineering surface is recorded separately above.
 
 Synthetic fixtures continue to prove the mechanism independently of the real release. They use
 the deliberately synthetic future key `corpus:endoviho-rag:v0:20990101:001` and are test-only.
@@ -87,8 +275,8 @@ receipt creation, and lifecycle mutation. This boundary does not claim protectio
 malicious database administrator. Conversely, a release status alone never authorizes a query:
 the application gate verifies the exact manifest, receipt evidence, policy JSON and hashes,
 recomputed policy graph, approved model artifact, retrieval-text rights, and embedding
-completeness before issuing a capability. Milestone 4 has not started and requires separate user
-authorization.
+completeness before issuing a capability. The M4 mechanism described above composes that
+unchanged M3 capability and does not weaken its authorization boundary.
 
 ## Milestone 2 retained outcome
 
@@ -127,11 +315,12 @@ Key artifacts:
 | Item | Verified state on 2026-08-28 |
 |---|---|
 | M2 baseline | `main` at `d7287e1b16681ec2f8e9ff2cea337eca71cfeef8`, tracking `origin/main` |
-| Active M3 work | branch `codex/milestone-3-m30-foundation`, based on the M2 baseline; complete PR payload |
 | Milestone 2 integration | [PR #2](https://github.com/Hongda-Zhao/EndoViHo-RAG/pull/2) merged into `main` |
-| Latest `main` CI | [GitHub Actions run 33041862881](https://github.com/Hongda-Zhao/EndoViHo-RAG/actions/runs/33041862881) succeeded |
-| Standalone GitHub issues | none |
-| `main` branch protection | GitHub reports the branch as unprotected; required-check enforcement remains a repository-governance task |
+| Milestone 3 integration | PR #3 merged into `origin/main` at `46e2155811978d407776894caab01f19504edb2b` |
+| Active M4 work | branch `codex/milestone-4-hybrid-rag`, based on the M3 merge; local mechanism and PR exit gates fulfilled |
+| Last recorded pre-M3 `main` CI | [GitHub Actions run 33041862881](https://github.com/Hongda-Zhao/EndoViHo-RAG/actions/runs/33041862881) succeeded; current M4 remote CI has not run |
+| Standalone GitHub issues | none in the last recorded remote audit; current state not re-queried from this local-only documentation pass |
+| `main` branch protection | last recorded as unprotected; current enforcement is unverified and remains a repository-governance task |
 
 ### Frozen Milestone 2 parameters
 
@@ -307,27 +496,37 @@ promotion. Database triggers require a trusted exact receipt for validation and 
 
 ## API, CLI, and deferred scope
 
-Implemented API surface remains `GET /health`, `POST /v0/structured/plan`, and
-`POST /v0/structured/query`. The CLI exposes `structured plan`, `structured query`, and the M3
-`literature manifest-validate`, `corpus-stage`, `benchmark`, `corpus-validate`, `corpus-publish`,
-and `retrieve` commands. Direct literature retrieval is deliberately a developer CLI path until
-a later API contract. Both structured and literature retrieval fail closed unless their exact
-release is published.
+The implemented API surface is `GET /health`, `POST /v0/structured/plan`,
+`POST /v0/structured/query`, and the M4 `POST /v0/query`. The CLI exposes `structured plan`,
+`structured query`, M4 `rag query`, and the M3 `literature manifest-validate`, `corpus-stage`,
+`benchmark`, `corpus-validate`, `corpus-publish`, and `retrieve` commands. The M4 endpoint and CLI
+share one application service and canonical response serialization. Existing structured and M3
+adapters retain their prior envelopes.
 
-Deferred beyond Milestone 3:
+`POST /v0/query` and `rag query` expose the four deterministic route families, but this is an
+engineering surface rather than real generation activation. Exact structured and literature
+gates still apply; hybrid additionally requires an approved exact binding; and production
+generation is disabled. M4 adds no Alembic revision, database table, production data row, or
+online write path.
 
-- public literature and hybrid API contracts;
-- LLM providers, routing, answer generation, `ContextPack`, and claim/citation validation;
+Deferred beyond Milestone 4 Draft A:
+
+- publication of the Zhao structured candidate and public locus memberships;
+- approval of a real dataset/corpus binding manifest and structured-target corpus anchors;
+- approval and configuration of a production LLM/provider/prompt policy and any data egress;
+- a checksum-bound human semantic-support benchmark and real generation activation;
 - complete global Zhao et al. data beyond the ten-assembly pilot;
 - the Guinet adapter and additional source adapters;
-- demo and evaluation layers.
+- streaming, sessions, memory, personalization, live search, agents, and tool loops; and
+- M5 demo, evaluation UI, and release packaging.
 
 ### Next-decision boundary
 
-Milestone 3 is complete through exact publication, and its PR scope is frozen. Milestone 4 has
-not started; any public literature/hybrid API, LLM answer generation, `ContextPack`, or
-claim/citation-validation work requires a separately approved M4 contract. M3 publication does
-not weaken the M2 release gate: the structured Zhao pilot remains candidate-only.
+M4 engineering acceptance and the local PR exit gate are fulfilled. That completion does not
+authorize real generation. Publishing Zhao structured facts, approving a real binding/anchor
+package, selecting a provider or data-egress policy, or activating semantically reviewed answers
+each requires a separate explicit approval or contract amendment. M3 publication does not weaken
+the M2 release gate: the structured Zhao pilot remains candidate-only.
 
 ### Approved Milestone 3 parameters
 
@@ -364,6 +563,9 @@ Milestone 1/2 structured truth semantics.
 | Database client / ORM | psycopg `3.3.4`; SQLAlchemy `2.0.52`; pgvector Python `0.5.0` |
 | Document parsing | markdown-it-py `4.2.0`; defusedxml `0.7.1` |
 | Local embedding runtime | optional sentence-transformers `6.0.0`, locked but not installed by the default development sync |
+| M4 outer routing | dependency-free deterministic fixed grammar; checksum-bound 30-case benchmark |
+| M4 generation provider | dependency-free `LLMProvider` protocol; production selection fixed to `disabled`; deterministic fakes only in tests |
+| M4 validation | strict Pydantic round trips, canonical SHA-256, exact citation/span and identifier checks; semantic entailment remains human-reviewed |
 | Migration | Alembic `1.19.1`; head `0010_m3_lock_hardening` |
 | Tests | pytest `8.4.2`, including PostgreSQL integration tests |
 | Lint / static typing | Ruff `0.16.4`; mypy `1.20.2` strict mode |
@@ -384,8 +586,30 @@ uv run python scripts/stage_milestone1.py
 uv run pytest
 uv run ruff check .
 uv run mypy src
+uv lock --check
 uv run alembic check
+git diff --check
 ```
+
+The focused M4 iteration command is:
+
+```sh
+uv run pytest \
+  tests/planning/test_m4_router.py \
+  tests/benchmark/test_m4_router_benchmark.py \
+  tests/benchmark/test_m4_generation_benchmark.py \
+  tests/hybrid \
+  tests/retrieval/hybrid \
+  tests/generation \
+  tests/application/test_rag_application.py \
+  tests/api/test_rag_api.py \
+  tests/test_rag_cli.py
+```
+
+Focused tests remain an iteration aid rather than a substitute for the final full-suite,
+benchmark, clean-migration, lock, Ruff, mypy, and diff gates recorded above. GitHub Actions runs
+migration upgrade/check, full pytest, Ruff, and mypy on pushes and pull requests; this local
+mechanism-fulfillment record does not pre-claim a remote-CI result.
 
 Install the separately locked local embedding runtime only on a host holding the approved model
 artifact package:

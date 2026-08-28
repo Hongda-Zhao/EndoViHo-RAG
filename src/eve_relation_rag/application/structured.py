@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from collections.abc import Callable
 from typing import Protocol
 
 from eve_relation_rag.planning.parser import ControlledEnglishPlanner, StructuredQueryRequest
@@ -74,6 +75,40 @@ class StructuredQueryApplication:
         release, planned = authorized
         if self._retrieval is None:
             return self._retrieval_unavailable(planned)
+        return self._retrieval.query_authorized(
+            release,
+            planned.query_plan,
+            planned.planning_audit,
+            planned.resolved_entities,
+        )
+
+    def query_with_pre_fact_hook(
+        self,
+        request: StructuredQueryRequest,
+        hook: Callable[[ReleaseCapability, PlanSuccess], None],
+    ) -> QuerySuccess | ErrorResponse:
+        """Run one internal hook after complete planning and before any fact query.
+
+        Milestone 4 uses this server-only seam to authorize the exact bound corpus after the
+        structured release, resolver, plan, cursor, and semantic checks pass.  The hook and
+        release capability are never client-authored or exposed by an adapter.
+        """
+
+        authorized = self._authorize_and_plan(request)
+        if isinstance(authorized, ErrorResponse):
+            return authorized
+        release, planned = authorized
+        if self._retrieval is None:
+            return self._retrieval_unavailable(planned)
+        preflight_error = self._retrieval.preflight_authorized(
+            release,
+            planned.query_plan,
+            planned.planning_audit,
+            planned.resolved_entities,
+        )
+        if preflight_error is not None:
+            return preflight_error
+        hook(release, planned)
         return self._retrieval.query_authorized(
             release,
             planned.query_plan,

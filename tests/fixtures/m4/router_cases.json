@@ -1,0 +1,493 @@
+{
+  "benchmark_schema_version": "m4-router-benchmark-v1",
+  "case_count": 30,
+  "route_counts": {
+    "structured": 5,
+    "literature": 5,
+    "hybrid": 10,
+    "unsupported": 10
+  },
+  "cases": [
+    {
+      "case_id": "structured-01",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": null,
+        "question": "Show assembly GCA_000000001.1",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "structured",
+      "expected_structured_question": "Show assembly GCA_000000001.1",
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "structured-02",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": null,
+        "question": "Show locus locus:eve:v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "structured",
+      "expected_structured_question": "Show locus locus:eve:v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "structured-03",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": null,
+        "question": "List all loci in this release.",
+        "page": {"limit": 25, "cursor": null},
+        "literature_top_k": null
+      },
+      "expected_route": "structured",
+      "expected_structured_question": "List all loci in this release.",
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "structured-04",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": null,
+        "question": "LIST all assemblies in this release.",
+        "page": {"limit": 50, "cursor": null},
+        "literature_top_k": null
+      },
+      "expected_route": "structured",
+      "expected_structured_question": "LIST all assemblies in this release.",
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "structured-05",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": null,
+        "question": "count distinct included loci in this release.",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "structured",
+      "expected_structured_question": "count distinct included loci in this release.",
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "literature-01",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature evidence for Polinton virions",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "literature",
+      "expected_structured_question": null,
+      "expected_literature_question": "Explain the literature evidence for Polinton virions",
+      "expected_effective_literature_top_k": 8,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "literature-02",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature methods for ViralRecall",
+        "page": null,
+        "literature_top_k": 4
+      },
+      "expected_route": "literature",
+      "expected_structured_question": null,
+      "expected_literature_question": "Explain the literature methods for ViralRecall",
+      "expected_effective_literature_top_k": 4,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "literature-03",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature limitations for ViralRecall classification",
+        "page": null,
+        "literature_top_k": 1
+      },
+      "expected_route": "literature",
+      "expected_structured_question": null,
+      "expected_literature_question": "Explain the literature limitations for ViralRecall classification",
+      "expected_effective_literature_top_k": 1,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "literature-04",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "EXPLAIN THE LITERATURE EVIDENCE FOR endogenous viral elements",
+        "page": null,
+        "literature_top_k": 8
+      },
+      "expected_route": "literature",
+      "expected_structured_question": null,
+      "expected_literature_question": "EXPLAIN THE LITERATURE EVIDENCE FOR endogenous viral elements",
+      "expected_effective_literature_top_k": 8,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "literature-05",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain The Literature Methods For metagenomic discovery",
+        "page": null,
+        "literature_top_k": 6
+      },
+      "expected_route": "literature",
+      "expected_structured_question": null,
+      "expected_literature_question": "Explain The Literature Methods For metagenomic discovery",
+      "expected_effective_literature_top_k": 6,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-01",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Show assembly GCA_000000001.1 and explain the literature evidence",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "Show assembly GCA_000000001.1",
+      "expected_literature_question": "Show assembly GCA_000000001.1 and explain the literature evidence",
+      "expected_effective_literature_top_k": 8,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-02",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Show locus locus:eve:v1:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb and explain the literature limitations",
+        "page": null,
+        "literature_top_k": 3
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "Show locus locus:eve:v1:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb",
+      "expected_literature_question": "Show locus locus:eve:v1:sha256:bbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbbb and explain the literature limitations",
+      "expected_effective_literature_top_k": 3,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-03",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "List all loci in this release. and explain the literature evidence",
+        "page": {"limit": 10, "cursor": null},
+        "literature_top_k": 5
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "List all loci in this release.",
+      "expected_literature_question": "List all loci in this release. and explain the literature evidence",
+      "expected_effective_literature_top_k": 5,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-04",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "List all assemblies in this release. and explain the literature methods",
+        "page": {"limit": 20, "cursor": null},
+        "literature_top_k": 8
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "List all assemblies in this release.",
+      "expected_literature_question": "List all assemblies in this release. and explain the literature methods",
+      "expected_effective_literature_top_k": 8,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-05",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "List all source taxa in this release. and explain the literature limitations",
+        "page": {"limit": 50, "cursor": null},
+        "literature_top_k": 7
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "List all source taxa in this release.",
+      "expected_literature_question": "List all source taxa in this release. and explain the literature limitations",
+      "expected_effective_literature_top_k": 7,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-06",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Count distinct included loci in this release. and explain the literature evidence",
+        "page": null,
+        "literature_top_k": 2
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "Count distinct included loci in this release.",
+      "expected_literature_question": "Count distinct included loci in this release. and explain the literature evidence",
+      "expected_effective_literature_top_k": 2,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-07",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Count distinct contigs in this release. and explain the literature methods",
+        "page": null,
+        "literature_top_k": 4
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "Count distinct contigs in this release.",
+      "expected_literature_question": "Count distinct contigs in this release. and explain the literature methods",
+      "expected_effective_literature_top_k": 4,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-08",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Count distinct assemblies in this release. and explain the literature evidence",
+        "page": null,
+        "literature_top_k": 6
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "Count distinct assemblies in this release.",
+      "expected_literature_question": "Count distinct assemblies in this release. and explain the literature evidence",
+      "expected_effective_literature_top_k": 6,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-09",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Count distinct source taxa in this release. and explain the literature limitations",
+        "page": null,
+        "literature_top_k": 8
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "Count distinct source taxa in this release.",
+      "expected_literature_question": "Count distinct source taxa in this release. and explain the literature limitations",
+      "expected_effective_literature_top_k": 8,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "hybrid-10",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "COUNT detection calls in this release. AND EXPLAIN THE LITERATURE METHODS",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "hybrid",
+      "expected_structured_question": "COUNT detection calls in this release.",
+      "expected_literature_question": "COUNT detection calls in this release. AND EXPLAIN THE LITERATURE METHODS",
+      "expected_effective_literature_top_k": 8,
+      "expected_refusal_code": null
+    },
+    {
+      "case_id": "unsupported-01",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": null,
+        "question": "What is an endogenous viral element?",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "unsupported_request"
+    },
+    {
+      "case_id": "unsupported-02",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "List all loci in this release.",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "route_request_mismatch"
+    },
+    {
+      "case_id": "unsupported-03",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature evidence for Polinton virions",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "route_request_mismatch"
+    },
+    {
+      "case_id": "unsupported-04",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": null,
+        "question": "List all loci in this release. and explain the literature evidence",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "route_request_mismatch"
+    },
+    {
+      "case_id": "unsupported-05",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature evidence for prevalence in birds",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "unsupported_request"
+    },
+    {
+      "case_id": "unsupported-06",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature methods for BLAST",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "unsupported_request"
+    },
+    {
+      "case_id": "unsupported-07",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature methods for live web search",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "unsupported_request"
+    },
+    {
+      "case_id": "unsupported-08",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature methods for text-to-SQL",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "unsupported_request"
+    },
+    {
+      "case_id": "unsupported-09",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "Explain the literature methods for multilingual output",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "unsupported_request"
+    },
+    {
+      "case_id": "unsupported-10",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20990101:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+        "question": "List all loci in this release. and explain the literature evidence and explain the literature methods",
+        "page": null,
+        "literature_top_k": null
+      },
+      "expected_route": "unsupported",
+      "expected_structured_question": null,
+      "expected_literature_question": null,
+      "expected_effective_literature_top_k": null,
+      "expected_refusal_code": "unsupported_request"
+    }
+  ],
+  "benchmark_sha256": "ad4142226ec986efec6dc26ee8125e679b12489d5322ec797e0acfd7fd66e356"
+}

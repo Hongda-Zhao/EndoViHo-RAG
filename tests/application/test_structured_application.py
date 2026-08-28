@@ -155,6 +155,27 @@ def test_query_reuses_the_single_gate_capability_and_executes_once() -> None:
     assert len(repository.calls) == 1
 
 
+def test_m4_pre_fact_hook_runs_after_complete_plan_and_before_repository() -> None:
+    application, gate, factory, repository = make_aggregate_application(value=7)
+    observed: list[str] = []
+
+    def hook(release: SyntheticReleaseCapability, planned: PlanSuccess) -> None:
+        observed.append("pre_fact_hook")
+        assert release.release_key == TEST_RELEASE_KEY
+        assert planned.query_plan.intent == "aggregate"
+        assert gate.calls == [TEST_RELEASE_KEY]
+        assert factory.calls == [TEST_RELEASE_KEY]
+        assert repository.calls == []
+
+    response = application.query_with_pre_fact_hook(_aggregate_request(), hook)
+
+    assert isinstance(response, QuerySuccess)
+    assert observed == ["pre_fact_hook"]
+    assert gate.calls == [TEST_RELEASE_KEY]
+    assert factory.calls == [TEST_RELEASE_KEY]
+    assert len(repository.calls) == 1
+
+
 def test_missing_runtime_cursor_secret_fails_after_planning_without_fact_query() -> None:
     gate = FakeGate()
     factory = FakeResolverFactory()
