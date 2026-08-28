@@ -1,0 +1,41 @@
+"""Milestone 4 routed hybrid-RAG contracts."""
+
+from eve_relation_rag.hybrid.contracts import (
+    AnswerCitation,
+    ContextPack,
+    ExecutionFlags,
+    GeneratedAnswerDraft,
+    GenerationComposition,
+    HybridReleaseBinding,
+    HybridReleaseBindingManifest,
+    HybridRouteAnswer,
+    LiteratureClaim,
+    LiteratureRouteAnswer,
+    ProviderIdentity,
+    RagErrorCode,
+    RagErrorResponse,
+    RagQueryRequest,
+    RagResponse,
+    RouteDecision,
+    StructuredRouteAnswer,
+)
+
+__all__ = [
+    "AnswerCitation",
+    "ContextPack",
+    "ExecutionFlags",
+    "GeneratedAnswerDraft",
+    "GenerationComposition",
+    "HybridReleaseBinding",
+    "HybridReleaseBindingManifest",
+    "HybridRouteAnswer",
+    "LiteratureClaim",
+    "LiteratureRouteAnswer",
+    "ProviderIdentity",
+    "RagErrorCode",
+    "RagErrorResponse",
+    "RagQueryRequest",
+    "RagResponse",
+    "RouteDecision",
+    "StructuredRouteAnswer",
+]

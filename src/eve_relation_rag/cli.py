@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import sys
 from collections.abc import Sequence
 from enum import StrEnum
 from pathlib import Path
 from typing import Annotated, Any
 
 import typer
+from click import UsageError
 from pydantic import ValidationError
 from typer.core import TyperGroup
 
@@ -17,7 +19,15 @@ from eve_relation_rag.bootstrap import (
     get_engine,
     get_literature_retrieval_service,
     get_local_bge_provider,
+    get_rag_query_application,
     get_structured_query_application,
+)
+from eve_relation_rag.hybrid.contracts import RagErrorResponse, RagQueryRequest
+from eve_relation_rag.hybrid.rendering import serialize_rag_response
+from eve_relation_rag.hybrid.transport import (
+    rag_cli_exit_code_for,
+    rag_internal_error_response,
+    rag_request_validation_response,
 )
 from eve_relation_rag.literature.anchors import (
     CorpusAnchorManifest,
@@ -78,6 +88,27 @@ def _click_validation_response(exc: typer.BadParameter) -> ErrorResponse:
     )
 
 
+def _is_rag_invocation(args: Sequence[str] | None) -> bool:
+    invocation = args if args is not None else sys.argv[1:]
+    return bool(invocation and invocation[0] == "rag")
+
+
+def _rag_click_body(args: Sequence[str] | None) -> dict[str, str]:
+    values: dict[str, str] = {}
+    invocation = args if args is not None else sys.argv[1:]
+    for option, field in (
+        ("--release-key", "release_key"),
+        ("--corpus-release-key", "corpus_release_key"),
+    ):
+        try:
+            index = invocation.index(option)
+        except ValueError:
+            continue
+        if index + 1 < len(invocation):
+            values[field] = invocation[index + 1]
+    return values
+
+
 class _StructuredTyperGroup(TyperGroup):
     """Keep Click parsing errors inside the structured-query error contract."""
 
@@ -100,11 +131,45 @@ class _StructuredTyperGroup(TyperGroup):
                 **extra,
             )
         except typer.BadParameter as exc:
-            response = _click_validation_response(exc)
-            typer.echo(serialize_structured_response(response), err=True)
+            if _is_rag_invocation(args):
+                rag_response = rag_request_validation_response(
+                    (
+                        {
+                            "loc": (
+                                getattr(getattr(exc, "param", None), "name", None) or "request",
+                            ),
+                            "type": "invalid",
+                            "msg": "The command-line option is invalid.",
+                        },
+                    ),
+                    body=_rag_click_body(args),
+                )
+                typer.echo(serialize_rag_response(rag_response), err=True)
+                if standalone_mode:
+                    raise SystemExit(rag_cli_exit_code_for(rag_response)) from None
+                return rag_cli_exit_code_for(rag_response)
+            structured_response = _click_validation_response(exc)
+            typer.echo(serialize_structured_response(structured_response), err=True)
             if standalone_mode:
-                raise SystemExit(cli_exit_code_for(response)) from None
-            return cli_exit_code_for(response)
+                raise SystemExit(cli_exit_code_for(structured_response)) from None
+            return cli_exit_code_for(structured_response)
+        except UsageError:
+            if not _is_rag_invocation(args):
+                raise
+            rag_response = rag_request_validation_response(
+                (
+                    {
+                        "loc": ("request",),
+                        "type": "invalid",
+                        "msg": "The command-line invocation is invalid.",
+                    },
+                ),
+                body=_rag_click_body(args),
+            )
+            typer.echo(serialize_rag_response(rag_response), err=True)
+            if standalone_mode:
+                raise SystemExit(rag_cli_exit_code_for(rag_response)) from None
+            return rag_cli_exit_code_for(rag_response)
 
         if standalone_mode and isinstance(result, int) and result != 0:
             raise SystemExit(result)
@@ -125,6 +190,11 @@ literature_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(literature_app, name="literature")
+rag_app = typer.Typer(
+    help="Route an English question through the Milestone 4 RAG contract.",
+    no_args_is_help=True,
+)
+app.add_typer(rag_app, name="rag")
 
 
 def _request(
@@ -155,6 +225,17 @@ def _validation_failure(exc: ValidationError) -> None:
 def _emit_error(response: ErrorResponse) -> None:
     typer.echo(serialize_structured_response(response), err=True)
     raise typer.Exit(cli_exit_code_for(response))
+
+
+def _emit_rag_error(response: RagErrorResponse) -> None:
+    try:
+        rendered = serialize_rag_response(response)
+        trusted = RagErrorResponse.model_validate_json(rendered)
+    except Exception:
+        trusted = rag_internal_error_response()
+        rendered = serialize_rag_response(trusted)
+    typer.echo(rendered, err=True)
+    raise typer.Exit(rag_cli_exit_code_for(trusted))
 
 
 @structured_app.command("plan")
@@ -219,6 +300,81 @@ def query_command(
         typer.echo(render_structured_result_table(response.structured_result))
     else:
         typer.echo(serialize_structured_response(response))
+
+
+@rag_app.command(
+    "query",
+    context_settings={"allow_extra_args": True, "ignore_unknown_options": True},
+)
+def rag_query_command(
+    context: typer.Context,
+    question: Annotated[
+        str,
+        typer.Option("--question", help="Strict ASCII English question."),
+    ],
+    release_key: Annotated[
+        str | None,
+        typer.Option("--release-key", help="Exact immutable structured release key."),
+    ] = None,
+    corpus_release_key: Annotated[
+        str | None,
+        typer.Option("--corpus-release-key", help="Exact immutable corpus release key."),
+    ] = None,
+    limit: Annotated[int | None, typer.Option("--limit", min=1, max=100)] = None,
+    cursor: Annotated[str | None, typer.Option("--cursor")] = None,
+    literature_top_k: Annotated[
+        int | None,
+        typer.Option("--literature-top-k", min=1, max=8),
+    ] = None,
+) -> None:
+    """Execute one deterministic structured, literature, hybrid, or refusal route."""
+
+    if context.args:
+        _emit_rag_error(
+            rag_request_validation_response(
+                (
+                    {
+                        "loc": ("request",),
+                        "type": "invalid",
+                        "msg": "The command-line invocation is invalid.",
+                    },
+                ),
+                body={
+                    "release_key": release_key,
+                    "corpus_release_key": corpus_release_key,
+                },
+            )
+        )
+    body: dict[str, object] = {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": release_key,
+        "corpus_release_key": corpus_release_key,
+        "question": question,
+        "page": (
+            PageSpec(limit=limit if limit is not None else 50, cursor=cursor)
+            if limit is not None or cursor is not None
+            else None
+        ),
+        "literature_top_k": literature_top_k,
+    }
+    try:
+        request = RagQueryRequest.model_validate(body)
+        response = get_rag_query_application().query(request)
+    except ValidationError as exc:
+        error = rag_request_validation_response(
+            exc.errors(include_url=False),
+            body=body,
+        )
+        _emit_rag_error(error)
+    except Exception:  # pragma: no cover - last-resort CLI safety boundary.
+        _emit_rag_error(rag_internal_error_response())
+    if isinstance(response, RagErrorResponse):
+        _emit_rag_error(response)
+    try:
+        rendered = serialize_rag_response(response)
+    except Exception:  # pragma: no cover - last-resort CLI response safety boundary.
+        _emit_rag_error(rag_internal_error_response())
+    typer.echo(rendered)
 
 
 @literature_app.command("retrieve")

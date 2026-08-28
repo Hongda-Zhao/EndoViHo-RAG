@@ -7,10 +7,19 @@ from functools import lru_cache
 from sqlalchemy import Engine, create_engine
 
 from eve_relation_rag.application.literature import LiteratureRetrievalService
+from eve_relation_rag.application.rag import RagQueryApplication
 from eve_relation_rag.application.structured import StructuredQueryApplication
 from eve_relation_rag.config import get_settings
+from eve_relation_rag.hybrid.bindings import (
+    ConfiguredHybridBindingRegistry,
+    HybridBindingRegistry,
+    UnavailableHybridBindingRegistry,
+)
+from eve_relation_rag.literature.gate import PublishedCorpusGate
 from eve_relation_rag.literature.local_bge import LocalBgeConfigurationError, LocalBgeProvider
+from eve_relation_rag.planning.router import DeterministicRouter
 from eve_relation_rag.planning.sqlalchemy_resolver import SqlAlchemyReleaseResolverFactory
+from eve_relation_rag.retrieval.hybrid.anchors import StructuredAnchorResolver
 from eve_relation_rag.retrieval.structured.gate import PublishedReleaseGate
 from eve_relation_rag.retrieval.structured.repository import StructuredRepository
 from eve_relation_rag.retrieval.structured.service import StructuredRetrievalService
@@ -72,3 +81,33 @@ def get_literature_retrieval_service() -> LiteratureRetrievalService:
     """Compose local-only literature retrieval, refusing incomplete model provenance."""
 
     return LiteratureRetrievalService(get_engine(), get_local_bge_provider())
+
+
+@lru_cache
+def get_hybrid_binding_registry() -> HybridBindingRegistry:
+    """Load the optional checksum-approved binding manifest or remain unavailable."""
+
+    settings = get_settings()
+    path = settings.hybrid_binding_manifest_path
+    approved_sha256 = settings.hybrid_binding_manifest_sha256
+    if path is None or approved_sha256 is None:
+        return UnavailableHybridBindingRegistry()
+    return ConfiguredHybridBindingRegistry(
+        path,
+        approved_manifest_sha256=approved_sha256,
+    )
+
+
+@lru_cache
+def get_rag_query_application() -> RagQueryApplication:
+    """Compose the production-safe routed M4 application with generation disabled."""
+
+    return RagQueryApplication(
+        router=DeterministicRouter(),
+        structured_application_factory=get_structured_query_application,
+        corpus_gate_factory=lambda: PublishedCorpusGate(get_engine()),
+        literature_service_factory=get_literature_retrieval_service,
+        binding_registry_factory=get_hybrid_binding_registry,
+        anchor_resolver_factory=lambda: StructuredAnchorResolver(get_engine()),
+        composer_factory=lambda: None,
+    )

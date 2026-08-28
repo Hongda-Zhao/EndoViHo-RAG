@@ -5,8 +5,23 @@ from fastapi.exceptions import RequestValidationError
 from pydantic import BaseModel
 
 from eve_relation_rag.application import StructuredQueryApplication
-from eve_relation_rag.bootstrap import get_structured_query_application
+from eve_relation_rag.application.rag import RagQueryApplication
+from eve_relation_rag.bootstrap import (
+    get_rag_query_application,
+    get_structured_query_application,
+)
 from eve_relation_rag.config import get_settings
+from eve_relation_rag.hybrid.contracts import (
+    RagErrorResponse,
+    RagQueryRequest,
+    RagResponse,
+)
+from eve_relation_rag.hybrid.rendering import serialize_rag_response
+from eve_relation_rag.hybrid.transport import (
+    rag_http_status_for,
+    rag_internal_error_response,
+    rag_request_validation_response,
+)
 from eve_relation_rag.planning.parser import StructuredQueryRequest
 from eve_relation_rag.retrieval.structured.rendering import serialize_structured_response
 from eve_relation_rag.retrieval.structured.results import (
@@ -52,20 +67,46 @@ def _canonical_response(
     )
 
 
+def _canonical_rag_response(
+    response: RagResponse,
+    *,
+    status_code: int = 200,
+) -> Response:
+    return Response(
+        content=serialize_rag_response(response),
+        status_code=status_code,
+        media_type="application/json",
+    )
+
+
 @app.exception_handler(RequestValidationError)
 async def structured_validation_error(
-    _request: Request,
+    request: Request,
     exc: RequestValidationError,
 ) -> Response:
-    """Replace FastAPI's default validation payload with the Draft B envelope."""
+    """Replace FastAPI validation payloads with the route-specific project envelope."""
+
+    if request.url.path == "/v0/query":
+        rag_response = rag_request_validation_response(exc.errors(), body=exc.body)
+        return _canonical_rag_response(
+            rag_response,
+            status_code=rag_http_status_for(rag_response),
+        )
 
     response = request_validation_response(exc.errors())
     return _canonical_response(response, status_code=http_status_for(response))
 
 
 @app.exception_handler(Exception)
-async def structured_internal_error(_request: Request, _exc: Exception) -> Response:
+async def structured_internal_error(request: Request, _exc: Exception) -> Response:
     """Keep configuration, database, and programming details out of public responses."""
+
+    if request.url.path == "/v0/query":
+        rag_response = rag_internal_error_response()
+        return _canonical_rag_response(
+            rag_response,
+            status_code=rag_http_status_for(rag_response),
+        )
 
     response = internal_error_response()
     return _canonical_response(response, status_code=http_status_for(response))
@@ -122,3 +163,31 @@ def structured_query(
         response = internal_error_response()
     status_code = http_status_for(response) if isinstance(response, ErrorResponse) else 200
     return _canonical_response(response, status_code=status_code)
+
+
+@app.post(
+    "/v0/query",
+    response_model=RagResponse,
+    tags=["routed-rag"],
+)
+def rag_query(
+    payload: RagQueryRequest,
+    application: Annotated[
+        RagQueryApplication,
+        Depends(get_rag_query_application),
+    ],
+) -> Response:
+    """Route one strict request through the approved M4 application service."""
+
+    try:
+        response = application.query(payload)
+        status_code = (
+            rag_http_status_for(response) if isinstance(response, RagErrorResponse) else 200
+        )
+        return _canonical_rag_response(response, status_code=status_code)
+    except Exception:  # pragma: no cover - last-resort transport safety boundary.
+        response = rag_internal_error_response()
+        return _canonical_rag_response(
+            response,
+            status_code=rag_http_status_for(response),
+        )

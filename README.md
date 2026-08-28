@@ -3,7 +3,54 @@
 An auditable hybrid RAG system for finding known endogenous viral elements across structured
 data and literature.
 
-## Current state: Milestone 3 complete; pilot literature corpus published
+## Current state: Milestone 4 mechanism FULFILLED; real activation blocked
+
+The approved Milestone 4 Draft A mechanism is present on
+`codex/milestone-4-hybrid-rag`: strict routed contracts, a deterministic four-route grammar,
+checksum-pinned exact release binding, trusted same-corpus anchor resolution, immutable
+`ContextPack`, a dependency-free LLM provider boundary, constrained claims, all-or-none
+mechanical validation, deterministic rendering, one shared application service, `POST /v0/query`,
+and `eve-relation-rag rag query`. The final repository-wide test, benchmark, lock, migration,
+lint/type, documentation, and diff gates passed on the final local working tree. This is an
+engineering-mechanism fulfillment record, not a claim that real hybrid generation is activated
+or that remote CI has completed.
+
+| Final local gate | Result |
+|---|---|
+| Full PostgreSQL pytest suite | `682 passed, 1 warning` |
+| Frozen M2/M3/M4 benchmark selection | `72 passed` |
+| Ruff | passed |
+| strict mypy | passed for `78 source files` |
+| Lock verification | `uv lock --check` passed with `92 packages` |
+| Alembic | sole head `0010_m3_lock_hardening`; current database and a temporary empty-database upgrade from `0001_empty_baseline` through `0010_m3_lock_hardening` both reported no model drift; the temporary database was deleted |
+| Patch hygiene | Markdown checks and `git diff --check` passed |
+
+M4 adds no Alembic revision, schema change, production data mutation, or generated-answer write
+path. Its local PR exit gate is fulfilled; pull-request and remote-CI state are tracked
+separately from mechanism fulfillment.
+
+Real generation remains intentionally disabled. Production accepts only
+`EVE_RAG_LLM_PROVIDER=disabled` and composes no provider. No real dataset/corpus binding manifest
+is approved, the Zhao structured release is still candidate-only, and the published corpus has
+document/keyword anchors but no locus, assembly, lineage, or method anchors derivable from a
+structured result. Human semantic-support review is also still required before activation.
+
+The M4 outer grammar is deliberately narrow:
+
+| Route | Question shape | Exact selectors |
+|---|---|---|
+| Structured | unchanged M2 `show`, `list`, or `count` family | structured `release_key` only |
+| Literature | `Explain the literature evidence for <topic>`, `Explain the literature methods for <topic>`, or `Explain the literature limitations for <topic>` | `corpus_release_key` only |
+| Hybrid | one M2 clause plus exactly one terminal `and explain the literature evidence`, `and explain the literature methods`, or `and explain the literature limitations` suffix | both exact release keys |
+| Unsupported | anything else, a selector mismatch, duplicate suffix, or prohibited topic | no downstream calls |
+
+M4 limits context to 131,072 UTF-8 bytes, literature `top_k` to 8, generated claims to 16,
+trusted anchors to 64, and provider output to 32,768 UTF-8 bytes. Citation IDs, exact evidence
+spans, identifiers, numeric tokens, hashes, and forbidden-inference patterns are validated
+mechanically. `validation_scope="mechanical"` is traceability, not proof of scientific
+entailment; real activation requires a separate checksum-bound human claim review.
+
+### Milestone 3 published corpus retained
 
 Milestone 3 implements the fixed-corpus literature path: checksum-bound local Markdown,
 plain-text, and safe JATS ingestion; stable locators; BGE-tokenizer chunking; PostgreSQL English
@@ -22,8 +69,9 @@ The release is bound to corpus manifest
 `1497ea3383bea64d2bc4f17d2376dceb537b4f6c6f57ccb6eaf667b6589732f0`, anchor manifest
 `75a523bc6408f13b07ba283e6539734ec3b694f3dab59994a464d40d98b01fca`, and model artifact
 manifest `0dc66d301fc8305bae93aa197200a176a61be13a302c3fee430cd2efc744241a`. Direct literature
-retrieval remains a developer CLI command; there is no public literature HTTP route, and
-Milestone 4 has not started.
+retrieval remains available as a developer CLI command. The M4 routed endpoint can authorize the
+same exact corpus, but production answer generation stops with `llm_provider_unavailable` after
+successful non-empty retrieval because no provider is approved.
 
 ## Milestone 2 structured retrieval retained
 
@@ -126,7 +174,8 @@ also require an explicit `--import-root`; there is no model, corpus, or checksum
 
 Set `EVE_RAG_CURSOR_HMAC_SECRET` to at least 32 random bytes before a structured fact query; no
 default cursor key or bypass exists. The liveness endpoint is `GET /health`; the structured
-question-first endpoints are `POST /v0/structured/plan` and `POST /v0/structured/query`.
+question-first endpoints are `POST /v0/structured/plan` and `POST /v0/structured/query`; and the
+M4 routed endpoint is `POST /v0/query`.
 
 ```sh
 uv run eve-relation-rag structured plan \
@@ -136,6 +185,29 @@ uv run eve-relation-rag structured plan \
 uv run eve-relation-rag structured query \
   --release-key release:endoviho-rag:v0:20260826:001 \
   --question "Count distinct included loci in this release."
+```
+
+The equivalent M4 structured route uses the new shared surface and does not construct literature,
+embedding, binding, or LLM dependencies:
+
+```sh
+uv run eve-relation-rag rag query \
+  --release-key release:endoviho-rag:v0:20260826:001 \
+  --question "Count distinct included loci in this release."
+```
+
+It currently returns canonical `rag-error-v1` with `code="structured_refused"` and upstream
+`release_not_published`, because the Zhao release is intentionally candidate-only. A hybrid-form
+question additionally supplies `--corpus-release-key` and ends in exactly one approved literature
+suffix, but current production configuration refuses it at `hybrid_binding_unavailable` before
+fact retrieval because no real binding manifest is approved.
+
+The same request shape is available over HTTP:
+
+```sh
+curl -sS http://127.0.0.1:8000/v0/query \
+  -H 'content-type: application/json' \
+  -d '{"release_key":"release:endoviho-rag:v0:20260826:001","question":"Count distinct included loci in this release."}'
 ```
 
 The M3 developer namespace contains these explicit, checksum-bound operations:
