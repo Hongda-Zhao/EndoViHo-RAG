@@ -11,10 +11,11 @@
 
 ## Milestone 5 status — packaging FULFILLED locally, activation blocked
 
-The user authorized completion of the remaining Milestone 5 scope. The current branch is
-`codex/milestone-5-demo-release`, stacked on M4 commit
-`d75e6bb8d618ac8f393f34c3d067e06e5601b154` while M4 PR #4 remains open. The approved Draft A
-contract is `docs/milestone_5_contract.md`.
+The user authorized completion and ordered integration of the remaining Milestone 5 scope. M4
+PR #4 merged into `main` as `e39e11ff276d07e118e01b2aba5cd7202fb4012f`; M5 PR #5 was then
+retargeted to `main`, revalidated, and merged as
+`2af50fc2f673732307b0436c4cd6419c4da8e576`. The approved Draft A contract is
+`docs/milestone_5_contract.md`.
 
 Implemented M5 components now include:
 
@@ -57,8 +58,9 @@ Final local M5 evidence:
 | Distribution | wheel and sdist built and audited; required examples, metadata, quick-start assets, and full migration chain present; restricted artifacts absent |
 | Containers | fresh volume, one-shot migration, loopback health, Demo-to-API UI/refusal path, non-root/read-only runtime, and exact cleanup passed |
 
-Remote pull-request CI is not pre-claimed by this local record and is tracked separately after
-push.
+Remote pull-request CI passed on the final `main` base, and the post-merge `main` push CI passed
+both the quality and isolated container-smoke jobs. This integration record does not authorize or
+claim a Tag, GitHub Release, package/image publication, or real scientific activation.
 
 The empty Docker quick start proves platform startup and canonical refusal behavior. It does not
 bundle or publish a scientific pilot. Synthetic success remains tests-only and is not selectable
@@ -367,12 +369,12 @@ Key artifacts:
 
 | Item | Verified state on 2026-08-28 |
 |---|---|
-| Current remote `main` baseline | M3 merge `46e2155811978d407776894caab01f19504edb2b` |
+| Current remote `main` baseline | M5 integration merge `2af50fc2f673732307b0436c4cd6419c4da8e576` |
 | Milestone 2 integration | [PR #2](https://github.com/Hongda-Zhao/EndoViHo-RAG/pull/2) merged into `main` |
 | Milestone 3 integration | PR #3 merged into `origin/main` at `46e2155811978d407776894caab01f19504edb2b` |
-| Milestone 4 integration | PR #4 remains open; its remote quality checks were green when queried on 2026-08-28 |
-| Active M5 work | branch `codex/milestone-5-demo-release`, stacked on M4 commit `d75e6bb8d618ac8f393f34c3d067e06e5601b154`; local gates fulfilled |
-| M5 remote CI | not pre-claimed by this local record; evaluated after the M5 branch and pull request are pushed |
+| Milestone 4 integration | PR #4 merged into `main` at `e39e11ff276d07e118e01b2aba5cd7202fb4012f` after green CI |
+| Milestone 5 integration | PR #5 was retargeted to `main`, revalidated at head `aa0dec56a0702bbd979fc7da8a6965093b56c7d2`, and merged at `2af50fc2f673732307b0436c4cd6419c4da8e576` |
+| Final remote CI | PR #5 quality/container-smoke checks passed; post-merge `main` run `33182144859` passed both jobs |
 | Standalone GitHub issues | no current claim; issue state is outside this local engineering snapshot |
 | `main` branch protection | last recorded as unprotected; current enforcement is unverified and remains a repository-governance task |
 
