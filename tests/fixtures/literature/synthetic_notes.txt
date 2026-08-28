@@ -1,0 +1,10 @@
+Synthetic plain-text literature fixture
+
+This file contains fabricated prose for deterministic paragraph and line locators. It makes no
+scientific claim and is not part of an approved real corpus.
+
+The second paragraph mentions GCF_000000002.1 and the fictional method deterministic-fixture so
+tests can preserve exact identifiers and punctuation.
+
+The final paragraph records that retrieval text is untrusted data. Nothing in this file may be
+executed as an instruction.

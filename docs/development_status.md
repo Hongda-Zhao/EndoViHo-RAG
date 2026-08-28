@@ -2,13 +2,95 @@
 
 > Product version: V0
 >
-> Current milestone: Milestone 2 — Draft B M2.0-M2.5 complete
+> Current milestone: Milestone 3 — complete; approved pilot literature corpus published
 >
-> Status: full M2 mechanics implemented; real public-release activation intentionally blocked
+> Status: M3.0–M3.5 complete; real 11-document v2 corpus validated, receipted, and published
 >
-> Last verified: 2026-08-27 (Asia/Tokyo)
+> Last verified: 2026-08-28 (Asia/Tokyo)
 
-## Milestone 2 outcome
+## Milestone 3 outcome
+
+The user approved Milestone 3 Contract Draft A, Amendment v2, the exact v2 corpus and anchor
+manifests, and completion through publication. M3.0–M3.5 and the real pinned-model pilot are
+complete. The product DoD is satisfied, and this branch contains the requested Milestone 3 pull
+request payload.
+
+Implemented scope:
+
+- strict, frozen contracts, canonical JSON/SHA-256 identities, provider protocols, and exact
+  corpus capability errors;
+- Alembic revisions `0006_m3_literature_retrieval` through `0010_m3_lock_hardening`, eleven
+  literature tables, pgvector, weighted English FTS, HNSW cosine indexing, release-scoped anchor
+  identity, validation-time child freezing, serialized lifecycle transitions, relational
+  invariants, and immutable publication guards;
+- strict local UTF-8 Markdown, plain-text, and safe JATS parsing with stable rebuildable locators;
+- section-aware BGE-tokenizer chunking at target/overlap/hard-max `384/64/448` tokens;
+- manifest-first, atomic, idempotent candidate staging with exact file, license, model, policy,
+  document, chunk, FTS, embedding, and ledger verification;
+- a verified local-only `BAAI/bge-small-en-v1.5` provider boundary plus deterministic 384D test
+  provider; neither downloads a model at runtime;
+- PostgreSQL FTS and pgvector retrieval, deterministic three-branch RRF60, typed curated anchors,
+  anchored-first tiering, corpus-wide fill, and strict `retrieved-chunks-v2` responses with
+  response-local citation IDs;
+- independent rebuild validation, deterministic and pinned-model benchmark tiers, trusted receipt
+  creation, and exact manifest/receipt publication commands;
+- developer CLI commands for manifest validation, staging, benchmarking, validation, publication,
+  and direct retrieval. No public literature HTTP route or Milestone 4 LLM path was added.
+
+Synthetic fixtures continue to prove the mechanism independently of the real release. They use
+the deliberately synthetic future key `corpus:endoviho-rag:v0:20990101:001` and are test-only.
+
+| Frozen synthetic artifact | Canonical SHA-256 |
+|---|---|
+| Corpus manifest | `887bd65b23cc9eca80657250dd0a5233e48c58a5c6a3072b13f2278485ee0b1a` |
+| Curated anchor manifest | `93ecd80734ba120ae4b9d83954d1c7b71937ee2ff03a540ff9fa51f64c443599` |
+| Benchmark definition | `cca5a1fef9a75581d961d2961ceb4e9f4d710211f7b01f6816873d2ba3e22446` |
+| Benchmark gold | `2e11b046bba37359c90d36849a583477453ad2437b4b540d1f58c42f1166278f` |
+
+Published pilot record:
+
+| Publication item | Exact value |
+|---|---|
+| Corpus release | `corpus:endoviho-rag:v0:20260828:001` |
+| Corpus manifest SHA-256 | `1497ea3383bea64d2bc4f17d2376dceb537b4f6c6f57ccb6eaf667b6589732f0` |
+| Anchor manifest SHA-256 | `75a523bc6408f13b07ba283e6539734ec3b694f3dab59994a464d40d98b01fca` |
+| Model artifact manifest SHA-256 | `0dc66d301fc8305bae93aa197200a176a61be13a302c3fee430cd2efc744241a` |
+| Benchmark manifest SHA-256 | `856c46bc2ca5402151b95da2fddb8bf8ae44e7b535ed8c45382797b5a9e2db2e` |
+| Benchmark gold SHA-256 | `470a4191c43c63833b508ce36937767b762fe380143cedc6fb3f2799432d6e82` |
+| Receipt key | `corpus-receipt:sha256:d907aa3713b64fc72b9903daffb28da0eaff5eb9c0e29182dec65a131d9cf28e` |
+| Receipt SHA-256 | `28f436d57630edd8403b71a503d23528fb7a1640432d8f623eca256b68858e7e` |
+| Independent rebuild SHA-256 | `cb7f81388b9d79bc4588a81afd9a351df1ab87f7d479f8a3b3dc8ee10adac9c5` |
+| Benchmark report SHA-256 | `894dc74002c27e3f2cdf6a47970041d88cb91a8625ec8fad8f00f6c87d7c2565` |
+| Published at | `2026-08-28T06:03:27.166490Z` |
+
+The published graph contains 11 documents, 1,464 chunks, 1,464 embeddings, and 22 curated
+anchors. The 13-question pinned-model benchmark passed with Recall@5 `0.846153846154`, Recall@10
+`1.000000000000`, citation-ID validity `1.000000000000`, and locator validity
+`1.000000000000`.
+
+Verification on 2026-08-28:
+
+| Check | Result |
+|---|---|
+| Complete pytest suite with local PostgreSQL | 486 passed |
+| M3 deterministic benchmark | passed, including anchored and unanchored questions |
+| M3 real pinned-model benchmark | 13 questions passed all approved publication thresholds |
+| Ruff | full repository check passed |
+| mypy | strict check passed for all 62 source files |
+| Lock | `uv lock --check` passed; optional local embedding runtime remains locked |
+| Alembic | current head `0010_m3_lock_hardening`; model drift check reports no new upgrade operations |
+| Publication | exact v2 corpus is published; publication replay returned the same receipt and timestamp |
+
+The separately approved CC-BY Europe PMC sources and approval packets remain Git-ignored under
+`.artifacts/milestone3/`. Database administration is the trusted M3 control plane for staging,
+receipt creation, and lifecycle mutation. This boundary does not claim protection from a
+malicious database administrator. Conversely, a release status alone never authorizes a query:
+the application gate verifies the exact manifest, receipt evidence, policy JSON and hashes,
+recomputed policy graph, approved model artifact, retrieval-text rights, and embedding
+completeness before issuing a capability. Milestone 4 has not started and requires separate user
+authorization.
+
+## Milestone 2 retained outcome
 
 The approved merged Draft B is implemented through M2.5. M2.0 maps the existing 32-table
 Milestone 1 truth layer to public retrieval semantics; M2.1 provides the strict plan/result/error
@@ -19,9 +101,10 @@ deterministic presentation. M2.5 composes the same application through FastAPI a
 the 31-case controlled-English planning/contract benchmark, and verifies facts separately through
 a PostgreSQL production-path matrix.
 
-No M2 migration or scientific data mutation was required. The current candidate still cannot
-produce a public success response: the production gate requires `published` plus a trusted,
-immutable validation receipt and rejects the real pilot before resolver or fact retrieval.
+No M2 migration or scientific data mutation was required. The Zhao structured candidate still
+cannot produce a public success response: the production gate requires `published` plus a
+trusted, immutable validation receipt and rejects it before resolver or fact retrieval. This is
+independent of the published M3 literature corpus.
 
 Key artifacts:
 
@@ -38,6 +121,17 @@ Key artifacts:
 - `tests/benchmark/`: 31-case controlled-English planning and contract oracle.
 - `tests/retrieval/structured/test_m23_postgres.py`: production compiler/repository fact matrix;
   `tests/planning/` and the remaining retrieval tests cover schema and boundary behavior.
+
+### Repository and CI snapshot
+
+| Item | Verified state on 2026-08-28 |
+|---|---|
+| M2 baseline | `main` at `d7287e1b16681ec2f8e9ff2cea337eca71cfeef8`, tracking `origin/main` |
+| Active M3 work | branch `codex/milestone-3-m30-foundation`, based on the M2 baseline; complete PR payload |
+| Milestone 2 integration | [PR #2](https://github.com/Hongda-Zhao/EndoViHo-RAG/pull/2) merged into `main` |
+| Latest `main` CI | [GitHub Actions run 33041862881](https://github.com/Hongda-Zhao/EndoViHo-RAG/actions/runs/33041862881) succeeded |
+| Standalone GitHub issues | none |
+| `main` branch protection | GitHub reports the branch as unprotected; required-check enforcement remains a repository-governance task |
 
 ### Frozen Milestone 2 parameters
 
@@ -67,9 +161,10 @@ curation decisions, and public release membership remain separate objects.
 ## Implemented scope
 
 - PostgreSQL/SQLAlchemy truth schema with 32 domain tables.
-- Alembic revisions `0002_milestone_1_truth_layer`, `0003_m1_assertion_evidence`,
-  `0004_m1_shared_intervals`, and `0005_m1_fail_closed_publication`; current head is
-  `0005_m1_fail_closed_publication`.
+- Structured Alembic revisions `0002_milestone_1_truth_layer`,
+  `0003_m1_assertion_evidence`, `0004_m1_shared_intervals`, and
+  `0005_m1_fail_closed_publication`; the repository migration head is
+  `0010_m3_lock_hardening` after the independent literature revisions.
 - Streaming XLSX importer for the canonical physical worksheet `S3`.
 - Streaming byte-size/SHA-256 verification for the workbook and NCBI JSONL inputs.
 - Exact ten-assembly and 12,233-contig resolution against frozen NCBI Datasets v2 reports.
@@ -192,37 +287,67 @@ checksums; any execution-code change therefore produces a distinct deterministic
 
 | Item | Current value |
 |---|---|
-| Database | PostgreSQL 16 with pgvector available |
+| Database | PostgreSQL 16 with pgvector `0.8.6` installed |
 | ORM / migration | SQLAlchemy 2.x / Alembic |
-| Domain tables | 32 |
+| Domain tables | 43: 32 structured truth tables plus 11 literature tables |
 | Baseline | `0001_empty_baseline` |
-| Migration head | `0005_m1_fail_closed_publication` |
-| Published release | none |
+| Migration head | `0010_m3_lock_hardening` |
+| Published structured release | none; the Zhao release remains candidate-only |
 | Public locus membership rows | none |
+| Published literature corpus | `corpus:endoviho-rag:v0:20260828:001`; 11 documents / 1,464 chunks / 1,464 embeddings / 22 anchors |
 
 Revision 0004 ensures two distinct source-occurrence loci may share one exact interval without
-coordinate-based deduplication. Revision 0005 binds each import-ledger outcome to the same
-physical source record as its call and locus, permits method-specific calls without conflating
-them with source-row identity, and hard-disables database promotion to `validated` or `published`
-until a trusted, immutable validation receipt can authorize it. Published or deprecated
-release-scoped rows remain immutable; corrections require a new release and explicit
-supersession.
+coordinate-based deduplication. Revision 0005 preserves the structured fail-closed publication
+boundary. Revision 0006 installs pgvector and the independent literature policy, model, corpus,
+document, membership, chunk, embedding, anchor, import-run, import-ledger, and validation-receipt
+objects. Revisions 0007–0010 scope anchor identity by release, close child reparenting, freeze all
+release-scoped children at validation, and serialize candidate child DML against lifecycle
+promotion. Database triggers require a trusted exact receipt for validation and permit only
+`validated → published`; corrections require a new release and explicit supersession.
 
 ## API, CLI, and deferred scope
 
-Implemented API surface is `GET /health`, `POST /v0/structured/plan`, and
-`POST /v0/structured/query`. The CLI exposes `structured plan` and `structured query`. These
-interfaces do not claim that the candidate is published: the real candidate returns
-`release_not_published` with `fact_retrieval_executed = false`.
+Implemented API surface remains `GET /health`, `POST /v0/structured/plan`, and
+`POST /v0/structured/query`. The CLI exposes `structured plan`, `structured query`, and the M3
+`literature manifest-validate`, `corpus-stage`, `benchmark`, `corpus-validate`, `corpus-publish`,
+and `retrieve` commands. Direct literature retrieval is deliberately a developer CLI path until
+a later API contract. Both structured and literature retrieval fail closed unless their exact
+release is published.
 
-Deferred beyond Milestone 2:
+Deferred beyond Milestone 3:
 
-- trusted immutable validation-receipt and publication workflow;
-- literature ingestion, chunking, full-text/vector retrieval, and citations;
-- embedding or LLM providers;
+- public literature and hybrid API contracts;
+- LLM providers, routing, answer generation, `ContextPack`, and claim/citation validation;
 - complete global Zhao et al. data beyond the ten-assembly pilot;
 - the Guinet adapter and additional source adapters;
 - demo and evaluation layers.
+
+### Next-decision boundary
+
+Milestone 3 is complete through exact publication, and its PR scope is frozen. Milestone 4 has
+not started; any public literature/hybrid API, LLM answer generation, `ContextPack`, or
+claim/citation-validation work requires a separately approved M4 contract. M3 publication does
+not weaken the M2 release gate: the structured Zhao pilot remains candidate-only.
+
+### Approved Milestone 3 parameters
+
+| Parameter group | Approved final M3 value |
+|---|---|
+| Pilot corpus scope | exact approved 11-document English Europe PMC JATS manifest with license/version/checksum provenance |
+| Corpus-release identity | exact `corpus:endoviho-rag:v0:YYYYMMDD:NNN`; the application gate authorizes only an exact published release with complete integrity evidence; no automatic dataset binding |
+| Accepted input policy | local UTF-8 Markdown, plain text, and safe JATS XML only; no PDF/HTML/OCR/network fetch |
+| Chunking policy | BGE tokenizer; section-aware target/overlap/hard-max `384/64/448` content tokens |
+| PostgreSQL FTS | explicit `english`, weighted title/section/text vector, GIN, `websearch_to_tsquery`, depth 100 |
+| Embeddings | local `BAAI/bge-small-en-v1.5` revision `5c38ec7c405ec4b44b94cc5a9bb96e735b38267a`; 384D CLS/L2-normalized cosine |
+| pgvector index | install available extension `0.8.6`; HNSW `vector_cosine_ops`, `m=16`, `ef_construction=64`, `ef_search=100`, strict iterative scan |
+| Retrieval policy | `retrieval:postgres16-english-bge-hnsw-summary-rrf60-v2`; equal FTS, full-chunk dense, and title/abstract dense branches |
+| RRF | equal FTS/full-chunk-dense/title-abstract-dense depths `100/100/100`, `k=60`, deterministic chunk-level tie-breaking |
+| Anchors | typed curated locus/assembly/lineage/method/document/keyword anchors; anchored tier then explicit corpus fill |
+| Retrieval response | strict `retrieved-chunks-v2`; response-local `D1..Dn`; `top_k` default 8, range 1..20 |
+| Benchmark | deterministic fake-provider CI plus pinned-model pilot tier; Recall@5/10 and locator/citation/rebuild gates |
+
+These are engineering decisions, not permission to alter the approved EVE definition or the
+Milestone 1/2 structured truth semantics.
 
 ## Development environment and tools
 
@@ -231,16 +356,19 @@ Deferred beyond Milestone 2:
 | Active build host | Local Apple Silicon Mac; gds2 is source/archive only |
 | Project Python | CPython `3.12.14` |
 | Environment/lock manager | `uv 0.12.5` |
-| API | FastAPI |
+| API | FastAPI `0.141.1`; Uvicorn `0.52.4` |
 | CLI | Typer `0.27.1` |
-| Validation | Pydantic v2, database constraints, audit, release validator |
+| Validation | Pydantic `2.13.4`, pydantic-settings `2.15.0`, database constraints, rebuild audit, trusted receipts |
 | Cursor authentication | HMAC-SHA-256; no default secret or bypass |
-| Database | PostgreSQL 16 / pgvector image |
-| Migration | Alembic head `0005_m1_fail_closed_publication` |
-| Tests | pytest, including PostgreSQL integration tests |
-| Lint / static typing | Ruff / mypy strict mode |
+| Database | PostgreSQL `16.15`; pgvector extension `0.8.6` installed by migration 0006 |
+| Database client / ORM | psycopg `3.3.4`; SQLAlchemy `2.0.52`; pgvector Python `0.5.0` |
+| Document parsing | markdown-it-py `4.2.0`; defusedxml `0.7.1` |
+| Local embedding runtime | optional sentence-transformers `6.0.0`, locked but not installed by the default development sync |
+| Migration | Alembic `1.19.1`; head `0010_m3_lock_hardening` |
+| Tests | pytest `8.4.2`, including PostgreSQL integration tests |
+| Lint / static typing | Ruff `0.16.4`; mypy `1.20.2` strict mode |
 | CI | GitHub Actions on push and pull request |
-| Local container runtime | Colima + Docker Compose |
+| Local container runtime | Colima `0.10.3`; Docker client `29.7.2`, engine `29.5.2`; Compose `5.5.0` |
 
 Exact Python dependency versions and package hashes remain in `uv.lock`. Project-local binaries,
 the virtual environment, caches, Colima state, and large source artifacts are ignored by Git.
@@ -259,13 +387,41 @@ uv run mypy src
 uv run alembic check
 ```
 
-CI runs the migration, Alembic model-drift check, complete pytest suite, Ruff, and mypy against
-PostgreSQL. Branch
-protection/required-check enforcement is a GitHub repository setting and is not asserted by the
-local checkout.
+Install the separately locked local embedding runtime only on a host holding the approved model
+artifact package:
 
-Final local full-M2 verification on 2026-08-27 completed with `364 passed` and one upstream
-FastAPI/Starlette TestClient deprecation warning. Ruff, mypy strict (`40` source files), lockfile
-reproducibility, targeted formatting, and `alembic check` all passed; Alembic reported no new
-upgrade operations. These checks remain mandatory in CI and do not change the candidate-only
-publication state.
+```sh
+uv sync --locked --dev --extra local-embeddings
+```
+
+M3 production commands require explicit paths and checksums. They do not discover, download, or
+silently select a corpus or model:
+
+```text
+eve-relation-rag literature manifest-validate
+eve-relation-rag literature corpus-stage
+eve-relation-rag literature benchmark
+eve-relation-rag literature corpus-validate
+eve-relation-rag literature corpus-publish
+eve-relation-rag literature retrieve
+```
+
+CI runs the migration, Alembic model-drift check, complete pytest suite, Ruff, and mypy against
+PostgreSQL. The latest remote `main` run passed, but GitHub currently reports `main` as
+unprotected, so required-check enforcement is not active at the repository boundary.
+
+Final local M3 verification on 2026-08-28 completed with `486 passed`. Ruff, mypy strict (`62`
+source files), lockfile reproducibility, `alembic current`, `alembic check`, and diff whitespace
+checks passed. The independently rebuilt real corpus and 13-question pinned-model pilot also
+passed before receipt creation and explicit publication.
+
+The current setup run also verified all frozen input hashes and replayed the 39,495-row Milestone
+1 import idempotently: the existing run, 39,495 source records, and 39,495 import-ledger rows were
+reused; no public release membership was created. Both real CLI smoke requests returned the
+expected exit code `4`, `release_not_published`, and `fact_retrieval_executed = false`.
+
+An additional whole-tree `ruff format --check src tests` is not a CI or build-guide exit command
+and reports 14 legacy files that would be reformatted. Some of those files are part of the frozen
+Milestone 1 execution-code hash. They must not be mechanically reformatted inside an unrelated
+milestone because doing so would invalidate the recorded audit hash; formatting changes require
+an explicitly versioned importer/audit update and regenerated provenance.

@@ -1,0 +1,25 @@
+{
+  "anchor_manifest_schema_version": "corpus-anchor-manifest-v1",
+  "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+  "corpus_manifest_sha256": "887bd65b23cc9eca80657250dd0a5233e48c58a5c6a3072b13f2278485ee0b1a",
+  "anchor_policy_key": "anchor:endoviho-curated-retrieval-v2",
+  "anchor_count": 1,
+  "anchor_manifest_sha256": "93ecd80734ba120ae4b9d83954d1c7b71937ee2ff03a540ff9fa51f64c443599",
+  "anchors": [
+    {
+      "manifest_row": 1,
+      "document_key": "document:sha256:3b249519b62f220cccd87fd0475c0942c7facf84651809801ba8622e239be0d9",
+      "anchor": {
+        "anchor_key": "anchor:sha256:8900b9908e72b5e1370da601a8e1565bbacd9325e09c46e10c28ba0b5eff0e62",
+        "anchor_type": "keyword",
+        "phrase": "synthetic fixture"
+      },
+      "curation_method": "curation:synthetic-anchor-v1",
+      "source_locator": {
+        "fixture": "synthetic_article.md",
+        "line": 1
+      },
+      "expected_anchor_sha256": "fa14c39fb870e6f204518e1a28772d00aa12685c14a8c7c4a69ad7d3ab45366e"
+    }
+  ]
+}

@@ -1,0 +1,59 @@
+{
+  "benchmark_schema_version": "literature-benchmark-v1",
+  "tier": "deterministic_ci",
+  "corpus_release_key": "corpus:endoviho-rag:v0:20990101:001",
+  "corpus_manifest_sha256": "887bd65b23cc9eca80657250dd0a5233e48c58a5c6a3072b13f2278485ee0b1a",
+  "retrieval_policy_key": "retrieval:postgres16-english-bge-hnsw-summary-rrf60-v2",
+  "embedding_model_key": "embedding:hf:BAAI-bge-small-en-v1.5@5c38ec7c405ec4b44b94cc5a9bb96e735b38267a:cls-l2norm-v1",
+  "question_count": 5,
+  "gold_sha256": "2e11b046bba37359c90d36849a583477453ad2437b4b540d1f58c42f1166278f",
+  "benchmark_manifest_sha256": "cca5a1fef9a75581d961d2961ceb4e9f4d710211f7b01f6816873d2ba3e22446",
+  "questions": [
+    {
+      "question_key": "benchmark:synthetic:source-checksum",
+      "question": "Which source artifact checksum behavior is preserved?",
+      "anchors": [],
+      "relevant_chunk_keys": [
+        "chunk:sha256:a86a4f2d420cdbada4a3c37b002601a03505d041aef3452c88928a8289ad3f59"
+      ]
+    },
+    {
+      "question_key": "benchmark:synthetic:gcf-method",
+      "question": "Which paragraph mentions GCF_000000002.1 and deterministic-fixture?",
+      "anchors": [],
+      "relevant_chunk_keys": [
+        "chunk:sha256:e5e092b915d7a706ea3ec7e5ddee1c02932ace674fae893137273e3541178415"
+      ]
+    },
+    {
+      "question_key": "benchmark:synthetic:jats-abstract",
+      "question": "What tests safe JATS locators in the fabricated abstract?",
+      "anchors": [],
+      "relevant_chunk_keys": [
+        "chunk:sha256:41b162a4c1de50dd1598827d18fd7892e9bfa6279f8144886a2e0ba938019bc3"
+      ]
+    },
+    {
+      "question_key": "benchmark:synthetic:anchored-import",
+      "question": "What exists only to test deterministic literature ingestion?",
+      "anchors": [
+        {
+          "anchor_key": "anchor:sha256:8900b9908e72b5e1370da601a8e1565bbacd9325e09c46e10c28ba0b5eff0e62",
+          "anchor_type": "keyword",
+          "phrase": "synthetic fixture"
+        }
+      ],
+      "relevant_chunk_keys": [
+        "chunk:sha256:71fea010e713f24058a899f746f90f5d3048f302b7c959f96002f8e0e3aaeb53"
+      ]
+    },
+    {
+      "question_key": "benchmark:synthetic:jats-summary-branch",
+      "question": "Which fabricated abstract explains safe JATS locator testing?",
+      "anchors": [],
+      "relevant_chunk_keys": [
+        "chunk:sha256:41b162a4c1de50dd1598827d18fd7892e9bfa6279f8144886a2e0ba938019bc3"
+      ]
+    }
+  ]
+}

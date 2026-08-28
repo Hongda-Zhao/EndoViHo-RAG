@@ -1,16 +1,45 @@
-"""Typer command-line adapter for Milestone 2 structured queries."""
+"""Typer adapters for structured queries and fixed-corpus literature operations."""
 
 from __future__ import annotations
 
+import json
 from collections.abc import Sequence
 from enum import StrEnum
+from pathlib import Path
 from typing import Annotated, Any
 
 import typer
 from pydantic import ValidationError
 from typer.core import TyperGroup
 
-from eve_relation_rag.bootstrap import get_structured_query_application
+from eve_relation_rag.application.literature import CandidateBenchmarkService
+from eve_relation_rag.bootstrap import (
+    get_engine,
+    get_literature_retrieval_service,
+    get_local_bge_provider,
+    get_structured_query_application,
+)
+from eve_relation_rag.literature.anchors import (
+    CorpusAnchorManifest,
+    import_candidate_anchors,
+)
+from eve_relation_rag.literature.benchmarking import (
+    BenchmarkDefinition,
+    collect_benchmark_runtime_fingerprint,
+    run_benchmark,
+)
+from eve_relation_rag.literature.contracts import (
+    CorpusManifest,
+    LiteratureRetrievalError,
+    LiteratureRetrievalInvocation,
+    LiteratureRetrievalRequest,
+)
+from eve_relation_rag.literature.ingestion import import_candidate_corpus
+from eve_relation_rag.literature.publication import (
+    publish_corpus,
+    record_pilot_validation_receipt,
+)
+from eve_relation_rag.literature.validation import validate_corpus_rebuild
 from eve_relation_rag.planning.parser import StructuredQueryRequest
 from eve_relation_rag.planning.query_plans import PageSpec
 from eve_relation_rag.retrieval.structured.rendering import (
@@ -91,6 +120,11 @@ structured_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(structured_app, name="structured")
+literature_app = typer.Typer(
+    help="Operate or directly test the fixed-corpus literature layer.",
+    no_args_is_help=True,
+)
+app.add_typer(literature_app, name="literature")
 
 
 def _request(
@@ -185,6 +219,308 @@ def query_command(
         typer.echo(render_structured_result_table(response.structured_result))
     else:
         typer.echo(serialize_structured_response(response))
+
+
+@literature_app.command("retrieve")
+def literature_retrieve_command(
+    corpus_release_key: Annotated[
+        str,
+        typer.Option("--corpus-release-key", help="Exact published corpus release key."),
+    ],
+    question: Annotated[str, typer.Option("--question", help="English literature question.")],
+    top_k: Annotated[int, typer.Option("--top-k", min=1, max=20)] = 8,
+) -> None:
+    """Run direct M3 retrieval; this is not a public HTTP endpoint."""
+
+    try:
+        invocation = LiteratureRetrievalInvocation(
+            request=LiteratureRetrievalRequest(
+                request_schema_version="literature-retrieval-request-v1",
+                corpus_release_key=corpus_release_key,
+                question=question,
+                top_k=top_k,
+            )
+        )
+        response = get_literature_retrieval_service().retrieve(invocation)
+    except ValidationError:
+        response = LiteratureRetrievalError(
+            error_schema_version="literature-retrieval-error-v1",
+            status="error",
+            code="unsupported_request",
+            message="literature retrieval request is invalid",
+            requested_corpus_release_key=corpus_release_key or None,
+            retrieval_executed=False,
+        )
+    except Exception:
+        response = LiteratureRetrievalError(
+            error_schema_version="literature-retrieval-error-v1",
+            status="error",
+            code="embedding_provider_failed",
+            message="verified local embedding provider is unavailable",
+            requested_corpus_release_key=corpus_release_key or None,
+            retrieval_executed=False,
+        )
+    serialized = response.model_dump_json()
+    if isinstance(response, LiteratureRetrievalError):
+        typer.echo(serialized, err=True)
+        raise typer.Exit(2 if response.code in {"unsupported_request", "query_too_long"} else 3)
+    typer.echo(serialized)
+
+
+@literature_app.command("manifest-validate")
+def literature_manifest_validate_command(
+    manifest_path: Annotated[Path, typer.Option("--manifest-path", exists=True, dir_okay=False)],
+    approved_manifest_sha256: Annotated[str, typer.Option("--approved-manifest-sha256")],
+) -> None:
+    """Validate one canonical corpus manifest against an explicitly approved checksum."""
+
+    try:
+        manifest = _load_corpus_manifest(manifest_path, approved_manifest_sha256)
+    except Exception as exc:
+        _literature_operation_error(str(exc), exit_code=2)
+    typer.echo(
+        json.dumps(
+            {
+                "corpus_release_key": manifest.corpus_release_key,
+                "document_count": manifest.document_count,
+                "manifest_sha256": manifest.manifest_sha256,
+                "status": "valid",
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
+
+
+@literature_app.command("corpus-stage")
+def literature_corpus_stage_command(
+    manifest_path: Annotated[Path, typer.Option("--manifest-path", exists=True, dir_okay=False)],
+    approved_manifest_sha256: Annotated[str, typer.Option("--approved-manifest-sha256")],
+    import_root: Annotated[Path, typer.Option("--import-root", exists=True, file_okay=False)],
+    importer_code_sha256: Annotated[str, typer.Option("--importer-code-sha256")],
+    model_artifact_manifest_sha256: Annotated[
+        str, typer.Option("--model-artifact-manifest-sha256")
+    ],
+    anchor_manifest_path: Annotated[
+        Path, typer.Option("--anchor-manifest-path", exists=True, dir_okay=False)
+    ],
+    approved_anchor_manifest_sha256: Annotated[
+        str, typer.Option("--approved-anchor-manifest-sha256")
+    ],
+) -> None:
+    """Parse, chunk, embed, and atomically stage one exact candidate corpus."""
+
+    try:
+        manifest = _load_corpus_manifest(manifest_path, approved_manifest_sha256)
+        anchor_manifest = _load_anchor_manifest(
+            anchor_manifest_path,
+            approved_anchor_manifest_sha256,
+            manifest,
+        )
+        provider = get_local_bge_provider()
+        report = import_candidate_corpus(
+            get_engine(),
+            manifest=manifest,
+            import_root=import_root,
+            tokenizer=provider,
+            approved_manifest_sha256=approved_manifest_sha256,
+            importer_code_sha256=importer_code_sha256,
+            model_artifact_manifest_sha256=model_artifact_manifest_sha256,
+            embedding_provider=provider,
+        )
+        anchor_report = import_candidate_anchors(
+            get_engine(),
+            manifest=anchor_manifest,
+            approved_anchor_manifest_sha256=approved_anchor_manifest_sha256,
+        )
+    except Exception as exc:
+        _literature_operation_error(str(exc), exit_code=3)
+    typer.echo(
+        json.dumps(
+            {
+                "anchors": anchor_report.model_dump(mode="json"),
+                "corpus": report.model_dump(mode="json"),
+            },
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    )
+
+
+@literature_app.command("benchmark")
+def literature_benchmark_command(
+    manifest_path: Annotated[Path, typer.Option("--manifest-path", exists=True, dir_okay=False)],
+    approved_manifest_sha256: Annotated[str, typer.Option("--approved-manifest-sha256")],
+    import_root: Annotated[Path, typer.Option("--import-root", exists=True, file_okay=False)],
+    benchmark_path: Annotated[Path, typer.Option("--benchmark-path", exists=True, dir_okay=False)],
+    approved_benchmark_sha256: Annotated[str, typer.Option("--approved-benchmark-sha256")],
+    anchor_manifest_path: Annotated[
+        Path, typer.Option("--anchor-manifest-path", exists=True, dir_okay=False)
+    ],
+    approved_anchor_manifest_sha256: Annotated[
+        str, typer.Option("--approved-anchor-manifest-sha256")
+    ],
+) -> None:
+    """Run the frozen benchmark against an exact rebuilt candidate corpus."""
+
+    try:
+        manifest = _load_corpus_manifest(manifest_path, approved_manifest_sha256)
+        anchor_manifest = _load_anchor_manifest(
+            anchor_manifest_path,
+            approved_anchor_manifest_sha256,
+            manifest,
+        )
+        definition = _load_benchmark(benchmark_path, approved_benchmark_sha256, manifest)
+        provider = get_local_bge_provider()
+        engine = get_engine()
+        rebuild = validate_corpus_rebuild(
+            engine,
+            manifest=manifest,
+            import_root=import_root,
+            tokenizer=provider,
+            provider=provider,
+            anchor_manifest=anchor_manifest,
+        )
+        if not rebuild.passed:
+            raise RuntimeError("candidate rebuild validation failed")
+        runtime_fingerprint = (
+            collect_benchmark_runtime_fingerprint(
+                engine,
+                uv_lock_path=Path(__file__).resolve().parents[2] / "uv.lock",
+            )
+            if definition.tier == "pilot_release"
+            else None
+        )
+        report = run_benchmark(
+            CandidateBenchmarkService(engine, provider, rebuild),
+            definition,
+            runtime_fingerprint=runtime_fingerprint,
+        )
+    except Exception as exc:
+        _literature_operation_error(str(exc), exit_code=4)
+    serialized = report.model_dump_json()
+    if not report.passed:
+        typer.echo(serialized, err=True)
+        raise typer.Exit(4)
+    typer.echo(serialized)
+
+
+@literature_app.command("corpus-validate")
+def literature_corpus_validate_command(
+    manifest_path: Annotated[Path, typer.Option("--manifest-path", exists=True, dir_okay=False)],
+    approved_manifest_sha256: Annotated[str, typer.Option("--approved-manifest-sha256")],
+    import_root: Annotated[Path, typer.Option("--import-root", exists=True, file_okay=False)],
+    benchmark_path: Annotated[Path, typer.Option("--benchmark-path", exists=True, dir_okay=False)],
+    approved_benchmark_sha256: Annotated[str, typer.Option("--approved-benchmark-sha256")],
+    validator_code_sha256: Annotated[str, typer.Option("--validator-code-sha256")],
+    anchor_manifest_path: Annotated[
+        Path, typer.Option("--anchor-manifest-path", exists=True, dir_okay=False)
+    ],
+    approved_anchor_manifest_sha256: Annotated[
+        str, typer.Option("--approved-anchor-manifest-sha256")
+    ],
+) -> None:
+    """Rebuild, benchmark, and record the trusted pilot validation receipt."""
+
+    try:
+        manifest = _load_corpus_manifest(manifest_path, approved_manifest_sha256)
+        anchor_manifest = _load_anchor_manifest(
+            anchor_manifest_path,
+            approved_anchor_manifest_sha256,
+            manifest,
+        )
+        definition = _load_benchmark(benchmark_path, approved_benchmark_sha256, manifest)
+        provider = get_local_bge_provider()
+        engine = get_engine()
+        runtime_fingerprint = collect_benchmark_runtime_fingerprint(
+            engine,
+            uv_lock_path=Path(__file__).resolve().parents[2] / "uv.lock",
+        )
+        receipt = record_pilot_validation_receipt(
+            engine,
+            manifest=manifest,
+            import_root=import_root,
+            anchor_manifest=anchor_manifest,
+            benchmark_definition=definition,
+            runtime_fingerprint=runtime_fingerprint,
+            validator_code_sha256=validator_code_sha256,
+            provider=provider,
+        )
+    except Exception as exc:
+        _literature_operation_error(str(exc), exit_code=4)
+    typer.echo(receipt.model_dump_json())
+
+
+@literature_app.command("corpus-publish")
+def literature_corpus_publish_command(
+    corpus_release_key: Annotated[str, typer.Option("--corpus-release-key")],
+    expected_manifest_sha256: Annotated[str, typer.Option("--expected-manifest-sha256")],
+    expected_receipt_sha256: Annotated[str, typer.Option("--expected-receipt-sha256")],
+) -> None:
+    """Explicitly publish the exact corpus named by manifest and trusted receipt checksums."""
+
+    try:
+        report = publish_corpus(
+            get_engine(),
+            corpus_release_key=corpus_release_key,
+            expected_manifest_sha256=expected_manifest_sha256,
+            expected_receipt_sha256=expected_receipt_sha256,
+        )
+    except Exception as exc:
+        _literature_operation_error(str(exc), exit_code=5)
+    typer.echo(report.model_dump_json())
+
+
+def _load_corpus_manifest(path: Path, approved_sha256: str) -> CorpusManifest:
+    manifest = CorpusManifest.model_validate_json(path.read_text(encoding="utf-8"))
+    if manifest.manifest_sha256 != approved_sha256:
+        raise ValueError("approved manifest checksum does not match canonical manifest")
+    return manifest
+
+
+def _load_benchmark(
+    path: Path,
+    approved_sha256: str,
+    manifest: CorpusManifest,
+) -> BenchmarkDefinition:
+    definition = BenchmarkDefinition.model_validate_json(path.read_text(encoding="utf-8"))
+    if definition.benchmark_manifest_sha256 != approved_sha256:
+        raise ValueError("approved benchmark checksum does not match definition")
+    if (
+        definition.corpus_release_key != manifest.corpus_release_key
+        or definition.corpus_manifest_sha256 != manifest.manifest_sha256
+    ):
+        raise ValueError("benchmark definition does not bind the exact corpus manifest")
+    return definition
+
+
+def _load_anchor_manifest(
+    path: Path,
+    approved_sha256: str,
+    corpus_manifest: CorpusManifest,
+) -> CorpusAnchorManifest:
+    manifest = CorpusAnchorManifest.model_validate_json(path.read_text(encoding="utf-8"))
+    if manifest.anchor_manifest_sha256 != approved_sha256:
+        raise ValueError("approved anchor manifest checksum does not match")
+    if (
+        manifest.corpus_release_key != corpus_manifest.corpus_release_key
+        or manifest.corpus_manifest_sha256 != corpus_manifest.manifest_sha256
+        or manifest.anchor_policy_key != corpus_manifest.anchor_policy_key
+    ):
+        raise ValueError("anchor manifest does not bind the exact corpus manifest")
+    return manifest
+
+
+def _literature_operation_error(message: str, *, exit_code: int) -> None:
+    typer.echo(
+        json.dumps(
+            {"message": message or "literature operation failed", "status": "error"},
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        err=True,
+    )
+    raise typer.Exit(exit_code)
 
 
 if __name__ == "__main__":  # pragma: no cover
