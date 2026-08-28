@@ -4,8 +4,10 @@
 >
 > Routed-answer contract: Milestone 4 approved Draft A
 >
+> Presentation/package contract: Milestone 5 approved Draft A
+>
 > Status: verified structured staging; no public EVE release; M4 engineering mechanism
-> **FULFILLED** and real generation activation blocked
+> **FULFILLED**; M5 packaging mechanism fulfilled locally; real generation activation blocked
 >
 > Frozen pilot source: Zhao et al. v4 Data S1
 
@@ -171,6 +173,30 @@ claims block activation, and partially supported claims must be narrowed and reg
 mechanical validator is in
 [`generation/validators.py`](../src/eve_relation_rag/generation/validators.py).
 
+## Milestone 5 presentation and packaging semantics
+
+Milestone 5 adds no scientific object, database table, migration, inclusion rule, release
+membership, corpus row, anchor, provider, generated claim, or new answer interpretation. The
+Streamlit evidence workbench is a bounded HTTP presentation adapter over the unchanged
+`POST /v0/query` contract. It revalidates the complete canonical response and derives its visible
+execution rail only from server-owned `ExecutionFlags`.
+
+The labels `EXECUTED` and `HELD` describe whether a software stage ran. They are not evidence of
+publication, relevance, support, infection, endogenization, prevalence, or biological absence.
+Likewise, `VALIDATED` means the response passed the existing typed and mechanical contract; it
+does not mean a human established semantic entailment.
+
+The Docker quick start applies only the schema to an empty database. A healthy API or Demo is a
+process-liveness fact, not a scientific-data readiness fact. The image contains no Zhao workbook,
+NCBI report, Europe PMC corpus bytes, embeddings, BGE model, binding manifest, provider
+credential, or tests-only capability. Canonical fail-closed responses from that empty state are
+the expected behavior and cannot be cited as either positive or negative biological evidence.
+
+Benchmark/checklist SHA-256 values establish exact artifact identity only. They do not grant a
+data license, approve publication or egress, prove semantic support, or qualify real hybrid
+activation. `DATA_LICENSE`, `CITATION.cff`, and the changelog record distribution boundaries and
+software provenance without changing any scientific truth-layer rule.
+
 ## Mechanism status and real-activation boundary
 
 The M4 engineering mechanism is **FULFILLED**: the final local PostgreSQL suite, frozen
@@ -180,6 +206,11 @@ provider activation. Production remains fail-closed for generation: `EVE_RAG_LLM
 only the value `disabled`, bootstrap supplies no composer, and no remote SDK, model revision,
 credential, retry, or data-egress policy is approved. M4 introduced no schema or production-data
 mutation.
+
+M5 is classified as packaging-mechanism **FULFILLED locally** after its full repository, package,
+migration, and fresh-volume container gates passed on 2026-08-28. The V0 product Definition of
+Done and real hybrid activation remain separate blocked classifications until every real
+activation gate below is approved and passes.
 
 Real Zhao hybrid activation is independently blocked by all of the following:
 

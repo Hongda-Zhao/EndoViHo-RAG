@@ -1,0 +1,47 @@
+# Changelog
+
+All notable project changes are recorded here. The product remains `V0`; no external software
+release or scientific-data publication is implied by this file.
+
+## V0 — Unreleased
+
+### Milestone 5 — demo and release packaging
+
+- Added an English-only Streamlit evidence workbench over the existing `/v0/query` API.
+- Added bounded HTTP transport, fixed real-state examples, and a three-stage execution trace.
+- Added a non-root, fail-closed Docker quick start with explicit one-shot migrations.
+- Added benchmark, release-checklist, data-license, and citation metadata.
+- Kept real Zhao structured publication, hybrid binding/anchors, production generation/egress,
+  and human semantic-support review blocked behind separate approvals.
+
+### Milestone 4 — routed hybrid RAG mechanism
+
+- Added deterministic structured, literature, hybrid, and unsupported routing.
+- Added exact dual-release binding, structured-anchor resolution, immutable `ContextPack`, a
+  disabled-by-default provider boundary, constrained composition, and mechanical validators.
+- Added checksum-bound router and generation benchmarks; no real LLM was activated.
+
+### Milestone 3 — literature retrieval
+
+- Added manifest-first safe ingestion, section-aware deterministic chunking, pinned local BGE
+  embeddings, PostgreSQL FTS/vector retrieval, reciprocal-rank fusion, curated anchors, stable
+  citations, reproducibility validation, and publication gates.
+- Published the explicitly approved eleven-document M3 corpus with its trusted receipt; corpus
+  and model bytes remain outside Git.
+
+### Milestone 2 — structured query
+
+- Added strict controlled-English planning, typed immutable query plans, exact entity resolution,
+  read-only fact retrieval, cursor binding, typed results, API/CLI adapters, and a 31-case gold
+  contract benchmark.
+
+### Milestone 1 — structured truth foundation
+
+- Added normalized evidence, assembly, locus, call, assertion, lineage, and immutable-release
+  schemas plus deterministic Zhao staging and fail-closed publication validation.
+- The Zhao pilot remains a candidate rather than a published structured release.
+
+### Milestone 0 — project scaffold
+
+- Established Python 3.12, FastAPI, PostgreSQL/pgvector, SQLAlchemy, Alembic, uv, pytest, Ruff,
+  mypy, CI, stable health/version contracts, and the initial documentation boundary.

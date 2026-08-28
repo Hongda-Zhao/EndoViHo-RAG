@@ -516,6 +516,15 @@ def literature_benchmark_command(
     approved_anchor_manifest_sha256: Annotated[
         str, typer.Option("--approved-anchor-manifest-sha256")
     ],
+    uv_lock_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--uv-lock-path",
+            exists=True,
+            dir_okay=False,
+            help="Exact approved uv.lock; required outside a source checkout.",
+        ),
+    ] = None,
 ) -> None:
     """Run the frozen benchmark against an exact rebuilt candidate corpus."""
 
@@ -542,7 +551,7 @@ def literature_benchmark_command(
         runtime_fingerprint = (
             collect_benchmark_runtime_fingerprint(
                 engine,
-                uv_lock_path=Path(__file__).resolve().parents[2] / "uv.lock",
+                uv_lock_path=_resolve_uv_lock_path(uv_lock_path),
             )
             if definition.tier == "pilot_release"
             else None
@@ -575,6 +584,15 @@ def literature_corpus_validate_command(
     approved_anchor_manifest_sha256: Annotated[
         str, typer.Option("--approved-anchor-manifest-sha256")
     ],
+    uv_lock_path: Annotated[
+        Path | None,
+        typer.Option(
+            "--uv-lock-path",
+            exists=True,
+            dir_okay=False,
+            help="Exact approved uv.lock; required outside a source checkout.",
+        ),
+    ] = None,
 ) -> None:
     """Rebuild, benchmark, and record the trusted pilot validation receipt."""
 
@@ -590,7 +608,7 @@ def literature_corpus_validate_command(
         engine = get_engine()
         runtime_fingerprint = collect_benchmark_runtime_fingerprint(
             engine,
-            uv_lock_path=Path(__file__).resolve().parents[2] / "uv.lock",
+            uv_lock_path=_resolve_uv_lock_path(uv_lock_path),
         )
         receipt = record_pilot_validation_receipt(
             engine,
@@ -625,6 +643,17 @@ def literature_corpus_publish_command(
     except Exception as exc:
         _literature_operation_error(str(exc), exit_code=5)
     typer.echo(report.model_dump_json())
+
+
+def _resolve_uv_lock_path(explicit_path: Path | None) -> Path:
+    if explicit_path is not None:
+        return explicit_path
+    source_checkout_path = Path(__file__).resolve().parents[2] / "uv.lock"
+    if not source_checkout_path.is_file():
+        raise RuntimeError(
+            "uv.lock is unavailable outside a source checkout; provide --uv-lock-path"
+        )
+    return source_checkout_path
 
 
 def _load_corpus_manifest(path: Path, approved_sha256: str) -> CorpusManifest:

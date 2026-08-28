@@ -1,14 +1,33 @@
 name: eve-relation-rag
 
+x-runtime-image: &runtime-image
+  image: ${EVE_RAG_IMAGE:-eve-relation-rag:v0-local}
+  build:
+    context: .
+    target: runtime
+    args:
+      PYTHON_IMAGE: ${PYTHON_IMAGE:-python:3.12.13-slim-bookworm}
+      UV_IMAGE: ${UV_IMAGE:-ghcr.io/astral-sh/uv:0.12.5}
+
+x-hardened-runtime: &hardened-runtime
+  init: true
+  read_only: true
+  cap_drop:
+    - ALL
+  security_opt:
+    - no-new-privileges:true
+  tmpfs:
+    - /tmp:rw,noexec,nosuid,size=64m
+
 services:
   db:
-    image: pgvector/pgvector:pg16
+    image: ${POSTGRES_IMAGE:-pgvector/pgvector:pg16}
     environment:
       POSTGRES_DB: ${POSTGRES_DB:-eve_relation_rag}
       POSTGRES_USER: ${POSTGRES_USER:-eve}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-eve_dev_password}
     ports:
-      - "${POSTGRES_PORT:-5432}:5432"
+      - "127.0.0.1:${POSTGRES_PORT:-5432}:5432"
     healthcheck:
       test:
         - CMD-SHELL
@@ -19,6 +38,94 @@ services:
       start_period: 5s
     volumes:
       - postgres_data:/var/lib/postgresql/data
+    networks:
+      - backend
+
+  migrate:
+    <<: [*runtime-image, *hardened-runtime]
+    command:
+      - alembic
+      - upgrade
+      - head
+    environment:
+      EVE_RAG_ENVIRONMENT: development
+      EVE_RAG_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-eve}:${POSTGRES_PASSWORD:-eve_dev_password}@db:5432/${POSTGRES_DB:-eve_relation_rag}
+    depends_on:
+      db:
+        condition: service_healthy
+    networks:
+      - backend
+    restart: "no"
+
+  api:
+    <<: [*runtime-image, *hardened-runtime]
+    command:
+      - uvicorn
+      - eve_relation_rag.api.app:app
+      - --host
+      - 0.0.0.0
+      - --port
+      - "8000"
+    environment:
+      EVE_RAG_APP_NAME: EVE Relation RAG
+      EVE_RAG_APP_VERSION: V0
+      EVE_RAG_ENVIRONMENT: development
+      EVE_RAG_DATABASE_URL: postgresql+psycopg://${POSTGRES_USER:-eve}:${POSTGRES_PASSWORD:-eve_dev_password}@db:5432/${POSTGRES_DB:-eve_relation_rag}
+      EVE_RAG_CURSOR_HMAC_SECRET: ${EVE_RAG_CURSOR_HMAC_SECRET:-local-demo-only-cursor-secret-0123456789abcdef0123456789abcdef}
+      EVE_RAG_LLM_PROVIDER: disabled
+    ports:
+      - "127.0.0.1:${API_PORT:-8000}:8000"
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/health', timeout=2).read()
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 5s
+    networks:
+      - backend
+      - frontend
+
+  demo:
+    <<: [*runtime-image, *hardened-runtime]
+    command:
+      - streamlit
+      - run
+      - app/streamlit_app.py
+      - --server.address=0.0.0.0
+      - --server.port=8501
+    environment:
+      EVE_RAG_DEMO_API_BASE_URL: http://api:8000
+      STREAMLIT_BROWSER_GATHER_USAGE_STATS: "false"
+    ports:
+      - "127.0.0.1:${DEMO_PORT:-8501}:8501"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - import urllib.request; urllib.request.urlopen('http://127.0.0.1:8501/_stcore/health', timeout=2).read()
+      interval: 5s
+      timeout: 3s
+      retries: 20
+      start_period: 10s
+    networks:
+      - frontend
+
+networks:
+  backend:
+    driver: bridge
+  frontend:
+    driver: bridge
 
 volumes:
   postgres_data:

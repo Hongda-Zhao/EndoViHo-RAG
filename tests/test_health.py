@@ -20,14 +20,14 @@ def test_legacy_unversioned_query_route_is_not_implemented() -> None:
         assert client.get("/query").status_code == 404
 
 
-def test_openapi_description_reports_m2_surface_and_publication_boundary() -> None:
+def test_openapi_description_reports_v0_surface_and_activation_boundary() -> None:
     with TestClient(app) as client:
         response = client.get("/openapi.json")
 
     assert response.status_code == 200
     assert response.json()["info"]["description"] == (
-        "Milestone 2 deterministic structured-query surface over immutable published releases. "
-        "The current pilot remains candidate-only and is rejected by the publication gate."
+        "V0 routed structured, literature, and hybrid RAG surface over exact immutable releases. "
+        "The current structured pilot and generation path remain fail-closed pending approval."
     )
     assert "/v0/structured/plan" in response.json()["paths"]
     assert "/v0/structured/query" in response.json()["paths"]
