@@ -1,0 +1,69 @@
+{
+  "example_schema_version": "demo-examples-v1",
+  "examples": [
+    {
+      "example_key": "zhao-structured",
+      "title": "Zhao candidate / structured fact",
+      "family": "structured",
+      "purpose": "Ask the frozen M2 controlled-English planner for the candidate release locus count.",
+      "current_outcome": "Fail-closed. A fresh database has no release; a staged pilot remains candidate-only and is not queryable.",
+      "activation_blocker": "A separately approved immutable Zhao DatasetRelease with public memberships and validation receipt is required.",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20260826:001",
+        "corpus_release_key": null,
+        "question": "Count distinct included loci in this release.",
+        "page": null,
+        "literature_top_k": null
+      }
+    },
+    {
+      "example_key": "eve-literature",
+      "title": "Published corpus / literature evidence",
+      "family": "literature",
+      "purpose": "Retrieve evidence from the exact approved M3 corpus before constrained composition.",
+      "current_outcome": "Fail-closed in the quick start. The Git repository does not redistribute corpus bytes or the pinned embedding model.",
+      "activation_blocker": "The published corpus must be rebuilt from approved sources, the checksum-pinned local model configured, and a production LLM policy separately approved.",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": "corpus:endoviho-rag:v0:20260828:001",
+        "question": "Explain the literature evidence for endogenous viral elements",
+        "page": null,
+        "literature_top_k": 8
+      }
+    },
+    {
+      "example_key": "zhao-hybrid",
+      "title": "Zhao candidate + corpus / hybrid",
+      "family": "hybrid",
+      "purpose": "Exercise the exact dual-release preflight before either evidence path is allowed to compose an answer.",
+      "current_outcome": "Fail-closed before retrieval because no real dataset-to-corpus binding is approved.",
+      "activation_blocker": "Published structured data, an approved binding manifest, structured-target anchors, provider and egress approval, and human semantic review are required.",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": "release:endoviho-rag:v0:20260826:001",
+        "corpus_release_key": "corpus:endoviho-rag:v0:20260828:001",
+        "question": "Count distinct included loci in this release. and explain the literature limitations",
+        "page": null,
+        "literature_top_k": 8
+      }
+    },
+    {
+      "example_key": "unsupported-inference",
+      "title": "Out-of-scope biological inference",
+      "family": "unsupported",
+      "purpose": "Confirm that unsupported biological inference is refused before data access.",
+      "current_outcome": "Canonical unsupported_request with all three execution flags false.",
+      "activation_blocker": "This request remains outside V0 by design; no activation approval can turn it into an allowed route.",
+      "request": {
+        "request_schema_version": "rag-query-request-v1",
+        "release_key": null,
+        "corpus_release_key": null,
+        "question": "Which host lineage has the highest EVE prevalence?",
+        "page": null,
+        "literature_top_k": null
+      }
+    }
+  ]
+}

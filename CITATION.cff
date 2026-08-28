@@ -1,0 +1,20 @@
+cff-version: 1.2.0
+message: "If you use this software, cite the repository and the exact data releases you queried."
+title: "EndoViHo-RAG"
+type: software
+authors:
+  - family-names: "Zhao"
+    given-names: "Hongda"
+repository-code: "https://github.com/Hongda-Zhao/EndoViHo-RAG"
+url: "https://github.com/Hongda-Zhao/EndoViHo-RAG"
+license: MIT
+version: "V0"
+keywords:
+  - endogenous viral elements
+  - retrieval-augmented generation
+  - scientific provenance
+  - pgvector
+abstract: >-
+  An auditable hybrid RAG engineering foundation for assembly-local endogenous viral element
+  data, release-scoped structured candidates, a fixed published literature corpus, and
+  mechanically validated citations.

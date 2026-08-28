@@ -41,7 +41,16 @@ jobs:
           enable-cache: true
 
       - name: Install locked dependencies
-        run: uv sync --locked --dev
+        run: uv sync --locked --dev --extra demo
+
+      - name: Verify lock and M5 artifacts
+        run: |
+          uv lock --check
+          uv run python scripts/check_m5_artifacts.py --check
+          uv run python scripts/check_docs.py
+
+      - name: Validate Compose model
+        run: docker compose config --quiet
 
       - name: Apply database migrations
         run: uv run alembic upgrade head
@@ -56,4 +65,23 @@ jobs:
         run: uv run ruff check .
 
       - name: Run mypy
-        run: uv run mypy src
+        run: uv run mypy src app
+
+      - name: Build distribution artifacts
+        run: |
+          uv build
+          uv run python scripts/check_distribution.py
+
+  container-smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Build and smoke-test isolated local demo
+        env:
+          M5_SMOKE_PROJECT: eve-rag-m5-smoke-ci-${{ github.run_id }}-${{ github.run_attempt }}
+          M5_SMOKE_POSTGRES_PORT: "55432"
+          M5_SMOKE_API_PORT: "58000"
+          M5_SMOKE_DEMO_PORT: "58501"
+        run: sh scripts/container_smoke.sh

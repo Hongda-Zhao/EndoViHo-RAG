@@ -1,12 +1,17 @@
 [build-system]
-requires = ["hatchling>=1.27,<2"]
+requires = ["hatchling==1.32.0"]
 build-backend = "hatchling.build"
 
 [project]
 name = "eve-relation-rag"
 version = "0"
 description = "Auditable Hybrid RAG foundation for assembly-local EVE data"
+readme = "README.md"
 requires-python = ">=3.12,<3.13"
+license = "MIT"
+authors = [
+  { name = "Hongda Zhao" },
+]
 dependencies = [
   "alembic>=1.14,<2",
   "defusedxml>=0.7,<1",
@@ -20,10 +25,18 @@ dependencies = [
   "uvicorn[standard]>=0.34,<1",
 ]
 
+[project.urls]
+Repository = "https://github.com/Hongda-Zhao/EndoViHo-RAG"
+Issues = "https://github.com/Hongda-Zhao/EndoViHo-RAG/issues"
+
 [project.scripts]
 eve-relation-rag = "eve_relation_rag.cli:app"
 
 [project.optional-dependencies]
+demo = [
+  "httpx>=0.28,<1",
+  "streamlit>=1.62,<2",
+]
 local-embeddings = [
     "sentence-transformers>=6,<7",
 ]
@@ -32,6 +45,7 @@ local-embeddings = [
 dev = [
   "httpx>=0.28,<1",
   "mypy>=1.14,<2",
+  "pyyaml>=6,<7",
   "pytest>=8.3,<9",
   "ruff>=0.9,<1",
   "types-defusedxml>=0.7,<1",
@@ -39,6 +53,34 @@ dev = [
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/eve_relation_rag"]
+
+[tool.hatch.build.targets.sdist]
+include = [
+  "/.streamlit/config.toml",
+  "/alembic.ini",
+  "/app/streamlit_app.py",
+  "/benchmark/v0_benchmark_report.json",
+  "/release/v0_release_checklist.json",
+  "/docs/*.md",
+  "/scripts/check_distribution.py",
+  "/scripts/check_docs.py",
+  "/scripts/check_m5_artifacts.py",
+  "/scripts/container_smoke.sh",
+  "/scripts/smoke_m5_http.py",
+  "/migrations",
+  "/src/eve_relation_rag",
+  "/.dockerignore",
+  "/.env.example",
+  "/CHANGELOG.md",
+  "/CITATION.cff",
+  "/compose.yaml",
+  "/DATA_LICENSE",
+  "/Dockerfile",
+  "/LICENSE",
+  "/README.md",
+  "/pyproject.toml",
+  "/uv.lock",
+]
 
 [tool.pytest.ini_options]
 addopts = ["-ra", "--strict-config", "--strict-markers"]
@@ -54,7 +96,7 @@ select = ["B", "E", "F", "I", "UP"]
 [tool.mypy]
 python_version = "3.12"
 strict = true
-files = ["src"]
+files = ["src", "app"]
 pretty = true
 show_error_codes = true
 warn_unreachable = true

@@ -49,8 +49,8 @@ app = FastAPI(
     title=settings.app_name,
     version=settings.app_version,
     description=(
-        "Milestone 2 deterministic structured-query surface over immutable published releases. "
-        "The current pilot remains candidate-only and is rejected by the publication gate."
+        "V0 routed structured, literature, and hybrid RAG surface over exact immutable releases. "
+        "The current structured pilot and generation path remain fail-closed pending approval."
     ),
 )
 

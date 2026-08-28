@@ -1,208 +1,129 @@
 # EndoViHo-RAG
 
-An auditable hybrid RAG system for finding known endogenous viral elements across structured
-data and literature.
+An auditable V0 hybrid RAG engineering foundation for assembly-local endogenous viral element
+(EVE) records, exact fixed literature corpora, and provenance-preserving answers.
 
-## Current state: Milestone 4 mechanism FULFILLED; real activation blocked
+## Current state
 
-The approved Milestone 4 Draft A mechanism is present on
-`codex/milestone-4-hybrid-rag`: strict routed contracts, a deterministic four-route grammar,
-checksum-pinned exact release binding, trusted same-corpus anchor resolution, immutable
-`ContextPack`, a dependency-free LLM provider boundary, constrained claims, all-or-none
-mechanical validation, deterministic rendering, one shared application service, `POST /v0/query`,
-and `eve-relation-rag rag query`. The final repository-wide test, benchmark, lock, migration,
-lint/type, documentation, and diff gates passed on the final local working tree. This is an
-engineering-mechanism fulfillment record, not a claim that real hybrid generation is activated
-or that remote CI has completed.
+Milestones 1–5 engineering mechanisms are fulfilled locally. Milestone 5 provides the Streamlit
+evidence workbench, Docker quick start, machine-readable benchmark and release checklist,
+software/data licensing boundaries, citation metadata, and audited distribution packaging.
 
-| Final local gate | Result |
-|---|---|
-| Full PostgreSQL pytest suite | `682 passed, 1 warning` |
-| Frozen M2/M3/M4 benchmark selection | `72 passed` |
-| Ruff | passed |
-| strict mypy | passed for `78 source files` |
-| Lock verification | `uv lock --check` passed with `92 packages` |
-| Alembic | sole head `0010_m3_lock_hardening`; current database and a temporary empty-database upgrade from `0001_empty_baseline` through `0010_m3_lock_hardening` both reported no model drift; the temporary database was deleted |
-| Patch hygiene | Markdown checks and `git diff --check` passed |
+This is an **engineering preview**, not a scientifically activated V0 release:
 
-M4 adds no Alembic revision, schema change, production data mutation, or generated-answer write
-path. Its local PR exit gate is fulfilled; pull-request and remote-CI state are tracked
-separately from mechanism fulfillment.
+- Zhao structured release `release:endoviho-rag:v0:20260826:001` remains candidate-only.
+- The approved M3 literature corpus is published, but its source bytes and pinned BGE model are
+  not redistributed by Git or the container image.
+- No real dataset/corpus binding or structured-target anchors are approved.
+- Production accepts only `EVE_RAG_LLM_PROVIDER=disabled`; no prompt, credential, or egress policy
+  is approved.
+- Human semantic-support review is not approved and has not run.
 
-Real generation remains intentionally disabled. Production accepts only
-`EVE_RAG_LLM_PROVIDER=disabled` and composes no provider. No real dataset/corpus binding manifest
-is approved, the Zhao structured release is still candidate-only, and the published corpus has
-document/keyword anchors but no locus, assembly, lineage, or method anchors derivable from a
-structured result. Human semantic-support review is also still required before activation.
+Synthetic successes remain under `tests/` and cannot be selected through API, CLI, Demo, settings,
+or Compose. See the [V0 release checklist](docs/v0_release_checklist.md) for the exact split between
+packaging gates and blocked activation gates.
 
-The M4 outer grammar is deliberately narrow:
+## Architecture
+
+```mermaid
+flowchart LR
+    U[Reviewer] -->|controlled English| D[Streamlit evidence workbench]
+    D -->|server-side POST /v0/query| A[FastAPI routed contract]
+    A --> R{Deterministic router}
+    R -->|structured| P[(PostgreSQL structured truth)]
+    R -->|literature| C[(Published fixed corpus + pgvector)]
+    R -->|hybrid| B[Exact release binding gate]
+    B --> P
+    B --> C
+    P --> S[Immutable StructuredResult]
+    C --> E[RetrievedChunks + stable citations]
+    S --> X[Immutable ContextPack]
+    E --> X
+    X --> L[LLMProvider: disabled in production]
+    L --> V[Mechanical fact / citation validators]
+    S --> O[Typed answer or refusal]
+    V --> O
+    O --> A
+```
+
+PostgreSQL is the only structured truth source. Literature is explanatory evidence. Generated
+text is a presentation layer over immutable upstream results and is accepted only after exact
+mechanical checks. Mechanical validation does not prove semantic entailment or biological truth.
+
+The Demo is an HTTP client, not a second application backend: it cannot import the database,
+construct an LLM, execute the CLI, choose a route, submit SQL, or use a tests-only capability.
+
+## Docker quick start
+
+Prerequisites: Git and Docker Compose.
+
+```sh
+git clone https://github.com/Hongda-Zhao/EndoViHo-RAG.git
+cd EndoViHo-RAG
+cp .env.example .env
+docker compose up --build
+```
+
+Open:
+
+- Demo: <http://127.0.0.1:8501>
+- API documentation: <http://127.0.0.1:8000/docs>
+- process liveness: <http://127.0.0.1:8000/health>
+
+Compose starts `db → migrate → api → demo`. The migration is a one-shot service. API and Demo run
+as UID/GID `10001`, with read-only filesystems, dropped capabilities, no-new-privileges, loopback
+host ports, and separated backend/frontend networks. `/health` proves process liveness only; it
+does not claim that data, a release, a model, or a provider is ready.
+
+A fresh volume is intentionally empty. Compose does not stage Zhao rows, publish a structured
+release, ingest literature, download a model, create a binding, add anchors, or enable generation.
+Its data-dependent examples therefore return typed fail-closed envelopes. That is the correct
+quick-start result, not a degraded success mode.
+
+Stop while preserving the PostgreSQL volume:
+
+```sh
+docker compose down
+```
+
+To deliberately delete only this Compose project's local database volume, use
+`docker compose down --volumes` after confirming no local state is needed.
+
+## Evidence-workbench examples
+
+The Demo ships four fixed selector/question profiles. Users may edit only the English question;
+the server still decides the route.
+
+| Family | Example | Fresh-volume outcome |
+|---|---|---|
+| Structured | `Count distinct included loci in this release.` | `structured_refused` / `release_not_found`; a separately staged pilot is still `release_not_published` |
+| Literature | `Explain the literature evidence for endogenous viral elements` | `literature_refused` / `corpus_not_found` because real corpus/model bytes are not bundled |
+| Hybrid | `Count distinct included loci in this release. and explain the literature limitations` | `hybrid_binding_unavailable` before structured or literature retrieval |
+| Unsupported | `Which host lineage has the highest EVE prevalence?` | `unsupported_request` with all execution flags false |
+
+Every result displays an execution rail:
+
+```text
+01 Structured truth  -> 02 Literature evidence -> 03 Constrained generation
+```
+
+Each stage is marked `EXECUTED` or `HELD` from canonical server flags. Refusal codes, upstream
+codes, structured limitations, anchor diagnostics, generation limitations, validation scope,
+document/chunk/checksum provenance, and the validated response envelope remain inspectable.
+
+## API route contract
+
+The outer grammar is deliberately narrow:
 
 | Route | Question shape | Exact selectors |
 |---|---|---|
-| Structured | unchanged M2 `show`, `list`, or `count` family | structured `release_key` only |
-| Literature | `Explain the literature evidence for <topic>`, `Explain the literature methods for <topic>`, or `Explain the literature limitations for <topic>` | `corpus_release_key` only |
-| Hybrid | one M2 clause plus exactly one terminal `and explain the literature evidence`, `and explain the literature methods`, or `and explain the literature limitations` suffix | both exact release keys |
-| Unsupported | anything else, a selector mismatch, duplicate suffix, or prohibited topic | no downstream calls |
+| Structured | M2 `show`, `list`, or `count` grammar | `release_key` only |
+| Literature | `Explain the literature evidence/methods/limitations for <topic>` | `corpus_release_key` only |
+| Hybrid | one M2 clause plus exactly one terminal literature suffix | both exact release keys |
+| Unsupported | any selector mismatch, prohibited topic, or other grammar | no downstream call |
 
-M4 limits context to 131,072 UTF-8 bytes, literature `top_k` to 8, generated claims to 16,
-trusted anchors to 64, and provider output to 32,768 UTF-8 bytes. Citation IDs, exact evidence
-spans, identifiers, numeric tokens, hashes, and forbidden-inference patterns are validated
-mechanically. `validation_scope="mechanical"` is traceability, not proof of scientific
-entailment; real activation requires a separate checksum-bound human claim review.
-
-### Milestone 3 published corpus retained
-
-Milestone 3 implements the fixed-corpus literature path: checksum-bound local Markdown,
-plain-text, and safe JATS ingestion; stable locators; BGE-tokenizer chunking; PostgreSQL English
-FTS; local 384D embeddings; pgvector HNSW cosine search; deterministic RRF; typed curated
-anchors; strict `RetrievedChunks`; independent rebuild validation; benchmark receipts; and
-fail-closed publication.
-
-The approved 11-document Europe PMC pilot, `corpus:endoviho-rag:v0:20260828:001`, is published
-with 1,464 chunks, 1,464 embeddings, and 22 curated anchors. Its v2 retrieval policy fuses three
-equal RRF60 branches: English weighted FTS, full-chunk dense retrieval, and title/abstract dense
-retrieval, each at depth 100. The 13-question pinned-model pilot passed with Recall@5
-`0.846153846154`, Recall@10 `1.000000000000`, citation validity `1.000000000000`, and locator
-validity `1.000000000000`; responses use `retrieved-chunks-v2`.
-
-The release is bound to corpus manifest
-`1497ea3383bea64d2bc4f17d2376dceb537b4f6c6f57ccb6eaf667b6589732f0`, anchor manifest
-`75a523bc6408f13b07ba283e6539734ec3b694f3dab59994a464d40d98b01fca`, and model artifact
-manifest `0dc66d301fc8305bae93aa197200a176a61be13a302c3fee430cd2efc744241a`. Direct literature
-retrieval remains available as a developer CLI command. The M4 routed endpoint can authorize the
-same exact corpus, but production answer generation stops with `llm_provider_unavailable` after
-successful non-empty retrieval because no provider is approved.
-
-## Milestone 2 structured retrieval retained
-
-Milestone 2 provides a deterministic controlled-English parser, release-scoped resolver,
-published-release capability gate, fixed SQLAlchemy compiler, membership-rooted repository,
-HMAC-authenticated keyset pagination, typed results, FastAPI routes, and a Typer CLI. Both public
-adapters use the same question-first application service; clients cannot submit SQL or an
-arbitrary QueryPlan.
-
-The current Zhao et al. pilot is still a **candidate**, not a public EVE release. Real requests
-for `release:endoviho-rag:v0:20260826:001` therefore fail closed with
-`release_not_published` and execute no public fact query. Synthetic success capabilities exist
-only under `tests/` and cannot be supplied through the API or CLI.
-
-## Milestone 1 verified staging retained
-
-The Milestone 1 truth layer implements the user-approved Draft B contract. The frozen Zhao et
-al. v4 pilot covers ten assembly accession.versions and all 39,495 selected VR rows matching
-`Viral Major Taxon = Orthopolintovirales` and `Class = Bivalvia`.
-
-| Staging result | Verified count |
-|---|---:|
-| Source VR calls and coordinate-free locus keys | 39,495 |
-| `HCVR = Yes` → `source_high` | 71 |
-| Other HCVR values → `source_low` | 39,424 |
-| `Integration` rows with exact placements | 38,968 |
-| `Viral contig` rows retained in quarantine | 527 |
-| Exact assemblies / distinct source contigs | 10 / 12,233 |
-
-`source_high` and `source_low` are source-relative assessments only. Neither confidence label
-creates an inclusion decision or public release membership. The repository currently contains
-no flank assessments, inclusion decisions, or public locus memberships.
-
-The PostgreSQL schema contains 43 domain tables and Alembic head
-`0010_m3_lock_hardening`: 32 structured truth tables plus 11 independent literature
-tables. The structured layer still separates physical source records from method-specific
-detection calls, as well as loci, placements, assertions, evidence, decisions, and release
-membership, so neither repeated analyses nor records sharing an interval are silently merged.
-
-## Frozen provenance
-
-- Canonical workbook: bioRxiv `649669_file12.xlsx`, physical sheet `S3`, 83,851,778 bytes,
-  SHA-256 `79b5d99c095b359d93c834014863fffbbd5968a1dbadafe6a77133a1d690f800`.
-- Assembly/sequence authority: NCBI Datasets v2 CLI `18.36.0`; both original JSONL reports,
-  byte sizes, SHA-256 values, retrieval time, commands, and usage basis are frozen in the
-  Milestone 1 manifest.
-- Full-import audit: 39,495/39,495 exact assembly and contig resolutions, zero length
-  mismatches, zero duplicate keys, and frozen order-independent call/locus key digests.
-
-Large source artifacts remain outside Git. See `data/README.md` for the committed manifest and
-audit boundary.
-
-## Public-release boundary
-
-Verified structured staging is not a published EVE release. Migration
-`0005_m1_fail_closed_publication`
-hard-disables database status promotion to `validated` or `published` until a trusted, immutable
-validation-receipt workflow is implemented. Publication also remains fail-closed until all
-candidate memberships have independent supported left and right flank assessments, an explicit
-authorized inclusion decision, complete frozen NCBI Taxonomy history, and the required ICTV
-snapshot/release binding. Corrections to a published release must create a new immutable release.
-
-The literature corpus has a separate, completed publication lifecycle. Database administration
-is the trusted control plane for staging, receipt creation, and status transitions; these guards
-do not attempt to defend against a malicious database administrator. A status value alone does
-not authorize retrieval: the application gate also verifies the exact manifest, immutable
-receipt evidence, policy identities and hashes, recomputed policy graph, approved model artifact,
-license boundary, and complete embeddings before issuing a query capability.
-
-## Local development
-
-The project is developed on the local Apple Silicon Mac; gds2 remains a source/archive host.
-Project-local tools and container state are ignored by Git.
-
-```sh
-. scripts/local-dev-env.sh
-colima start --runtime docker --vm-type vz --arch aarch64 --cpus 2 --memory 2 --disk 20 --mount none --ssh-config=false --activate=false --binfmt=false
-uv sync --locked --dev
-docker compose up -d db
-uv run alembic upgrade head
-uv run python scripts/stage_milestone1.py
-uv run pytest
-uv run ruff check .
-uv run mypy src
-uv run alembic check
-uv run uvicorn eve_relation_rag.api.app:app --reload
-```
-
-The local BGE runtime is a separately locked optional dependency. Install it only on a host that
-holds the exact approved, locally verified model artifacts:
-
-```sh
-uv sync --locked --dev --extra local-embeddings
-```
-
-Configure `EVE_RAG_EMBEDDING_MODEL_PATH`,
-`EVE_RAG_EMBEDDING_ARTIFACT_MANIFEST_PATH`, and
-`EVE_RAG_EMBEDDING_ARTIFACT_MANIFEST_SHA256` with that exact package. Mutating corpus operations
-also require an explicit `--import-root`; there is no model, corpus, or checksum default.
-
-Set `EVE_RAG_CURSOR_HMAC_SECRET` to at least 32 random bytes before a structured fact query; no
-default cursor key or bypass exists. The liveness endpoint is `GET /health`; the structured
-question-first endpoints are `POST /v0/structured/plan` and `POST /v0/structured/query`; and the
-M4 routed endpoint is `POST /v0/query`.
-
-```sh
-uv run eve-relation-rag structured plan \
-  --release-key release:endoviho-rag:v0:20260826:001 \
-  --question "List all loci in this release."
-
-uv run eve-relation-rag structured query \
-  --release-key release:endoviho-rag:v0:20260826:001 \
-  --question "Count distinct included loci in this release."
-```
-
-The equivalent M4 structured route uses the new shared surface and does not construct literature,
-embedding, binding, or LLM dependencies:
-
-```sh
-uv run eve-relation-rag rag query \
-  --release-key release:endoviho-rag:v0:20260826:001 \
-  --question "Count distinct included loci in this release."
-```
-
-It currently returns canonical `rag-error-v1` with `code="structured_refused"` and upstream
-`release_not_published`, because the Zhao release is intentionally candidate-only. A hybrid-form
-question additionally supplies `--corpus-release-key` and ends in exactly one approved literature
-suffix, but current production configuration refuses it at `hybrid_binding_unavailable` before
-fact retrieval because no real binding manifest is approved.
-
-The same request shape is available over HTTP:
+The public routed endpoint is `POST /v0/query`. Clients cannot submit route, SQL, `QueryPlan`,
+anchors, provider/model/prompt parameters, citation IDs, or sampling settings.
 
 ```sh
 curl -sS http://127.0.0.1:8000/v0/query \
@@ -210,27 +131,126 @@ curl -sS http://127.0.0.1:8000/v0/query \
   -d '{"release_key":"release:endoviho-rag:v0:20260826:001","question":"Count distinct included loci in this release."}'
 ```
 
-The M3 developer namespace contains these explicit, checksum-bound operations:
+The CLI uses the same application service:
 
-```text
-eve-relation-rag literature manifest-validate
-eve-relation-rag literature corpus-stage
-eve-relation-rag literature benchmark
-eve-relation-rag literature corpus-validate
-eve-relation-rag literature corpus-publish
-eve-relation-rag literature retrieve
+```sh
+uv run eve-relation-rag rag query \
+  --release-key release:endoviho-rag:v0:20260826:001 \
+  --question "Count distinct included loci in this release."
 ```
 
-All mutating and evaluation commands require the exact approved inputs they consume:
-`corpus-stage` binds corpus, anchor, and model artifacts, while `benchmark` and
-`corpus-validate` additionally bind the benchmark definition. They never download documents or a
-model, infer `latest`, or publish implicitly. Publication requires the exact manifest and
-immutable passing receipt checksums.
+## Frozen scientific state
 
-The structured examples intentionally demonstrate refusal for the candidate-only Zhao release;
-that boundary is independent of the published literature corpus. Stop services with
-`docker compose down` and `colima stop`; the PostgreSQL named volume is preserved unless
-explicitly removed.
+### Structured pilot
 
-Detailed implementation status and scientific semantics are recorded in
-`docs/development_status.md` and `docs/data_semantics.md`.
+The frozen Zhao et al. v4 candidate covers ten assembly accession.versions and 39,495 selected
+VR rows matching `Viral Major Taxon = Orthopolintovirales` and `Class = Bivalvia`.
+
+| Staging result | Verified count |
+|---|---:|
+| Source calls / coordinate-free locus keys | 39,495 |
+| `HCVR = Yes` → source-relative `source_high` | 71 |
+| Other HCVR values → source-relative `source_low` | 39,424 |
+| `Integration` rows with exact placements | 38,968 |
+| `Viral contig` rows retained in quarantine | 527 |
+| Exact assemblies / distinct source contigs | 10 / 12,233 |
+
+These confidence labels do not create inclusion decisions or public membership. The repository
+contains no flank assessments, inclusion decisions, or published structured memberships.
+
+### Literature pilot
+
+The explicitly approved corpus `corpus:endoviho-rag:v0:20260828:001` contains 11 Europe PMC
+CC-BY-4.0 documents, 1,464 chunks, 1,464 embeddings, and 22 curated document/keyword anchors.
+Its 13-question pinned-model pilot measured Recall@5 `0.846153846154`, Recall@10 `1.0`,
+citation-ID validity `1.0`, and locator validity `1.0`. These metrics describe only that fixed
+corpus and model.
+
+The release is bound to:
+
+- corpus manifest `1497ea3383bea64d2bc4f17d2376dceb537b4f6c6f57ccb6eaf667b6589732f0`;
+- anchor manifest `75a523bc6408f13b07ba283e6539734ec3b694f3dab59994a464d40d98b01fca`;
+- model artifact manifest `0dc66d301fc8305bae93aa197200a176a61be13a302c3fee430cd2efc744241a`;
+- trusted receipt `28f436d57630edd8403b71a503d23528fb7a1640432d8f623eca256b68858e7e`.
+
+## Benchmarks and release metadata
+
+- [Benchmark report](docs/benchmark_report.md) and canonical
+  [benchmark JSON](benchmark/v0_benchmark_report.json)
+- [V0 release checklist](docs/v0_release_checklist.md) and canonical
+  [checklist JSON](release/v0_release_checklist.json)
+- [Milestone 5 contract](docs/milestone_5_contract.md)
+- [Software license](LICENSE), [data/model notice](DATA_LICENSE),
+  [citation metadata](CITATION.cff), and [changelog](CHANGELOG.md)
+
+The machine reports use self-excluding canonical SHA-256 values. SHA-256 establishes content
+identity; it is not approval, legal permission, semantic proof, or a release signature.
+
+## Key locked parameters
+
+| Parameter | V0 value |
+|---|---|
+| Python | `>=3.12,<3.13`; container `3.12.13-slim-bookworm` |
+| dependency manager | uv `0.12.5`; `uv.lock` |
+| Demo | Streamlit `1.62.0`; HTTP timeout 20 s; response cap 2 MiB; identity encoding; zero retries/redirects |
+| database | PostgreSQL 16 + pgvector; Alembic head `0010_m3_lock_hardening` |
+| literature chunking | pinned BGE tokenizer; target/overlap/hard max `384/64/448` tokens |
+| retrieval | English weighted FTS + full-chunk dense + summary dense; RRF60; depth 100 per branch |
+| M4 context | maximum 131,072 UTF-8 bytes; maximum 8 chunks and 16 generated claims |
+| generation output | maximum 32,768 UTF-8 bytes; temperature 0; retry count 0 |
+| local ports | PostgreSQL `5432`, API `8000`, Demo `8501`, all loopback-bound |
+| local image | `EVE_RAG_IMAGE=eve-relation-rag:v0-local`; smoke uses a disposable unique tag |
+
+Exact dependency versions and dependency-archive hashes are in `uv.lock`. The locally built
+project wheel and sdist are content-audited but neither published nor assigned release hashes.
+Container image tags are version-constrained quick-start inputs; they are not claimed to be
+byte-reproducible registry digests.
+
+## Development and verification
+
+```sh
+. scripts/local-dev-env.sh
+uv sync --locked --dev --extra demo
+docker compose up -d db
+uv run alembic upgrade head
+uv run pytest
+uv run ruff check .
+uv run mypy src app
+uv lock --check
+uv run alembic check
+uv run python scripts/check_m5_artifacts.py --check
+```
+
+Install the separately locked local embedding runtime only on a host holding the exact approved
+model package:
+
+```sh
+uv sync --locked --dev --extra demo --extra local-embeddings
+```
+
+Then explicitly configure `EVE_RAG_EMBEDDING_MODEL_PATH`,
+`EVE_RAG_EMBEDDING_ARTIFACT_MANIFEST_PATH`, and
+`EVE_RAG_EMBEDDING_ARTIFACT_MANIFEST_SHA256`. No document, corpus, model, checksum, release, or
+binding is discovered or downloaded automatically.
+
+When the wheel or container is used for the administrative `literature benchmark` or
+`corpus-validate` command, pass the exact approved checkout lock as `--uv-lock-path`; a source
+checkout uses its root `uv.lock` by default. The lock bytes remain part of the recorded runtime
+fingerprint.
+
+## Security and coverage boundary
+
+The Compose profile is a loopback local demo, not production-hardened deployment. It does not add
+authentication, authorization, rate limiting, a dedicated read-only query role, TLS, readiness,
+backup/restore, multi-tenant isolation, or public hosting. Real deployment requires a separate
+threat model and approvals. The separated Compose networks prevent Demo from resolving the
+database, but are not claimed as a production outbound firewall; no external provider, credential,
+or data-egress path is configured.
+
+The system describes what exact published database/corpus releases contain and where evidence is
+located. It must not claim that an LLM proved infection, prevalence, biological absence,
+co-divergence, independent integration, or a novel EVE.
+
+Detailed boundaries are in [scientific semantics](docs/data_semantics.md),
+[development status](docs/development_status.md), and the repository's
+[data provenance](https://github.com/Hongda-Zhao/EndoViHo-RAG/blob/main/data/README.md).

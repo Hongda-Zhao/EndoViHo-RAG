@@ -725,6 +725,10 @@ eve-relation-rag literature benchmark
 Every mutating command requires exact keys/checksums and refuses implicit defaults. CLI output is
 stable JSON; human logs go to stderr.
 
+The pilot `benchmark` and `corpus-validate` commands hash the exact `uv.lock` into their runtime
+fingerprint. A source checkout uses its root lock; wheel or container invocations must provide an
+existing approved file with `--uv-lock-path` rather than guessing an installation-relative path.
+
 No public FastAPI literature route is added in Milestone 3. Milestone 4 owns router semantics,
 hybrid orchestration, public literature/hybrid endpoints, `ContextPack`, LLM providers, answer
 generation, and citation-to-claim validation. M3 retrieval can be exercised directly through the

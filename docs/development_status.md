@@ -2,21 +2,75 @@
 
 > Product version: V0
 >
-> Current milestone: Milestone 4 — engineering mechanism **FULFILLED**; real activation blocked
+> Current milestone: Milestone 5 — demo/release packaging mechanism fulfilled locally
 >
-> Status: M4.0–M4.5 and all final local acceptance gates are complete; the PR exit gate is
-> fulfilled, while real activation remains intentionally blocked
+> Status: M5 local engineering gates passed; real activation and external publication remain
+> intentionally blocked
 >
 > Last verified: 2026-08-28 (Asia/Tokyo)
+
+## Milestone 5 status — packaging FULFILLED locally, activation blocked
+
+The user authorized completion of the remaining Milestone 5 scope. The current branch is
+`codex/milestone-5-demo-release`, stacked on M4 commit
+`d75e6bb8d618ac8f393f34c3d067e06e5601b154` while M4 PR #4 remains open. The approved Draft A
+contract is `docs/milestone_5_contract.md`.
+
+Implemented M5 components now include:
+
+- an English-only Streamlit evidence workbench with four strict real-state examples, visible
+  fixed selectors, server-owned routing, and a three-stage execution rail;
+- an HTTP-only client fixed to `POST /v0/query`, configured from a server environment origin,
+  with strict origin validation, zero redirects/retries, a 20-second operation timeout, bounded
+  response bytes, complete M4 canonical revalidation, exact request/response binding,
+  HTTP/envelope status agreement, and sanitized failures;
+- explicit structured, generation, and insufficiency limitations; anchor diagnostics;
+  mechanical validation scope; and citation document/chunk/locator/checksum provenance;
+- a non-root Docker runtime and Compose chain `db -> migrate -> api -> demo`, with loopback ports,
+  one-shot Alembic migration, read-only API/Demo filesystems, dropped capabilities,
+  no-new-privileges, separated backend/frontend networks, and no automatic data/model/provider
+  activation;
+- a security allowlist Docker build context that excludes Git, `.env`, restricted artifacts,
+  source/model/data bytes, local tools/environments, caches, tests, and build outputs;
+- canonical checksum-bound benchmark and V0 checklist JSON, deterministic Markdown projections,
+  drift checks, `DATA_LICENSE`, `CITATION.cff`, and an Unreleased V0 changelog;
+- focused client, AppTest, import-boundary, route-example, container-contract, metadata,
+  machine-artifact, and legal-boundary tests.
+
+M5 completion is classified separately from product activation:
+
+| Classification | Current state |
+|---|---|
+| M5 implementation | **FULFILLED locally on 2026-08-28**: full-suite, frozen benchmark, package, migration, documentation, and fresh-volume container gates passed |
+| Software distribution | preview ready but not published; no tag, GitHub Release, PyPI upload, or image publication |
+| V0 Definition of Done | **BLOCKED** because real structured/literature/hybrid success and real structured publication are not complete |
+| Real hybrid activation | **BLOCKED** by structured publication, binding/anchors, provider/egress, and human semantic review |
+
+Final local M5 evidence:
+
+| Gate | Result |
+|---|---|
+| Full pytest | 724 passed; one upstream Starlette/TestClient deprecation warning |
+| Frozen M2/M3/M4 selection | 72 passed |
+| Static and lock | Ruff passed; strict mypy passed over 84 source files; 114 packages locked |
+| Migrations | one head/current `0010_m3_lock_hardening`; no model drift; clean 0001-to-0010 replay passed |
+| Distribution | wheel and sdist built and audited; required examples, metadata, quick-start assets, and full migration chain present; restricted artifacts absent |
+| Containers | fresh volume, one-shot migration, loopback health, Demo-to-API UI/refusal path, non-root/read-only runtime, and exact cleanup passed |
+
+Remote pull-request CI is not pre-claimed by this local record and is tracked separately after
+push.
+
+The empty Docker quick start proves platform startup and canonical refusal behavior. It does not
+bundle or publish a scientific pilot. Synthetic success remains tests-only and is not selectable
+by Demo, API, CLI, settings, or Compose.
 
 ## Milestone 4 status — mechanism FULFILLED, activation blocked
 
 The user approved Milestone 4 Contract Draft A and authorized implementation through a pull
-request. The current branch is `codex/milestone-4-hybrid-rag`, based on M3 merge commit
-`46e2155811978d407776894caab01f19504edb2b`. The routed-RAG mechanism is present in the working
-tree and its final repository-wide local acceptance gates passed. This status records engineering
-mechanism fulfillment and PR readiness; pull-request and remote-CI state are tracked separately.
-It does **not** claim real provider generation or real Zhao hybrid activation.
+request. At M4 completion, branch `codex/milestone-4-hybrid-rag` was based on M3 merge commit
+`46e2155811978d407776894caab01f19504edb2b`. The routed-RAG mechanism passed its final
+repository-wide local acceptance gates and is the base of the current M5 branch. This historical
+M4 status does **not** claim real provider generation or real Zhao hybrid activation.
 
 | Classification | Current state |
 |---|---|
@@ -199,8 +253,7 @@ fulfillment record and real hybrid activation remains blocked.
 
 The user approved Milestone 3 Contract Draft A, Amendment v2, the exact v2 corpus and anchor
 manifests, and completion through publication. M3.0–M3.5 and the real pinned-model pilot are
-complete. The product DoD is satisfied, and this branch contains the requested Milestone 3 pull
-request payload.
+complete. The Milestone 3 DoD is satisfied; the V0 product DoD remains independently blocked.
 
 Implemented scope:
 
@@ -314,12 +367,13 @@ Key artifacts:
 
 | Item | Verified state on 2026-08-28 |
 |---|---|
-| M2 baseline | `main` at `d7287e1b16681ec2f8e9ff2cea337eca71cfeef8`, tracking `origin/main` |
+| Current remote `main` baseline | M3 merge `46e2155811978d407776894caab01f19504edb2b` |
 | Milestone 2 integration | [PR #2](https://github.com/Hongda-Zhao/EndoViHo-RAG/pull/2) merged into `main` |
 | Milestone 3 integration | PR #3 merged into `origin/main` at `46e2155811978d407776894caab01f19504edb2b` |
-| Active M4 work | branch `codex/milestone-4-hybrid-rag`, based on the M3 merge; local mechanism and PR exit gates fulfilled |
-| Last recorded pre-M3 `main` CI | [GitHub Actions run 33041862881](https://github.com/Hongda-Zhao/EndoViHo-RAG/actions/runs/33041862881) succeeded; current M4 remote CI has not run |
-| Standalone GitHub issues | none in the last recorded remote audit; current state not re-queried from this local-only documentation pass |
+| Milestone 4 integration | PR #4 remains open; its remote quality checks were green when queried on 2026-08-28 |
+| Active M5 work | branch `codex/milestone-5-demo-release`, stacked on M4 commit `d75e6bb8d618ac8f393f34c3d067e06e5601b154`; local gates fulfilled |
+| M5 remote CI | not pre-claimed by this local record; evaluated after the M5 branch and pull request are pushed |
+| Standalone GitHub issues | no current claim; issue state is outside this local engineering snapshot |
 | `main` branch protection | last recorded as unprotected; current enforcement is unverified and remains a repository-governance task |
 
 ### Frozen Milestone 2 parameters
@@ -509,7 +563,8 @@ gates still apply; hybrid additionally requires an approved exact binding; and p
 generation is disabled. M4 adds no Alembic revision, database table, production data row, or
 online write path.
 
-Deferred beyond Milestone 4 Draft A:
+Deferred beyond Milestone 4 Draft A at the time of its approval (the final item is now fulfilled
+by M5; the activation items remain blocked):
 
 - publication of the Zhao structured candidate and public locus memberships;
 - approval of a real dataset/corpus binding manifest and structured-target corpus anchors;
@@ -518,7 +573,7 @@ Deferred beyond Milestone 4 Draft A:
 - complete global Zhao et al. data beyond the ten-assembly pilot;
 - the Guinet adapter and additional source adapters;
 - streaming, sessions, memory, personalization, live search, agents, and tool loops; and
-- M5 demo, evaluation UI, and release packaging.
+- M5 demo, evaluation UI, and release packaging — fulfilled locally by the current milestone.
 
 ### Next-decision boundary
 
@@ -569,25 +624,33 @@ Milestone 1/2 structured truth semantics.
 | Migration | Alembic `1.19.1`; head `0010_m3_lock_hardening` |
 | Tests | pytest `8.4.2`, including PostgreSQL integration tests |
 | Lint / static typing | Ruff `0.16.4`; mypy `1.20.2` strict mode |
+| Demo client/UI | httpx `0.28.1`; Streamlit `1.62.0` |
+| Build backend | Hatchling `1.32.0`, exactly pinned in `pyproject.toml` |
 | CI | GitHub Actions on push and pull request |
 | Local container runtime | Colima `0.10.3`; Docker client `29.7.2`, engine `29.5.2`; Compose `5.5.0` |
 
-Exact Python dependency versions and package hashes remain in `uv.lock`. Project-local binaries,
-the virtual environment, caches, Colima state, and large source artifacts are ignored by Git.
+Exact Python dependency versions and dependency-archive hashes remain in `uv.lock`. Project-local
+binaries, the virtual environment, caches, Colima state, and large source artifacts are ignored
+by Git. The local project wheel/sdist are content-audited but are not published release artifacts.
 
 ## Verification commands
 
 ```sh
 . scripts/local-dev-env.sh
 docker compose up -d db
-uv sync --locked --dev
+uv sync --locked --dev --extra demo
 uv run alembic upgrade head
-uv run python scripts/stage_milestone1.py
 uv run pytest
 uv run ruff check .
-uv run mypy src
+uv run mypy src app
 uv lock --check
 uv run alembic check
+uv run python scripts/check_m5_artifacts.py --check
+uv run python scripts/check_docs.py
+docker compose config --quiet
+uv build
+uv run python scripts/check_distribution.py
+sh scripts/container_smoke.sh
 git diff --check
 ```
 
@@ -607,9 +670,11 @@ uv run pytest \
 ```
 
 Focused tests remain an iteration aid rather than a substitute for the final full-suite,
-benchmark, clean-migration, lock, Ruff, mypy, and diff gates recorded above. GitHub Actions runs
-migration upgrade/check, full pytest, Ruff, and mypy on pushes and pull requests; this local
-mechanism-fulfillment record does not pre-claim a remote-CI result.
+benchmark, clean-migration, lock, Ruff, mypy, package, container, and diff gates recorded above.
+GitHub Actions runs artifact/document drift checks, Compose validation, migration upgrade/check,
+full pytest, Ruff, strict mypy over `src` and `app`, distribution build/audit, and an isolated
+fresh-volume container smoke on pushes and pull requests. This local mechanism-fulfillment record
+does not pre-claim a remote-CI result.
 
 Install the separately locked local embedding runtime only on a host holding the approved model
 artifact package:
@@ -630,9 +695,9 @@ eve-relation-rag literature corpus-publish
 eve-relation-rag literature retrieve
 ```
 
-CI runs the migration, Alembic model-drift check, complete pytest suite, Ruff, and mypy against
-PostgreSQL. The latest remote `main` run passed, but GitHub currently reports `main` as
-unprotected, so required-check enforcement is not active at the repository boundary.
+CI runs the artifact/document, Compose, migration, complete pytest, Ruff, mypy, distribution, and
+fresh-volume container gates described above. Remote check results are reported on the pull
+request; branch-protection enforcement remains a separate repository-governance concern.
 
 Final local M3 verification on 2026-08-28 completed with `486 passed`. Ruff, mypy strict (`62`
 source files), lockfile reproducibility, `alembic current`, `alembic check`, and diff whitespace

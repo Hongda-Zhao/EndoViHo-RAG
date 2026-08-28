@@ -1,0 +1,64 @@
+EndoViHo-RAG data and model notice
+==================================
+
+The MIT license in LICENSE applies to project software. It does not relicense third-party data,
+papers, model artifacts, genome records, or source workbooks.
+
+Tracked repository content
+--------------------------
+
+The repository tracks small project-authored manifests, audit metadata, and tests. It does not
+track the Zhao source workbook, NCBI resolution reports, genome assemblies, the approved Europe
+PMC full-text corpus, embeddings, or the BGE model artifact. Those bytes must be obtained and
+verified independently under their own terms and exact checksums.
+
+The fabricated literature fixtures under tests/fixtures/literature are project test data. Their
+strict corpus manifest declares CC0-1.0 for each fixture document. This declaration does not apply
+to any other file or to a real corpus.
+
+Zhao pilot source
+-----------------
+
+The canonical bioRxiv-hosted Zhao v4 supplement is conservatively recorded as
+CC-BY-NC-ND-4.0. The separately recorded Zenodo dataset metadata declares CC-BY-4.0. These are
+distinct provenance statements; the Zenodo metadata does not silently override the license basis
+of the canonical supplement. See data/manifests/milestone1_zhao_v4_data_s1.json. No Zhao source
+workbook is distributed in Git, the Python packages, or the container image.
+
+NCBI-derived resolution metadata
+--------------------------------
+
+Frozen NCBI Datasets v2 resolution inputs are recorded under the
+NCBI-MOLECULAR-DATA-USAGE-POLICY usage basis. NCBI's policy and disclaimer, including its caveat
+about third-party rights, remain applicable:
+
+https://www.ncbi.nlm.nih.gov/home/about/policies/
+
+No NCBI JSONL report or genome sequence is distributed in Git, the Python packages, or the
+container image.
+
+Milestone 3 literature corpus
+-----------------------------
+
+The approved M3 pilot is an exact eleven-document Europe PMC OA JATS corpus. Each approved
+document manifest row records CC-BY-4.0, its article-specific evidence URI, checksum, retrieval
+timestamp, and approval state. The permission is document-scoped; it is not a blanket license for
+Europe PMC or for unlisted articles. Corpus source bytes are not distributed in Git, the Python
+packages, or the container image. Attribution and the applicable CC-BY-4.0 terms must be retained
+when an authorized local corpus is rebuilt.
+
+Embedding model
+---------------
+
+The approved local BAAI/bge-small-en-v1.5 artifact manifest records an MIT model license and an
+exact revision/checksum package. Model weights are not distributed in this repository or its
+software artifacts. The project's software MIT license does not substitute for verifying the
+model artifact's own license and checksum.
+
+No data warranty or publication grant
+-------------------------------------
+
+This notice records boundaries; it is not legal advice, a warranty, or permission to publish a
+candidate DatasetRelease. A local database status or checksum does not override source terms.
+Real structured publication, hybrid binding, model/provider activation, and external distribution
+of third-party artifacts remain separate approvals.

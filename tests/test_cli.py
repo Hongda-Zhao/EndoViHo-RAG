@@ -3,6 +3,8 @@ from __future__ import annotations
 import json
 from pathlib import Path
 
+import pytest
+from click import unstyle
 from fastapi.testclient import TestClient
 from typer.testing import CliRunner
 
@@ -41,6 +43,31 @@ class _FakeLiteratureService:
             warnings=("no_chunks_retrieved",),
             chunks=(),
         )
+
+
+def test_literature_admin_commands_expose_an_explicit_uv_lock_path() -> None:
+    for command in ("benchmark", "corpus-validate"):
+        result = runner.invoke(app, ["literature", command, "--help"])
+
+        assert result.exit_code == 0, result.output
+        help_text = unstyle(result.stdout)
+        assert "--uv-lock-path" in help_text
+        assert "Exact approved uv.lock" in help_text
+        assert "required outside a source" in help_text
+
+
+def test_uv_lock_path_fails_closed_outside_a_source_checkout(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    installed_cli = tmp_path / "lib" / "python3.12" / "site-packages" / "cli.py"
+    monkeypatch.setattr(cli_module, "__file__", str(installed_cli))
+
+    with pytest.raises(RuntimeError, match="provide --uv-lock-path"):
+        cli_module._resolve_uv_lock_path(None)
+    explicit = tmp_path / "approved.uv.lock"
+    explicit.write_text("version = 1\n", encoding="utf-8")
+    assert cli_module._resolve_uv_lock_path(explicit) == explicit
 
 
 def test_cli_and_api_return_semantically_identical_canonical_json(monkeypatch: object) -> None:
