@@ -1,0 +1,13 @@
+NCBI sequence retrieval terms notification
+
+Notified: 2026-08-29T14:37:32+09:00
+
+The project owner was notified to review the NCBI terms and policies before
+NCBI sequence retrieval is used for the V0 flank-evidence workflow:
+
+- https://www.ncbi.nlm.nih.gov/
+- https://www.ncbi.nlm.nih.gov/home/about/policies/
+
+The workflow uses the ncbi-sequence-fetch skill wrapper, conservative unauthenticated
+rate limiting when no NCBI_API_KEY is configured, exact accession.version requests,
+and checksum-bound local evidence artifacts.
