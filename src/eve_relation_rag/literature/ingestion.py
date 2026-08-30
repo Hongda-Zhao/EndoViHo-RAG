@@ -156,16 +156,19 @@ def import_candidate_corpus(
     tokenizer: OffsetTokenizer,
     approved_manifest_sha256: str,
     importer_code_sha256: str,
+    policy_code_sha256: str | None = None,
     model_artifact_manifest_sha256: str,
     embedding_provider: EmbeddingProvider | None = None,
     embedding_batch_size: int = 500,
 ) -> CorpusImportReport:
     """Prepare all artifacts before atomically inserting one candidate release."""
 
+    resolved_policy_code_sha256 = policy_code_sha256 or importer_code_sha256
     _validate_import_identity(
         manifest,
         approved_manifest_sha256=approved_manifest_sha256,
         importer_code_sha256=importer_code_sha256,
+        policy_code_sha256=resolved_policy_code_sha256,
         model_artifact_manifest_sha256=model_artifact_manifest_sha256,
     )
     if embedding_provider is not None:
@@ -212,6 +215,8 @@ def import_candidate_corpus(
         "tokenizer_model_key": tokenizer.model_key,
         "embedding_build": embedding_provider is not None,
     }
+    if policy_code_sha256 is not None:
+        parameters["policy_code_sha256"] = resolved_policy_code_sha256
     parameters_sha256 = canonical_json_sha256(parameters)
     run_key = corpus_import_run_key(
         {
@@ -241,7 +246,7 @@ def import_candidate_corpus(
                 )
 
             policies = {
-                spec.kind: _ensure_policy(session, spec, importer_code_sha256)
+                spec.kind: _ensure_policy(session, spec, resolved_policy_code_sha256)
                 for spec in _policy_specs(manifest)
             }
             model = _ensure_embedding_model(session, model_artifact_manifest_sha256)
@@ -392,6 +397,7 @@ def _validate_import_identity(
     *,
     approved_manifest_sha256: str,
     importer_code_sha256: str,
+    policy_code_sha256: str,
     model_artifact_manifest_sha256: str,
 ) -> None:
     if approved_manifest_sha256 != manifest.manifest_sha256:
@@ -400,6 +406,8 @@ def _validate_import_identity(
         raise CorpusImportError("manifest canonical SHA-256 is invalid")
     if not _SHA256_RE.fullmatch(importer_code_sha256):
         raise CorpusImportError("importer_code_sha256 must be lowercase SHA-256")
+    if not _SHA256_RE.fullmatch(policy_code_sha256):
+        raise CorpusImportError("policy_code_sha256 must be lowercase SHA-256")
     if not _SHA256_RE.fullmatch(model_artifact_manifest_sha256):
         raise CorpusImportError("model artifact manifest SHA-256 is invalid")
     expected = (

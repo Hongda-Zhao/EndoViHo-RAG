@@ -49,12 +49,14 @@ class TestsOnlyQueryableRelease:
     release_id: int = 17
     dataset_key: Literal["dataset:endoviho-rag"] = "dataset:endoviho-rag"
     release_key: str = RELEASE_KEY
-    status: Literal["published"] = "published"
+    status: Literal["published", "validation_candidate"] = "published"
     schema_version: str = "synthetic-m2-v1"
     published_at: datetime = datetime(2026, 8, 27, tzinfo=UTC)
     manifest_sha256: str = "a" * 64
     validation_receipt_key: str = "tests-only:receipt"
     validation_receipt_sha256: str = "b" * 64
+    candidate_validation_input_sha256: str | None = None
+    candidate_capability_sha256: str | None = None
     source_dependencies: dict[str, SourceDependencyBinding] | None = None
     lineage_dependencies: dict[LineageRole, LineageDependencyBinding] | None = None
     complete_lineage_closure_roles: frozenset[LineageRole] = frozenset()
@@ -441,6 +443,66 @@ def test_query_authorized_does_not_call_gate_again() -> None:
         "assembly_local_locus_is_not_independent_integration_event",
         "zero_matches_do_not_establish_biological_absence",
     }
+
+
+def test_validation_candidate_result_never_claims_published_provenance() -> None:
+    release = TestsOnlyQueryableRelease(
+        status="validation_candidate",
+        validation_receipt_key="validation-candidate:no-receipt",
+        validation_receipt_sha256="0" * 64,
+        candidate_validation_input_sha256="c" * 64,
+        candidate_capability_sha256="d" * 64,
+    )
+    repository = FakeRepository(
+        AggregateData(
+            metric_key="distinct_included_locus_count",
+            value=1,
+            unit="loci",
+            deduplication_key="release_key+locus_key",
+        )
+    )
+    service = StructuredRetrievalService(
+        gate=FakeGate(release=release),
+        repository=repository,
+        cursor_secret=SECRET,
+    )
+
+    response = service.query_authorized(release, _aggregate_plan(), _complete_audit())
+
+    assert isinstance(response, QuerySuccess)
+    release_ref = response.structured_result.release
+    assert release_ref.status == "validation_candidate"
+    assert release_ref.candidate_validation_input_sha256 == "c" * 64
+    assert release_ref.candidate_capability_sha256 == "d" * 64
+    assert "published_at" not in release_ref.model_dump()
+
+
+def test_validation_candidate_without_exact_identity_fails_before_query() -> None:
+    release = TestsOnlyQueryableRelease(
+        status="validation_candidate",
+        validation_receipt_key="validation-candidate:no-receipt",
+        validation_receipt_sha256="0" * 64,
+    )
+    repository = FakeRepository(
+        AggregateData(
+            metric_key="distinct_included_locus_count",
+            value=1,
+            unit="loci",
+            deduplication_key="release_key+locus_key",
+        )
+    )
+    service = StructuredRetrievalService(
+        gate=FakeGate(release=release),
+        repository=repository,
+        cursor_secret=SECRET,
+    )
+
+    response = service.query_authorized(release, _aggregate_plan(), _complete_audit())
+
+    assert isinstance(response, ErrorResponse)
+    assert response.error.code == "release_dependencies_incomplete"
+    assert response.fact_retrieval_executed is False
+    assert repository.calls == []
 
 
 def test_post_fact_entity_miss_is_normalized_to_integrity_error() -> None:

@@ -169,6 +169,51 @@ def test_import_refuses_unapproved_manifest_before_database_mutation(
         )
 
 
+def test_import_records_current_code_while_reusing_exact_immutable_policy_code(
+    postgres_engine: Engine,
+) -> None:
+    manifest = CorpusManifest.model_validate_json(MANIFEST_PATH.read_text())
+    current_importer_sha256 = "d" * 64
+
+    report = import_candidate_corpus(
+        postgres_engine,
+        manifest=manifest,
+        import_root=FIXTURE_ROOT,
+        tokenizer=WhitespaceOffsetTokenizer(),
+        approved_manifest_sha256=manifest.manifest_sha256,
+        importer_code_sha256=current_importer_sha256,
+        policy_code_sha256=CODE_SHA256,
+        model_artifact_manifest_sha256=MODEL_ARTIFACT_MANIFEST_SHA256,
+    )
+
+    assert report.replayed is False
+    with Session(postgres_engine) as session:
+        run = session.scalar(
+            select(CorpusImportRun).where(CorpusImportRun.run_key == report.run_key)
+        )
+        assert run is not None
+        assert run.code_sha256 == current_importer_sha256
+        assert run.parameters["policy_code_sha256"] == CODE_SHA256
+
+
+def test_import_rejects_invalid_explicit_policy_code_identity(
+    postgres_engine: Engine,
+) -> None:
+    manifest = CorpusManifest.model_validate_json(MANIFEST_PATH.read_text())
+
+    with pytest.raises(CorpusImportError, match="policy_code_sha256"):
+        import_candidate_corpus(
+            postgres_engine,
+            manifest=manifest,
+            import_root=FIXTURE_ROOT,
+            tokenizer=WhitespaceOffsetTokenizer(),
+            approved_manifest_sha256=manifest.manifest_sha256,
+            importer_code_sha256=CODE_SHA256,
+            policy_code_sha256="not-a-sha256",
+            model_artifact_manifest_sha256=MODEL_ARTIFACT_MANIFEST_SHA256,
+        )
+
+
 def test_atomic_stage_rejects_cli_artifact_sha_that_differs_from_provider(
     postgres_engine: Engine,
 ) -> None:

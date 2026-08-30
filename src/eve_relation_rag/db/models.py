@@ -94,6 +94,90 @@ class DatasetRelease(Base):
     )
 
 
+class DatasetValidationReceipt(Base):
+    """Immutable trusted validation evidence for one structured dataset release."""
+
+    __tablename__ = "dataset_validation_receipt"
+    __table_args__ = (
+        CheckConstraint(
+            "receipt_key ~ '^dataset-receipt:sha256:[0-9a-f]{64}$'",
+            name="valid_receipt_key",
+        ),
+        CheckConstraint("status IN ('passed', 'failed')", name="valid_status"),
+        CheckConstraint("NOT trusted OR status = 'passed'", name="trusted_receipt_must_pass"),
+        CheckConstraint(SHA256_CHECK.format(column="manifest_sha256"), name="valid_manifest"),
+        CheckConstraint(
+            SHA256_CHECK.format(column="dependency_graph_sha256"),
+            name="valid_dependency_graph",
+        ),
+        CheckConstraint(
+            SHA256_CHECK.format(column="validation_request_sha256"),
+            name="valid_validation_request",
+        ),
+        CheckConstraint(
+            SHA256_CHECK.format(column="activation_evidence_sha256"),
+            name="valid_activation_evidence",
+        ),
+        CheckConstraint(
+            SHA256_CHECK.format(column="candidate_validation_input_sha256"),
+            name="valid_candidate_validation_input",
+        ),
+        CheckConstraint(
+            SHA256_CHECK.format(column="validation_input_sha256"),
+            name="valid_validation_input",
+        ),
+        CheckConstraint(
+            SHA256_CHECK.format(column="validation_report_sha256"),
+            name="valid_validation_report",
+        ),
+        CheckConstraint(
+            SHA256_CHECK.format(column="validator_code_sha256"),
+            name="valid_validator_code",
+        ),
+        CheckConstraint(SHA256_CHECK.format(column="receipt_sha256"), name="valid_receipt"),
+        CheckConstraint(
+            "jsonb_typeof(complete_lineage_closure_roles) = 'array'",
+            name="closure_roles_are_array",
+        ),
+        CheckConstraint(
+            "jsonb_typeof(validation_evidence) = 'object'",
+            name="evidence_is_object",
+        ),
+    )
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True)
+    receipt_key: Mapped[str] = mapped_column(String(255), nullable=False, unique=True)
+    release_id: Mapped[int] = mapped_column(
+        BigInteger, ForeignKey("dataset_release.id", ondelete="RESTRICT"), nullable=False
+    )
+    status: Mapped[str] = mapped_column(String(16), nullable=False)
+    trusted: Mapped[bool] = mapped_column(Boolean, nullable=False)
+    manifest_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    dependency_graph_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    validation_request_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    activation_evidence_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    candidate_validation_input_sha256: Mapped[str] = mapped_column(
+        String(64), nullable=False
+    )
+    validation_input_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    validation_report_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    validator_code_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    receipt_sha256: Mapped[str] = mapped_column(String(64), nullable=False)
+    complete_lineage_closure_roles: Mapped[list[str]] = mapped_column(JSONB, nullable=False)
+    validation_evidence: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False, server_default=func.now()
+    )
+
+
+Index(
+    "uq_dataset_validation_receipt_passing_release",
+    DatasetValidationReceipt.release_id,
+    unique=True,
+    postgresql_where=text("status = 'passed' AND trusted"),
+)
+
+
 class SourceSnapshot(Base):
     """A frozen, checksummed version of an external source."""
 

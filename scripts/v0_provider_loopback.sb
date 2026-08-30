@@ -1,0 +1,13 @@
+(version 1)
+
+; The V0 process tree may bind only the authenticated outer endpoint (8123)
+; and the inherited-credential inner endpoint (8124).  Its sole outbound
+; socket is proxy-to-engine traffic on 8124; every external and other loopback
+; network operation remains denied by the operating system.
+(allow default)
+(deny network*)
+(allow network-bind (local ip "localhost:8123"))
+(allow network-bind (local ip "localhost:8124"))
+(allow network-inbound (local ip "localhost:8123"))
+(allow network-inbound (local ip "localhost:8124"))
+(allow network-outbound (remote ip "localhost:8124"))

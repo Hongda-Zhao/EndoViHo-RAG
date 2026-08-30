@@ -45,6 +45,7 @@ from eve_relation_rag.retrieval.structured.results import (
     SourceTaxonPageData,
     StructuredError,
     StructuredResult,
+    ValidationCandidateReleaseRef,
 )
 from eve_relation_rag.retrieval.structured.semantic import (
     StructuredSemanticValidator,
@@ -177,16 +178,38 @@ class StructuredRetrievalService:
                 page_after=prepared.page_after,
             )
             data = self._bind_repository_result(release, plan, repository_result)
-            result = StructuredResult(
-                plan_sha256=canonical_plan_sha256(plan),
-                release=PublishedReleaseRef(
+            release_ref: PublishedReleaseRef | ValidationCandidateReleaseRef
+            if release.status == "validation_candidate":
+                candidate_input_sha256 = release.candidate_validation_input_sha256
+                candidate_capability_sha256 = release.candidate_capability_sha256
+                if candidate_input_sha256 is None or candidate_capability_sha256 is None:
+                    raise RetrievalRefusal(
+                        "result_integrity_error",
+                        "validation candidate provenance is incomplete",
+                        fact_retrieval_executed=True,
+                    )
+                release_ref = ValidationCandidateReleaseRef(
+                    dataset_key=release.dataset_key,
+                    release_key=release.release_key,
+                    schema_version=release.schema_version,
+                    status="validation_candidate",
+                    manifest_sha256=release.manifest_sha256,
+                    candidate_created_at=release.published_at,
+                    candidate_validation_input_sha256=candidate_input_sha256,
+                    candidate_capability_sha256=candidate_capability_sha256,
+                )
+            else:
+                release_ref = PublishedReleaseRef(
                     dataset_key=release.dataset_key,
                     release_key=release.release_key,
                     schema_version=release.schema_version,
                     status="published",
                     manifest_sha256=release.manifest_sha256,
                     published_at=release.published_at,
-                ),
+                )
+            result = StructuredResult(
+                plan_sha256=canonical_plan_sha256(plan),
+                release=release_ref,
                 data=data,
                 limitations=self._limitations_for(data),
             )

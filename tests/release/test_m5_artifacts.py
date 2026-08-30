@@ -3,11 +3,18 @@ from __future__ import annotations
 import hashlib
 import json
 import tomllib
+from copy import deepcopy
 from pathlib import Path
 from typing import Any
 
+import pytest
+
 from eve_relation_rag.domain.keys import canonical_json_sha256
-from scripts.check_m5_artifacts import expected_artifacts
+from scripts.check_m5_artifacts import (
+    _validate_benchmark,
+    _validate_checklist,
+    expected_artifacts,
+)
 
 ROOT = Path(__file__).parents[2]
 
@@ -178,3 +185,51 @@ def test_release_checklist_cannot_hide_current_activation_blocks() -> None:
 def test_markdown_release_artifacts_are_exact_projections() -> None:
     for path, expected in expected_artifacts().items():
         assert path.read_text(encoding="utf-8") == expected
+
+
+def test_activation_profile_rejects_the_preview_projection() -> None:
+    with pytest.raises(RuntimeError, match="requires real hybrid qualification"):
+        _validate_benchmark(_load("benchmark/v0_benchmark_report.json"), "activation")
+
+
+def test_activation_profile_rejects_self_reported_review_flags() -> None:
+    report = deepcopy(_load("benchmark/v0_benchmark_report.json"))
+    report["real_hybrid_activation_qualified"] = True
+    report["suites"].extend(
+        [
+            {
+                "suite_key": "v0-real-structured",
+                "tier": "approved_real_structured",
+                "case_count": 10,
+                "result": "passed",
+                "benchmark_report_sha256": "1" * 64,
+            },
+            {
+                "suite_key": "v0-real-hybrid",
+                "tier": "approved_real_hybrid",
+                "case_count": 10,
+                "result": "passed",
+                "benchmark_report_sha256": "2" * 64,
+                "human_review_evaluation_sha256": "3" * 64,
+            },
+        ]
+    )
+    report["human_semantic_support_review"] = {
+        "status": "approved",
+        "approved": True,
+        "blocking": False,
+        "reviewed_claim_count": 10,
+    }
+
+    with pytest.raises(RuntimeError, match="human semantic-support review.*keys drifted"):
+        _validate_benchmark(report, "activation")
+
+
+def test_activation_checklist_requires_every_nonpublication_gate_to_pass() -> None:
+    checklist = deepcopy(_load("release/v0_release_checklist.json"))
+    checklist["software_distribution_status"] = "release_candidate"
+    checklist["v0_definition_of_done_status"] = "publication_pending"
+    checklist["real_hybrid_activation_qualified"] = True
+
+    with pytest.raises(RuntimeError, match="checklist status drifted"):
+        _validate_checklist(checklist, "activation")
