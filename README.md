@@ -22,33 +22,25 @@ EndoViHo-RAG 用来查询和解释内源性病毒元件（EVE）资料：
 4. 把数据库事实和论文解释组合成带引用的答案；
 5. 当数据、版本或证据对不上时，明确拒绝回答，而不是编造结果。
 
-**当前状态：**核心代码、API、命令行、网页 Demo、Docker 和自动测试已经完成并通过。
-项目目前处于 **V0 发布候选阶段**，还需要完成最终数据验收、具名专家审阅、空数据库重建
-验证，以及 `v0.1.0` 标签、GitHub Release 和容器镜像发布。因此，它现在适合本地研究、
-验证和审计，还不能被描述为已经正式发布的完整生物学知识产品。
+**当前状态：**核心代码、API、命令行、网页 Demo、Docker 和自动测试可以运行。仓库默认
+不附带已发布的结构化数据、论文语料或模型，因此适合本地开发和研究验证，但不能被描述为
+已经正式发布的完整生物学知识产品。
 
 这个项目不是开放式聊天机器人，也不能证明感染、流行率、独立整合或其他新的生物学结论。
 它的目标是：**在一个固定、可追踪的数据范围内，给出能够回到原始记录和论文段落核对的答案。**
 
 ## Current state
 
-Milestones 1–5 engineering mechanisms are fulfilled locally. Milestone 5 provides the Streamlit
-evidence workbench, Docker quick start, machine-readable benchmark and release checklist,
-software/data licensing boundaries, citation metadata, and audited distribution packaging.
-
-This is an **engineering preview**, not a scientifically activated V0 release:
+This is an **engineering preview**, not a scientifically activated release:
 
 - Zhao structured release `release:endoviho-rag:v0:20260826:001` remains candidate-only.
-- The approved M3 literature corpus is published, but its source bytes and pinned BGE model are
-  not redistributed by Git or the container image.
+- Literature source bytes and the pinned BGE model are not redistributed by Git or the container
+  image.
 - No real dataset/corpus binding or structured-target anchors are approved.
 - Production accepts only `EVE_RAG_LLM_PROVIDER=disabled`; no prompt, credential, or egress policy
   is approved.
-- Human semantic-support review is not approved and has not run.
-
-Synthetic successes remain under `tests/` and cannot be selected through API, CLI, Demo, settings,
-or Compose. See the [V0 release checklist](docs/v0_release_checklist.md) for the exact split between
-packaging gates and blocked activation gates.
+- Synthetic fixtures remain isolated under `tests/` and cannot be selected through API, CLI,
+  Demo, settings, or Compose.
 
 ## Architecture
 
@@ -82,10 +74,9 @@ construct an LLM, execute the CLI, choose a route, submit SQL, or use a tests-on
 
 ## 运行方法（Docker Compose quick start）
 
-**可以运行。** 2026-08-31 使用全新临时数据库卷重新验证了当前源码：容器镜像可构建，
-`db → migrate → api → demo` 可依次启动并通过健康检查；完整测试为 `1004 passed`，Ruff 和
-严格 mypy 均通过。这说明工程预览可以本地运行，不代表尚未随仓库分发的数据、模型和真实
-生成能力已经激活。
+**可以运行。** 容器镜像可构建，`db → migrate → api → demo` 可依次启动并通过健康检查；
+测试、Ruff 和严格 mypy 由 GitHub CI 持续验证。这说明工程预览可以本地运行，不代表尚未
+随仓库分发的数据、模型和真实生成能力已经激活。
 
 Prerequisites: Git and Docker Compose. The first build needs network access to pull the pinned
 base images and dependency archives.
@@ -169,9 +160,9 @@ The outer grammar is deliberately narrow:
 
 | Route | Question shape | Exact selectors |
 |---|---|---|
-| Structured | M2 `show`, `list`, or `count` grammar | `release_key` only |
+| Structured | controlled `show`, `list`, or `count` grammar | `release_key` only |
 | Literature | `Explain the literature evidence/methods/limitations for <topic>` | `corpus_release_key` only |
-| Hybrid | one M2 clause plus exactly one terminal literature suffix | both exact release keys |
+| Hybrid | one structured clause plus exactly one terminal literature suffix | both exact release keys |
 | Unsupported | any selector mismatch, prohibited topic, or other grammar | no downstream call |
 
 The public routed endpoint is `POST /v0/query`. Clients cannot submit route, SQL, `QueryPlan`,
@@ -287,52 +278,15 @@ Example 1 (without the `HTTP 404` line), and the process exit code is `4`. Sourc
 developers can run the equivalent command with `uv run eve-relation-rag rag query ...` after
 installing the locked development environment below.
 
-## Frozen scientific state
+## Data availability
 
-### Structured pilot
+Large source datasets, literature bytes, embeddings, and model weights are intentionally not
+stored in Git. Small source manifests and audit records remain under [`data/`](data/README.md) so
+local imports can verify exact provenance. See [scientific semantics](docs/data_semantics.md) for
+the distinction between source claims, evidence, public membership, and generated answers.
 
-The frozen Zhao et al. v4 candidate covers ten assembly accession.versions and 39,495 selected
-VR rows matching `Viral Major Taxon = Orthopolintovirales` and `Class = Bivalvia`.
-
-| Staging result | Verified count |
-|---|---:|
-| Source calls / coordinate-free locus keys | 39,495 |
-| `HCVR = Yes` → source-relative `source_high` | 71 |
-| Other HCVR values → source-relative `source_low` | 39,424 |
-| `Integration` rows with exact placements | 38,968 |
-| `Viral contig` rows retained in quarantine | 527 |
-| Exact assemblies / distinct source contigs | 10 / 12,233 |
-
-These confidence labels do not create inclusion decisions or public membership. The repository
-contains no flank assessments, inclusion decisions, or published structured memberships.
-
-### Literature pilot
-
-The explicitly approved corpus `corpus:endoviho-rag:v0:20260828:001` contains 11 Europe PMC
-CC-BY-4.0 documents, 1,464 chunks, 1,464 embeddings, and 22 curated document/keyword anchors.
-Its 13-question pinned-model pilot measured Recall@5 `0.846153846154`, Recall@10 `1.0`,
-citation-ID validity `1.0`, and locator validity `1.0`. These metrics describe only that fixed
-corpus and model.
-
-The release is bound to:
-
-- corpus manifest `1497ea3383bea64d2bc4f17d2376dceb537b4f6c6f57ccb6eaf667b6589732f0`;
-- anchor manifest `75a523bc6408f13b07ba283e6539734ec3b694f3dab59994a464d40d98b01fca`;
-- model artifact manifest `0dc66d301fc8305bae93aa197200a176a61be13a302c3fee430cd2efc744241a`;
-- trusted receipt `28f436d57630edd8403b71a503d23528fb7a1640432d8f623eca256b68858e7e`.
-
-## Benchmarks and release metadata
-
-- [Benchmark report](docs/benchmark_report.md) and canonical
-  [benchmark JSON](benchmark/v0_benchmark_report.json)
-- [V0 release checklist](docs/v0_release_checklist.md) and canonical
-  [checklist JSON](release/v0_release_checklist.json)
-- [Milestone 5 contract](docs/milestone_5_contract.md)
-- [Software license](LICENSE), [data/model notice](DATA_LICENSE),
-  [citation metadata](CITATION.cff), and [changelog](CHANGELOG.md)
-
-The machine reports use self-excluding canonical SHA-256 values. SHA-256 establishes content
-identity; it is not approval, legal permission, semantic proof, or a release signature.
+Software licensing, data/model notices, and citation metadata are recorded in [LICENSE](LICENSE),
+[DATA_LICENSE](DATA_LICENSE), and [CITATION.cff](CITATION.cff).
 
 ## Key locked parameters
 
@@ -344,7 +298,7 @@ identity; it is not approval, legal permission, semantic proof, or a release sig
 | database | PostgreSQL 16 + pgvector; Alembic head `0012_extended_viral_lineage` |
 | literature chunking | pinned BGE tokenizer; target/overlap/hard max `384/64/448` tokens |
 | retrieval | English weighted FTS + full-chunk dense + summary dense; RRF60; depth 100 per branch |
-| M4 context | maximum 131,072 UTF-8 bytes; maximum 8 chunks and 16 generated claims |
+| context pack | maximum 131,072 UTF-8 bytes; maximum 8 chunks and 16 generated claims |
 | generation output | maximum 32,768 UTF-8 bytes; temperature 0; retry count 0 |
 | local ports | PostgreSQL `5432`, API `8000`, Demo `8501`, all loopback-bound |
 | local image | `EVE_RAG_IMAGE=eve-relation-rag:v0-local`; smoke uses a disposable unique tag |
@@ -366,7 +320,6 @@ uv run ruff check .
 uv run mypy src app
 uv lock --check
 uv run alembic check
-uv run python scripts/check_m5_artifacts.py --check
 ```
 
 Install the separately locked local embedding runtime only on a host holding the exact approved
@@ -399,6 +352,5 @@ The system describes what exact published database/corpus releases contain and w
 located. It must not claim that an LLM proved infection, prevalence, biological absence,
 co-divergence, independent integration, or a novel EVE.
 
-Detailed boundaries are in [scientific semantics](docs/data_semantics.md),
-[development status](docs/development_status.md), and the repository's
-[data provenance](https://github.com/Hongda-Zhao/EndoViHo-RAG/blob/main/data/README.md).
+Detailed boundaries are in [scientific semantics](docs/data_semantics.md) and the repository's
+[data provenance](data/README.md).

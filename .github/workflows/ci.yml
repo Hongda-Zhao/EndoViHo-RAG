@@ -43,10 +43,9 @@ jobs:
       - name: Install locked dependencies
         run: uv sync --locked --dev --extra demo
 
-      - name: Verify lock and M5 artifacts
+      - name: Verify lock and documentation
         run: |
           uv lock --check
-          uv run python scripts/check_m5_artifacts.py --check
           uv run python scripts/check_docs.py
 
       - name: Validate Compose model

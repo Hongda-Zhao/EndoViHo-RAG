@@ -8,7 +8,17 @@ import tarfile
 import zipfile
 from pathlib import Path, PurePosixPath
 
-FORBIDDEN_PARTS = {".artifacts", ".env", ".git", ".tools", ".venv", "data", "tests"}
+FORBIDDEN_PARTS = {
+    ".artifacts",
+    ".env",
+    ".git",
+    ".tools",
+    ".venv",
+    "benchmark",
+    "data",
+    "release",
+    "tests",
+}
 FORBIDDEN_SUFFIXES = {
     ".db",
     ".onnx",
@@ -66,7 +76,6 @@ def _check_sdist(path: Path) -> None:
         ".streamlit/config.toml",
         "alembic.ini",
         "app/streamlit_app.py",
-        "benchmark/v0_benchmark_report.json",
         "CHANGELOG.md",
         "CITATION.cff",
         "compose.yaml",
@@ -85,8 +94,9 @@ def _check_sdist(path: Path) -> None:
         "migrations/versions/0008_m3_published_child_reparent_guard.py",
         "migrations/versions/0009_m3_validated_release_freeze.py",
         "migrations/versions/0010_m3_validation_lock_hardening.py",
+        "migrations/versions/0011_dataset_validation_receipt.py",
+        "migrations/versions/0012_extended_viral_lineage.py",
         "README.md",
-        "release/v0_release_checklist.json",
         "uv.lock",
     }
     missing = required - stripped

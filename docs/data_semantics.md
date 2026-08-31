@@ -1,22 +1,21 @@
 # EVE Relation V0 — data and answer semantics
 
-> Truth-layer contract: Milestone 1 approved Draft B
+> Truth-layer semantics: source records, calls, loci, assertions, evidence, and release membership
 >
-> Routed-answer contract: Milestone 4 approved Draft A
+> Routed-answer semantics: deterministic structured, literature, and hybrid retrieval
 >
-> Presentation/package contract: Milestone 5 approved Draft A
+> Presentation semantics: typed API/CLI/Demo responses and fail-closed packaging
 >
-> Status: verified structured staging; no public EVE release; M4 engineering mechanism
-> **FULFILLED**; M5 packaging mechanism fulfilled locally; real generation activation blocked
+> Status: verified structured staging; no public EVE release; real generation remains disabled
 >
 > Frozen pilot source: Zhao et al. v4 Data S1
 
 ## Scientific definition
 
 An endogenous viral element (EVE) is a continuous virus-like gene fragment embedded in a
-eukaryotic host genome and flanked on both sides by host genomic sequence. Milestone 1 stages
-source-reported candidates; it does not yet claim that this definition has been demonstrated for
-any staged row.
+eukaryotic host genome and flanked on both sides by host genomic sequence. The current importer
+stages source-reported candidates; it does not yet claim that this definition has been demonstrated
+for any staged row.
 
 ## Frozen pilot scope
 
@@ -37,7 +36,7 @@ proof of endogenization, inclusion decisions, or release membership.
 
 ## Object separation
 
-Milestone 1 keeps these concepts separate:
+The truth layer keeps these concepts separate:
 
 ```text
 frozen source artifact
@@ -75,7 +74,7 @@ public membership by itself.
 
 The study-defined `Orthopolintovirales` selection is a source claim, not a formal ICTV assignment.
 Assembly and contig resolution is bound to the frozen NCBI Datasets v2 reports and exact artifact
-checksums recorded in the Milestone 1 manifest. Public release additionally requires a complete,
+checksums recorded in the frozen source manifest. Public release additionally requires a complete,
 versioned NCBI Taxonomy snapshot including merged and deleted taxon history, plus an explicit ICTV
 release/snapshot binding for viral lineage assertions.
 
@@ -102,17 +101,17 @@ published EVE catalogue—and the 527 `Viral contig` rows remain quarantined. Mi
 `0005_m1_fail_closed_publication` additionally rejects database status promotion to `validated`
 or `published` until a trusted, immutable validation-receipt workflow is implemented.
 
-## Milestone 4 routed-answer object separation
+## Routed-answer object separation
 
-Milestone 4 adds a read-only composition mechanism; it does not create a new truth layer and does
+The read-only composition layer does not create a new truth layer and does
 not promote a candidate locus, assertion, release, corpus, or generated sentence. The approved
 flow preserves these objects separately:
 
 ```text
 client-authored strict question and exact release selectors
   -> deterministic outer route
-  -> unchanged, gate-authorized M2 QuerySuccess when structured facts are requested
-  -> exact M3 RetrievedChunks when literature evidence is requested
+  -> unchanged, gate-authorized QuerySuccess when structured facts are requested
+  -> exact RetrievedChunks when literature evidence is requested
   -> immutable checksum-bound ContextPack
   -> constrained provider draft in test-only generation paths
   -> all-or-nothing mechanical validation
@@ -120,10 +119,11 @@ client-authored strict question and exact release selectors
   -> separate human semantic-support review before real activation
 ```
 
-The only structured facts in a hybrid answer are the unchanged M2 `QuerySuccess`, `QueryPlan`,
-and `StructuredResult`. Generated prose cannot rewrite structured counts, coordinates, release
-status, lineage identity, or other structured fields. The only literature facts admitted to a
-provider are the exact M3 chunks and provenance inside a `ContextPack`; provider background
+The only structured facts in a hybrid answer are the unchanged structured `QuerySuccess`,
+`QueryPlan`, and `StructuredResult`. Generated prose cannot rewrite structured counts,
+coordinates, release status, lineage identity, or other structured fields. The only literature
+facts admitted to a provider are the exact retrieved chunks and provenance inside a `ContextPack`;
+provider background
 knowledge, live search, hidden documents, SQL, embeddings, credentials, and conversation memory
 are outside that object and outside the approved path. See
 [`hybrid/contracts.py`](../src/eve_relation_rag/hybrid/contracts.py),
@@ -133,7 +133,7 @@ are outside that object and outside the approved path. See
 ## Anchor and retrieval semantics
 
 A curated document anchor is a corpus-scoped retrieval signal, not a scientific assertion or a
-structured/literature release binding. For a hybrid request, M4 round-trip revalidates the
+structured/literature release binding. For a hybrid request, the hybrid round-trip revalidates the
 structured success and may derive only these exact targets:
 
 - locus keys from returned loci or a validated locus filter;
@@ -143,17 +143,18 @@ structured success and may derive only these exact targets:
 - method-definition keys from typed public assertion detail, never from a detection call's
   source-method field.
 
-The question, client, and provider cannot author anchors. M4 does not infer a document or keyword
-anchor from structured content, perform fuzzy substitution, or cross corpus releases. It queries
+The question, client, and provider cannot author anchors. The hybrid resolver does not infer a
+document or keyword anchor from structured content, perform fuzzy substitution, or cross corpus
+releases. It queries
 the exact capability-scoped corpus for existing curated locus, assembly, lineage, or method
 anchors, then validates their persisted manifest row, typed shape, complete preimage, anchor key,
-and checksum before passing the actual M3 anchors to retrieval. Targets are deduplicated in
+and checksum before passing the actual anchors to retrieval. Targets are deduplicated in
 `locus`, `assembly`, `lineage`, `method` order; more than 64 is refused rather than truncated.
 
 `structured_anchor_unmatched` means only that no exact curated anchor exists for one or more
-trusted targets, or that the structured result has no exact target. M3 may then use its explicit
-same-corpus fill behavior. That diagnostic does not disprove a biological relation, and a
-corpus-fill chunk does not establish one. The resolver is implemented in
+trusted targets, or that the structured result has no exact target. Literature retrieval may then
+use its explicit same-corpus fill behavior. That diagnostic does not disprove a biological
+relation, and a corpus-fill chunk does not establish one. The resolver is implemented in
 [`retrieval/hybrid/anchors.py`](../src/eve_relation_rag/retrieval/hybrid/anchors.py).
 
 ## Generated claim and citation semantics
@@ -173,16 +174,17 @@ record therefore declares `validation_scope = "mechanical"`.
 Mechanical validation establishes traceability and contract conformance, not scientific
 entailment. A quote occurring in a cited chunk does not by itself prove that the generated claim
 is supported by the source, and a citation does not turn an explanatory statement into EVE
-evidence. Real generation activation requires a separate checksum-bound human benchmark in which
+evidence. Real generation activation requires a separate checksum-bound human semantic-support
+review in which
 every claim is reviewed as `supported`, `partially_supported`, or `unsupported`; unsupported
 claims block activation, and partially supported claims must be narrowed and regenerated. The
 mechanical validator is in
 [`generation/validators.py`](../src/eve_relation_rag/generation/validators.py).
 
-## Milestone 5 presentation and packaging semantics
+## Presentation and packaging semantics
 
-Milestone 5 adds no scientific object, database table, migration, inclusion rule, release
-membership, corpus row, anchor, provider, generated claim, or new answer interpretation. The
+The presentation layer adds no scientific object, database table, migration, inclusion rule,
+release membership, corpus row, anchor, provider, generated claim, or new answer interpretation. The
 Streamlit evidence workbench is a bounded HTTP presentation adapter over the unchanged
 `POST /v0/query` contract. It revalidates the complete canonical response and derives its visible
 execution rail only from server-owned `ExecutionFlags`.
@@ -198,35 +200,28 @@ NCBI report, Europe PMC corpus bytes, embeddings, BGE model, binding manifest, p
 credential, or tests-only capability. Canonical fail-closed responses from that empty state are
 the expected behavior and cannot be cited as either positive or negative biological evidence.
 
-Benchmark/checklist SHA-256 values establish exact artifact identity only. They do not grant a
-data license, approve publication or egress, prove semantic support, or qualify real hybrid
-activation. `DATA_LICENSE`, `CITATION.cff`, and the changelog record distribution boundaries and
-software provenance without changing any scientific truth-layer rule.
+Checksums establish exact artifact identity only. They do not grant a data license, approve
+publication or egress, prove semantic support, or qualify real hybrid activation. `DATA_LICENSE`,
+`CITATION.cff`, and the changelog record distribution boundaries and software provenance without
+changing any scientific truth-layer rule.
 
-## Mechanism status and real-activation boundary
+## Runtime activation boundary
 
-The M4 engineering mechanism is **FULFILLED**: the final local PostgreSQL suite, frozen
-benchmarks, Ruff, strict mypy, lock verification, clean-migration/drift checks, documentation
-checks, and diff check passed. This classification does not claim a remote CI result or real
-provider activation. Production remains fail-closed for generation: `EVE_RAG_LLM_PROVIDER` has
-only the value `disabled`, bootstrap supplies no composer, and no remote SDK, model revision,
-credential, retry, or data-egress policy is approved. M4 introduced no schema or production-data
-mutation.
-
-M5 is classified as packaging-mechanism **FULFILLED locally** after its full repository, package,
-migration, and fresh-volume container gates passed on 2026-08-28. The V0 product Definition of
-Done and real hybrid activation remain separate blocked classifications until every real
-activation gate below is approved and passes.
+The engineering paths are covered by PostgreSQL-backed tests, static checks, migration checks,
+documentation checks, distribution audits, and container smoke tests. This does not claim that
+real data, a provider, or external egress is activated. Production remains fail-closed for
+generation: `EVE_RAG_LLM_PROVIDER` has only the value `disabled`, bootstrap supplies no composer,
+and no remote SDK, model revision, credential, retry, or data-egress policy is approved.
 
 Real Zhao hybrid activation is independently blocked by all of the following:
 
 1. the Zhao structured release is still candidate-only and has no public locus memberships;
 2. no checksum-approved real dataset-release/corpus-release binding manifest exists;
-3. the published 11-document M3 corpus has document and keyword anchors but no curated locus,
-   assembly, lineage, or method anchors derivable from a structured result;
+3. the external literature corpus has no approved structured-target locus, assembly, lineage, or
+   method anchors derivable from a structured result;
 4. no production LLM provider, pinned generation policy, or structured/document egress approval
    exists; and
-5. no checksum-bound human semantic-support benchmark has been approved and passed.
+5. no checksum-bound human semantic-support review has been approved and completed.
 
 Synthetic releases, bindings, structured-target anchors, and deterministic providers under
 `tests/` demonstrate the engineering mechanism only. They are not selectable through production
