@@ -229,7 +229,7 @@ class V0CleanActivationRebuildReport(StrictFrozenSchema):
     corpus_importer_code_sha256: Sha256
     corpus_policy_code_sha256: Sha256
     database_started_empty: Literal[True]
-    migration_head: Literal["0011_dataset_validation_receipt"]
+    migration_head: Literal["0012_extended_viral_lineage"]
     route_replays: tuple[
         V0RebuildRouteIdentity,
         V0RebuildRouteIdentity,

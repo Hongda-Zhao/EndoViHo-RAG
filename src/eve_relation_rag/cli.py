@@ -389,17 +389,24 @@ def structured_release_prepare_candidate_validation_input_command(
             help="Also attest the release-bound study viral lineage closure.",
         ),
     ] = False,
+    include_extended_viral_lineage: Annotated[
+        bool,
+        typer.Option(
+            "--include-extended-viral-lineage",
+            help="Also attest the release-bound extended viral lineage closure.",
+        ),
+    ] = False,
 ) -> None:
     """Build the acyclic checksum approval artifact without changing release state."""
 
+    optional_roles: tuple[LineageRole, ...] = (
+        *(("study_viral_lineage",) if include_study_viral_lineage else ()),
+        *(("extended_viral_lineage",) if include_extended_viral_lineage else ()),
+    )
     roles: tuple[LineageRole, ...] = (
-        (
-            "assembly_source_taxonomy",
-            "formal_viral_taxonomy",
-            "study_viral_lineage",
-        )
-        if include_study_viral_lineage
-        else ("assembly_source_taxonomy", "formal_viral_taxonomy")
+        "assembly_source_taxonomy",
+        "formal_viral_taxonomy",
+        *optional_roles,
     )
     try:
         request = load_validation_request(request_path)

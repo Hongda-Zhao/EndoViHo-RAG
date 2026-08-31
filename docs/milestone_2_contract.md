@@ -242,7 +242,7 @@ ViralLineageFilter
     filter_type = viral_lineage
     snapshot_key = exact release-pinned snapshot key
     term_key = exact resolved term key
-    role = formal_viral_taxonomy | study_viral_lineage
+    role = formal_viral_taxonomy | study_viral_lineage | extended_viral_lineage
     include_descendants = explicit boolean
 ```
 
@@ -325,14 +325,18 @@ List loci in assembly GCA_029931535.1.
 List loci assigned exactly to source lineage <name or stable key>.
 List loci assigned to source lineage <name or stable key> including descendants.
 List loci with study viral lineage Orthopolintovirales exactly.
+List loci with extended viral lineage asfa-like including descendants.
 List source taxa represented in this release.
 Count distinct included loci in assembly GCA_029931535.1.
 ```
 
-The descendants example is parseable, but the present snapshots make it return
-`lineage_closure_incomplete`. The English resolver is deterministic and rule-based in Milestone
-2. It is not an LLM and is not expected to interpret arbitrary prose. Unsupported wording fails
-closed with a stable error and may include safe suggestions.
+The source-lineage descendants example is parseable, but the present source snapshots make it
+return `lineage_closure_incomplete`. The extended example additionally requires a release-bound
+`extended_viral_lineage` snapshot, the requested term, and a complete closure attestation; the
+current real candidate fails closed because that role and its evidence-backed assertions are not
+yet present. The English resolver is deterministic and rule-based in Milestone 2. It is not an LLM
+and is not expected to interpret arbitrary prose. Unsupported wording fails closed with a stable
+error and may include safe suggestions.
 
 ## 7. Entity resolution and lineage semantics
 
@@ -357,11 +361,13 @@ snapshot, and term remain separate and unambiguous:
 source lineage term <TERM_KEY> in snapshot <SNAPSHOT_KEY>
 formal viral lineage term <TERM_KEY> in snapshot <SNAPSHOT_KEY>
 study viral lineage term <TERM_KEY> in snapshot <SNAPSHOT_KEY>
+extended viral lineage term <TERM_KEY> in snapshot <SNAPSHOT_KEY>
 ```
 
 `TERM_KEY` and `SNAPSHOT_KEY` are stable no-whitespace tokens under the request bounds. A
-canonical name or alias mention must likewise say `source lineage`, `formal viral lineage`, or
-`study viral lineage`; an omitted or conflicting role returns `lineage_role_ambiguous`.
+canonical name or alias mention must likewise say `source lineage`, `formal viral lineage`,
+`study viral lineage`, or `extended viral lineage`; an omitted or conflicting role returns
+`lineage_role_ambiguous`.
 
 Rules:
 
@@ -376,6 +382,11 @@ Rules:
 - Formal viral taxonomy and study-defined viral lineage are separate namespaces. A formal term
   cannot be silently substituted for the Zhao et al. study-defined `Orthopolintovirales`, even
   when display names coincide.
+- Extended viral lineage is a separate, release-curated `study_defined` namespace for broad
+  evidence-backed affinity groups such as `asfa-like`. It is not an ICTV rank or membership
+  claim. A formal `Asfarviridae` query remains strict, while an extended query can cover formal
+  and informal descendants only when the release contains explicit extended assertions for
+  those loci.
 - Fuzzy or prefix matches may return at most five suggestions from the public universe of a
   published release. Assembly suggestions must be represented by a public locus; locus
   suggestions come from `ReleaseLocusMembership`; viral suggestions come from
@@ -408,8 +419,9 @@ in each lineage filter.
 - A release must provide independently validated evidence that the relevant closure is complete.
   Self-rows alone do not demonstrate completeness.
 - The current staging host snapshot contains assembly-report leaf assignments with self-closure,
-  and the study viral snapshot is self-only. Therefore `include_descendants = true` must currently
-  return `lineage_closure_incomplete` and execute no public fact query.
+  the study viral snapshot is self-only, and no real extended snapshot is bound. Therefore
+  `include_descendants = true` must currently return `lineage_closure_incomplete` (or fail earlier
+  because the role is absent) and execute no public fact query.
 
 No Draft B migration invents a closure-completeness flag. A future trusted validation receipt or
 approved schema extension must establish that capability before descendant execution is enabled.
@@ -948,8 +960,8 @@ The implementation is accepted only when tests demonstrate all of the following.
 - Every supported intent/filter/metric compatibility combination, plus every forbidden
   combination.
 - A curated controlled-English gold set resolves intent and slots with exact equality.
-- Exact identifiers, canonical names, aliases, collisions, incomplete accessions, formal/study
-  namespace collisions, and unsupported wording are covered.
+- Exact identifiers, canonical names, aliases, collisions, incomplete accessions, and
+  formal/study/extended namespace collisions, plus unsupported wording, are covered.
 - Extracted condition IDs and mapped condition IDs are equal before compilation; source spans are
   complete and `unconsumed_semantic_spans` is empty.
 - Unsupported negation, exclusion, OR, ranges, duplicate filter types, and additional entity
@@ -969,7 +981,7 @@ The implementation is accepted only when tests demonstrate all of the following.
   membership.
 - Assembly lists/counts include only assemblies represented by public loci, not the allowlist.
 - Candidate-only loci, assertions, evidence, and quarantine data never leak.
-- Formal and study-defined viral lineages never cross-resolve.
+- Formal, study-defined, and extended viral lineages never cross-resolve.
 - Incomplete descendant closure fails before fact retrieval.
 
 ### Pagination
@@ -1067,7 +1079,7 @@ The user approved all M2-D01 through M2-D12 decisions in this merged Draft B, in
 3. question-first `/plan` and `/query`, with no arbitrary plan execution endpoint;
 4. strict QueryPlan unions, AND-only filters, explicit entire-release scope, and condition audit;
 5. six intents, with both explain intents deferred;
-6. separate formal/study viral namespaces and fail-closed descendant completeness;
+6. separate formal/study/extended viral namespaces and fail-closed descendant completeness;
 7. five exact metrics, including `distinct_contig_count`;
 8. capability-gated fixed SQLAlchemy compilation and no default M2 migration;
 9. HMAC-authenticated forward keyset pagination with fixed ordering and page bounds;

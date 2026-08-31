@@ -146,12 +146,16 @@ class SourceLineageFilter(StrictFrozenModel):
 
 
 class ViralLineageFilter(StrictFrozenModel):
-    """Select one formal or explicitly study-defined viral lineage term."""
+    """Select one role-qualified formal, study, or extended viral lineage term."""
 
     filter_type: Literal["viral_lineage"]
     snapshot_key: ExactToken
     term_key: ExactToken
-    role: Literal["formal_viral_taxonomy", "study_viral_lineage"]
+    role: Literal[
+        "formal_viral_taxonomy",
+        "study_viral_lineage",
+        "extended_viral_lineage",
+    ]
     include_descendants: bool
 
 

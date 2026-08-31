@@ -83,7 +83,7 @@ construct an LLM, execute the CLI, choose a route, submit SQL, or use a tests-on
 ## 运行方法（Docker Compose quick start）
 
 **可以运行。** 2026-08-31 使用全新临时数据库卷重新验证了当前源码：容器镜像可构建，
-`db → migrate → api → demo` 可依次启动并通过健康检查；完整测试为 `995 passed`，Ruff 和
+`db → migrate → api → demo` 可依次启动并通过健康检查；完整测试为 `1004 passed`，Ruff 和
 严格 mypy 均通过。这说明工程预览可以本地运行，不代表尚未随仓库分发的数据、模型和真实
 生成能力已经激活。
 
@@ -186,6 +186,54 @@ The request fields are:
 | `corpus_release_key` | literature/hybrid only | Exact published corpus selector |
 | `page` | no | Structured-list pagination; valid only with `release_key` |
 | `literature_top_k` | no | Literature retrieval depth `1..8`; valid only with `corpus_release_key` |
+
+### Asfarviridae 与 asfa-like：三个相互隔离的谱系级别
+
+病毒谱系查询现在保留三个明确角色，避免把“相似/亲缘”标签冒充正式分类：
+
+| Query qualifier | Result role | Scheme | Meaning |
+|---|---|---|---|
+| `formal viral lineage` | `formal_viral_taxonomy` | `formal_taxonomy` | 精确的版本化 ICTV 分类，例如正式 `Asfarviridae` |
+| `study viral lineage` | `study_viral_lineage` | `study_defined` | 某一研究或来源直接使用的谱系标签 |
+| `extended viral lineage` | `extended_viral_lineage` | `study_defined` | 版本化的扩展亲缘组，例如 `asfa-like`；不是 ICTV taxon |
+
+严格查询不会被自动扩大：
+
+```text
+List loci with formal viral lineage Asfarviridae including descendants.
+```
+
+需要把正式 Asfarviridae 与有证据支持的 asfa-like 分支一起纳入时，应显式查询扩展层：
+
+```text
+List loci with extended viral lineage asfa-like including descendants.
+```
+
+发布数据必须在扩展 snapshot 中为每个纳入 locus 提供独立的
+`extended_viral_lineage` assertion、supporting evidence 和 public membership。系统不会通过
+别名或字符串相似度把 formal 与 asfa-like 自动合并；`including descendants` 也只有在该
+release receipt 证明扩展谱系 closure 完整时才能执行。
+
+成功响应中的每个扩展标签都会保留来源层级。以下 JSON 是结构伪例，不是当前仓库的真实
+Asfarviridae/asfa-like locus 记录：
+
+```json
+{
+  "canonical_name": "Asfarviridae-like",
+  "rank": "extended lineage",
+  "snapshot_key": "lineage-snapshot:extended:<approved-snapshot>",
+  "authority_namespace": "curated-extended-viral-lineage",
+  "snapshot_version": "example-v1",
+  "scheme_kind": "study_defined",
+  "role": "extended_viral_lineage",
+  "term_key": "extended:asfarviridae-like"
+}
+```
+
+当前 Git 仓库只加入了上述查询、约束和发布校验机制；尚未加入或发布真实 asfa-like
+structured loci。真实结果仍需要新的 checksum-pinned 来源、逐 locus 证据、人工审阅和新的
+immutable dataset release。全新 Compose volume 对这两个查询仍按下例返回
+`release_not_found`，不会生成示例 accession、坐标或数量。
 
 ### Example 1 — structured input on a fresh volume
 
@@ -293,7 +341,7 @@ identity; it is not approval, legal permission, semantic proof, or a release sig
 | Python | `>=3.12,<3.13`; container `3.12.13-slim-bookworm` |
 | dependency manager | uv `0.12.5`; `uv.lock` |
 | Demo | Streamlit `1.62.0`; HTTP timeout 20 s; response cap 2 MiB; identity encoding; zero retries/redirects |
-| database | PostgreSQL 16 + pgvector; Alembic head `0011_dataset_validation_receipt` |
+| database | PostgreSQL 16 + pgvector; Alembic head `0012_extended_viral_lineage` |
 | literature chunking | pinned BGE tokenizer; target/overlap/hard max `384/64/448` tokens |
 | retrieval | English weighted FTS + full-chunk dense + summary dense; RRF60; depth 100 per branch |
 | M4 context | maximum 131,072 UTF-8 bytes; maximum 8 chunks and 16 generated claims |

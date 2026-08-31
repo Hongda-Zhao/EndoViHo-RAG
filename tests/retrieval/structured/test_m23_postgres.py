@@ -53,6 +53,7 @@ from eve_relation_rag.db.models import (
     SourceRecord,
     SourceSnapshot,
 )
+from eve_relation_rag.planning.parser import ControlledEnglishPlanner, StructuredQueryRequest
 from eve_relation_rag.planning.query_plans import (
     PLAN_VERSION,
     AggregatePlan,
@@ -93,8 +94,12 @@ from eve_relation_rag.retrieval.structured.results import (
     AssemblyDetailData,
     ErrorResponse,
     LocusDetailData,
+    PlanSuccess,
 )
-from eve_relation_rag.retrieval.structured.semantic import ValidatedQuery
+from eve_relation_rag.retrieval.structured.semantic import (
+    StructuredSemanticValidator,
+    ValidatedQuery,
+)
 from eve_relation_rag.retrieval.structured.service import StructuredRetrievalService
 
 ROOT = Path(__file__).resolve().parents[3]
@@ -199,6 +204,16 @@ def capability() -> TestsOnlyQueryableRelease:
                 version="synthetic-v1",
                 snapshot_sha256=SHA_A,
             ),
+            "formal_viral_taxonomy": LineageDependencyBinding(
+                role="formal_viral_taxonomy",
+                snapshot_id=201,
+                snapshot_key="snapshot:fixture:viral-formal",
+                domain="viral",
+                scheme_kind="formal_taxonomy",
+                authority_namespace="ICTV",
+                version="synthetic-v1",
+                snapshot_sha256=SHA_C,
+            ),
             "study_viral_lineage": LineageDependencyBinding(
                 role="study_viral_lineage",
                 snapshot_id=202,
@@ -209,9 +224,24 @@ def capability() -> TestsOnlyQueryableRelease:
                 version="v4",
                 snapshot_sha256=SHA_B,
             ),
+            "extended_viral_lineage": LineageDependencyBinding(
+                role="extended_viral_lineage",
+                snapshot_id=203,
+                snapshot_key="snapshot:fixture:viral-extended",
+                domain="viral",
+                scheme_kind="study_defined",
+                authority_namespace="curated-extended-viral-lineage",
+                version="synthetic-v1",
+                snapshot_sha256=SHA_C,
+            ),
         },
         complete_lineage_closure_roles=frozenset(
-            {"assembly_source_taxonomy", "study_viral_lineage"}
+            {
+                "assembly_source_taxonomy",
+                "formal_viral_taxonomy",
+                "study_viral_lineage",
+                "extended_viral_lineage",
+            }
         ),
     )
 
@@ -395,6 +425,19 @@ def test_semantically_validated_missing_detail_is_a_post_fact_integrity_error(
             ),
             PUBLIC_LOCUS_KEYS[:2],
         ),
+        (
+            "extended-viral-descendants",
+            (
+                ViralLineageFilter(
+                    filter_type="viral_lineage",
+                    snapshot_key="snapshot:fixture:viral-extended",
+                    term_key="extended:asfa-like",
+                    role="extended_viral_lineage",
+                    include_descendants=True,
+                ),
+            ),
+            PUBLIC_LOCUS_KEYS[1:],
+        ),
     ),
 )
 def test_production_repository_filter_matrix_has_exact_public_fact_sets(
@@ -442,6 +485,16 @@ def test_production_resolver_factory_uses_pinned_terms_and_public_suggestions(
     assert resolver.resolve_assembly("GCA_000000001.1").entity_kind == "assembly"
     assert resolver.resolve_locus(PUBLIC_LOCUS_KEYS[0]).entity_kind == "locus"
     assert ancestor.stable_key == "taxon:bivalvia"
+    extended = resolver.resolve_lineage(
+        LineageReference(
+            original_input="asfa-like",
+            entity_kind="viral_lineage",
+            role="extended_viral_lineage",
+            name="asfa-like",
+        )
+    )
+    assert extended.stable_key == "extended:asfa-like"
+    assert extended.scheme_kind == "study_defined"
     suggestion_keys = {
         item.stable_key
         for item in resolver.suggest(
@@ -462,6 +515,60 @@ def test_production_resolver_factory_uses_pinned_terms_and_public_suggestions(
             )
         )
     assert alias_collision.value.code == "entity_ambiguous"
+
+
+def test_controlled_english_extended_level_includes_formal_and_asfa_like_members(
+    postgres_engine: Engine,
+    capability: TestsOnlyQueryableRelease,
+) -> None:
+    resolver = SqlAlchemyReleaseResolverFactory(postgres_engine).create(capability)
+    planner = ControlledEnglishPlanner()
+    validator = StructuredSemanticValidator()
+    repository = StructuredRepository(postgres_engine)
+
+    formal = planner.plan(
+        StructuredQueryRequest(
+            release_key=RELEASE_KEY,
+            question="List loci with formal viral lineage Asfarviridae exactly.",
+        ),
+        resolver,
+    )
+    extended = planner.plan(
+        StructuredQueryRequest(
+            release_key=RELEASE_KEY,
+            question="List loci with extended viral lineage asfa-like including descendants.",
+        ),
+        resolver,
+    )
+    assert isinstance(formal, PlanSuccess)
+    assert isinstance(extended, PlanSuccess)
+
+    formal_result = repository.query(
+        validator.validate(
+            capability,
+            formal.query_plan,
+            formal.planning_audit,
+            formal.resolved_entities,
+        )
+    )
+    extended_result = repository.query(
+        validator.validate(
+            capability,
+            extended.query_plan,
+            extended.planning_audit,
+            extended.resolved_entities,
+        )
+    )
+
+    assert isinstance(formal_result, LocusPageSlice)
+    assert isinstance(extended_result, LocusPageSlice)
+    assert tuple(item.locus_key for item in formal_result.items) == PUBLIC_LOCUS_KEYS[2:]
+    assert tuple(item.locus_key for item in extended_result.items) == PUBLIC_LOCUS_KEYS[1:]
+    assert {
+        lineage.role
+        for item in extended_result.items
+        for lineage in item.viral_lineages
+    } == {"formal_viral_taxonomy", "study_viral_lineage", "extended_viral_lineage"}
 
 
 def test_real_candidate_gate_refuses_before_public_fact_repository(
@@ -1027,6 +1134,16 @@ def _insert_public_membership_fixture(session: Session) -> None:
                 snapshot_sha256=SHA_A,
             ),
             LineageSnapshot(
+                id=201,
+                snapshot_key="snapshot:fixture:viral-formal",
+                domain="viral",
+                scheme_kind="formal_taxonomy",
+                authority_namespace="ICTV",
+                version="synthetic-v1",
+                source_artifact_id=21,
+                snapshot_sha256=SHA_C,
+            ),
+            LineageSnapshot(
                 id=202,
                 snapshot_key="snapshot:fixture:viral-study",
                 domain="viral",
@@ -1035,6 +1152,16 @@ def _insert_public_membership_fixture(session: Session) -> None:
                 version="v4",
                 source_artifact_id=21,
                 snapshot_sha256=SHA_B,
+            ),
+            LineageSnapshot(
+                id=203,
+                snapshot_key="snapshot:fixture:viral-extended",
+                domain="viral",
+                scheme_kind="study_defined",
+                authority_namespace="curated-extended-viral-lineage",
+                version="synthetic-v1",
+                source_artifact_id=21,
+                snapshot_sha256=SHA_C,
             ),
         )
     )
@@ -1050,8 +1177,22 @@ def _insert_public_membership_fixture(session: Session) -> None:
             ),
             ReleaseLineageSnapshot(
                 release_id=10,
+                snapshot_id=201,
+                role="formal_viral_taxonomy",
+                domain="viral",
+                scheme_kind="formal_taxonomy",
+            ),
+            ReleaseLineageSnapshot(
+                release_id=10,
                 snapshot_id=202,
                 role="study_viral_lineage",
+                domain="viral",
+                scheme_kind="study_defined",
+            ),
+            ReleaseLineageSnapshot(
+                release_id=10,
+                snapshot_id=203,
+                role="extended_viral_lineage",
                 domain="viral",
                 scheme_kind="study_defined",
             ),
@@ -1081,11 +1222,39 @@ def _insert_public_membership_fixture(session: Session) -> None:
                 rank="species",
             ),
             LineageTerm(
+                id=401,
+                snapshot_id=201,
+                term_key="viral:asfarviridae",
+                canonical_name="Asfarviridae",
+                rank="family",
+            ),
+            LineageTerm(
                 id=402,
                 snapshot_id=202,
                 term_key="viral:orthopolintovirales",
                 canonical_name="Orthopolintovirales",
                 rank="order",
+            ),
+            LineageTerm(
+                id=403,
+                snapshot_id=203,
+                term_key="extended:asfa-like",
+                canonical_name="Asfa-like",
+                rank="informal affinity group",
+            ),
+            LineageTerm(
+                id=404,
+                snapshot_id=203,
+                term_key="extended:asfarviridae",
+                canonical_name="Asfarviridae",
+                rank="formal member projection",
+            ),
+            LineageTerm(
+                id=405,
+                snapshot_id=203,
+                term_key="extended:asfarviridae-like",
+                canonical_name="Asfarviridae-like",
+                rank="extended lineage",
             ),
         )
     )
@@ -1121,7 +1290,13 @@ def _insert_public_membership_fixture(session: Session) -> None:
             LineageClosure(snapshot_id=200, ancestor_term_id=302, descendant_term_id=302, depth=0),
             LineageClosure(snapshot_id=200, ancestor_term_id=300, descendant_term_id=301, depth=1),
             LineageClosure(snapshot_id=200, ancestor_term_id=300, descendant_term_id=302, depth=1),
+            LineageClosure(snapshot_id=201, ancestor_term_id=401, descendant_term_id=401, depth=0),
             LineageClosure(snapshot_id=202, ancestor_term_id=402, descendant_term_id=402, depth=0),
+            LineageClosure(snapshot_id=203, ancestor_term_id=403, descendant_term_id=403, depth=0),
+            LineageClosure(snapshot_id=203, ancestor_term_id=404, descendant_term_id=404, depth=0),
+            LineageClosure(snapshot_id=203, ancestor_term_id=405, descendant_term_id=405, depth=0),
+            LineageClosure(snapshot_id=203, ancestor_term_id=403, descendant_term_id=404, depth=1),
+            LineageClosure(snapshot_id=203, ancestor_term_id=403, descendant_term_id=405, depth=1),
         )
     )
 
@@ -1405,6 +1580,119 @@ def _insert_public_membership_fixture(session: Session) -> None:
             )
         )
     session.flush()
+    for (
+        assertion_id,
+        assertion_key,
+        call_id,
+        locus_id,
+        evidence_id,
+        evidence_key,
+        asserted_value,
+        lineage_term_id,
+    ) in (
+        (
+            1206,
+            "assertion:extended:1",
+            802,
+            611,
+            1307,
+            "evidence:extended:1",
+            "Asfarviridae-like",
+            405,
+        ),
+        (
+            1207,
+            "assertion:extended:2",
+            803,
+            612,
+            1308,
+            "evidence:extended:2",
+            "Asfarviridae",
+            404,
+        ),
+    ):
+        session.add(
+            EvidenceItem(
+                id=evidence_id,
+                evidence_key=evidence_key,
+                release_id=10,
+                source_snapshot_id=20,
+                source_artifact_id=21,
+                evidence_type="source_row",
+                source_locator={"assertion": assertion_key},
+                evidence_sha256=str((evidence_id % 9) + 1) * 64,
+                summary="Synthetic extended-lineage evidence.",
+            )
+        )
+        session.add(
+            ScientificAssertion(
+                id=assertion_id,
+                assertion_key=assertion_key,
+                release_id=10,
+                call_id=call_id,
+                locus_id=locus_id,
+                process_run_id=50,
+                process_run_status="succeeded",
+                assertion_type="viral_major_taxon",
+                predicate_key="curated:extended-viral-lineage",
+                asserted_value=asserted_value,
+                lineage_snapshot_id=203,
+                lineage_snapshot_role="extended_viral_lineage",
+                lineage_term_id=lineage_term_id,
+                result_payload={"fixture": True, "synthetic": True},
+            )
+        )
+        session.flush()
+        session.add(
+            AssertionEvidence(
+                release_id=10,
+                assertion_id=assertion_id,
+                evidence_id=evidence_id,
+                relation="supports",
+            )
+        )
+    session.flush()
+    session.add(
+        EvidenceItem(
+            id=1309,
+            evidence_key="evidence:formal:asfarviridae",
+            release_id=10,
+            source_snapshot_id=20,
+            source_artifact_id=21,
+            evidence_type="source_row",
+            source_locator={"assertion": "assertion:formal:asfarviridae"},
+            evidence_sha256="9" * 64,
+            summary="Synthetic formal-lineage evidence.",
+        )
+    )
+    session.add(
+        ScientificAssertion(
+            id=1208,
+            assertion_key="assertion:formal:asfarviridae",
+            release_id=10,
+            call_id=803,
+            locus_id=612,
+            process_run_id=50,
+            process_run_status="succeeded",
+            assertion_type="viral_major_taxon",
+            predicate_key="ictv:formal-viral-taxonomy",
+            asserted_value="Asfarviridae",
+            lineage_snapshot_id=201,
+            lineage_snapshot_role="formal_viral_taxonomy",
+            lineage_term_id=401,
+            result_payload={"fixture": True, "synthetic": True},
+        )
+    )
+    session.flush()
+    session.add(
+        AssertionEvidence(
+            release_id=10,
+            assertion_id=1208,
+            evidence_id=1309,
+            relation="supports",
+        )
+    )
+    session.flush()
     session.add(
         EvidenceItem(
             id=1306,
@@ -1432,6 +1720,9 @@ def _insert_public_membership_fixture(session: Session) -> None:
         (1201, 610, 50, 1301),
         (1202, 611, 50, 1302),
         (1204, 610, 50, 1304),
+        (1206, 611, 50, 1307),
+        (1207, 612, 50, 1308),
+        (1208, 612, 50, 1309),
     ):
         session.add(
             ReleaseAssertionMembership(

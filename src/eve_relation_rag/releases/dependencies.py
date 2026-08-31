@@ -1028,7 +1028,12 @@ def load_lineage_dependency_bindings(
     )
     bindings: dict[LineageRole, LineageDependencyBinding] = {}
     allowed_roles: frozenset[str] = frozenset(
-        {"assembly_source_taxonomy", "formal_viral_taxonomy", "study_viral_lineage"}
+        {
+            "assembly_source_taxonomy",
+            "formal_viral_taxonomy",
+            "study_viral_lineage",
+            "extended_viral_lineage",
+        }
     )
     for row in rows:
         if (

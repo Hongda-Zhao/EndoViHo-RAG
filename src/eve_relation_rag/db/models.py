@@ -391,7 +391,8 @@ class ReleaseLineageSnapshot(Base):
         ),
         UniqueConstraint("release_id", "role", name="uq_release_lineage_snapshot_role"),
         CheckConstraint(
-            "role IN ('assembly_source_taxonomy', 'formal_viral_taxonomy', 'study_viral_lineage')",
+            "role IN ('assembly_source_taxonomy', 'formal_viral_taxonomy', "
+            "'study_viral_lineage', 'extended_viral_lineage')",
             name="valid_role",
         ),
         CheckConstraint(
@@ -400,6 +401,8 @@ class ReleaseLineageSnapshot(Base):
             "(role = 'formal_viral_taxonomy' AND domain = 'viral' "
             "AND scheme_kind = 'formal_taxonomy') OR "
             "(role = 'study_viral_lineage' AND domain = 'viral' "
+            "AND scheme_kind = 'study_defined') OR "
+            "(role = 'extended_viral_lineage' AND domain = 'viral' "
             "AND scheme_kind = 'study_defined')",
             name="role_matches_namespace",
         ),
@@ -1111,7 +1114,8 @@ class ScientificAssertion(Base):
             "AND source_label IS NULL AND source_confidence IS NULL "
             "AND lineage_snapshot_id IS NOT NULL AND lineage_term_id IS NOT NULL "
             "AND lineage_snapshot_role IN "
-            "('formal_viral_taxonomy', 'study_viral_lineage')) OR "
+            "('formal_viral_taxonomy', 'study_viral_lineage', "
+            "'extended_viral_lineage')) OR "
             "(assertion_type = 'vr_type' AND source_assessment_id IS NULL "
             "AND source_label IS NULL AND source_confidence IS NULL "
             "AND lineage_snapshot_id IS NULL AND lineage_term_id IS NULL "

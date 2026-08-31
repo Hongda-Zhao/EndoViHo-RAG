@@ -33,6 +33,7 @@ _ROLE_ORDER: tuple[LineageRole, ...] = (
     "assembly_source_taxonomy",
     "formal_viral_taxonomy",
     "study_viral_lineage",
+    "extended_viral_lineage",
 )
 _REQUIRED_COMPLETE_ROLES = frozenset[LineageRole](
     {"assembly_source_taxonomy", "formal_viral_taxonomy"}

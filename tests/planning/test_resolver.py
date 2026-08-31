@@ -21,6 +21,7 @@ LOCUS = f"locus:eve:v1:sha256:{'a' * 64}"
 SOURCE_SNAPSHOT = "lineage-snapshot:ncbi-taxonomy:test"
 FORMAL_SNAPSHOT = "lineage-snapshot:ictv:test"
 STUDY_SNAPSHOT = "lineage-snapshot:study:zhao-v4"
+EXTENDED_SNAPSHOT = "lineage-snapshot:extended:asfa-like-v1"
 
 
 def _source_term(
@@ -71,6 +72,20 @@ def _study_viral_term() -> LineageResolverRecord:
     )
 
 
+def _extended_viral_term() -> LineageResolverRecord:
+    return LineageResolverRecord(
+        entity_kind="viral_lineage",
+        term_key="extended:asfa-like",
+        canonical_name="Asfa-like",
+        aliases=("Asfarviridae-like",),
+        snapshot_key=EXTENDED_SNAPSHOT,
+        authority_namespace="curated-extended-viral-lineage",
+        snapshot_version="test-v1",
+        scheme_kind="study_defined",
+        role="extended_viral_lineage",
+    )
+
+
 def _resolver(
     *, lineages: tuple[LineageResolverRecord, ...] | None = None
 ) -> CatalogReleaseResolver:
@@ -84,7 +99,7 @@ def _resolver(
         ),
         loci=(LocusResolverRecord(locus_key=LOCUS),),
         lineages=(
-            (_source_term(), _formal_viral_term(), _study_viral_term())
+            (_source_term(), _formal_viral_term(), _study_viral_term(), _extended_viral_term())
             if lineages is None
             else lineages
         ),
@@ -178,7 +193,7 @@ def test_snapshot_qualified_term_requires_the_release_pinned_snapshot() -> None:
     assert mismatch.value.code == "lineage_snapshot_mismatch"
 
 
-def test_formal_and_study_namespaces_never_cross_resolve() -> None:
+def test_formal_study_and_extended_namespaces_never_cross_resolve() -> None:
     resolver = _resolver()
     formal = resolver.resolve_lineage(
         LineageReference(
@@ -196,10 +211,30 @@ def test_formal_and_study_namespaces_never_cross_resolve() -> None:
             name="Orthopolintovirales",
         )
     )
+    extended = resolver.resolve_lineage(
+        LineageReference(
+            original_input="asfa-like",
+            entity_kind="viral_lineage",
+            role="extended_viral_lineage",
+            name="asfa-like",
+        )
+    )
 
     assert formal.stable_key == "ictv:orthopolintovirales"
     assert study.stable_key == "study:orthopolintovirales"
-    assert formal.snapshot_key != study.snapshot_key
+    assert extended.stable_key == "extended:asfa-like"
+    assert len({formal.snapshot_key, study.snapshot_key, extended.snapshot_key}) == 3
+
+    with pytest.raises(ResolutionFailure) as no_cross_resolution:
+        resolver.resolve_lineage(
+            LineageReference(
+                original_input="asfa-like",
+                entity_kind="viral_lineage",
+                role="formal_viral_taxonomy",
+                name="asfa-like",
+            )
+        )
+    assert no_cross_resolution.value.code == "entity_unresolved"
 
 
 def test_alias_collision_is_ambiguous_and_never_selects_first() -> None:
@@ -305,4 +340,15 @@ def test_catalog_rejects_cross_snapshot_role_and_invalid_record_shapes() -> None
             snapshot_version="v1",
             scheme_kind="formal_taxonomy",
             role="study_viral_lineage",
+        )
+    with pytest.raises(ValidationError):
+        LineageResolverRecord(
+            entity_kind="viral_lineage",
+            term_key="extended:test",
+            canonical_name="Test",
+            snapshot_key=EXTENDED_SNAPSHOT,
+            authority_namespace="extended",
+            snapshot_version="v1",
+            scheme_kind="formal_taxonomy",
+            role="extended_viral_lineage",
         )

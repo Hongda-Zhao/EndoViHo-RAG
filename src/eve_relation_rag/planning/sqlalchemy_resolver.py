@@ -259,7 +259,12 @@ class SqlAlchemyReleaseResolverFactory:
         viral_bindings = tuple(
             binding
             for role, binding in release.lineage_dependencies.items()
-            if role in {"formal_viral_taxonomy", "study_viral_lineage"}
+            if role
+            in {
+                "formal_viral_taxonomy",
+                "study_viral_lineage",
+                "extended_viral_lineage",
+            }
         )
         if viral_bindings:
             viral_statement = (

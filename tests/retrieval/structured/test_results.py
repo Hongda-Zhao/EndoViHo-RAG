@@ -101,6 +101,25 @@ def _viral_lineage(
     )
 
 
+def test_extended_lineage_ref_retains_nonformal_provenance() -> None:
+    lineage = LineageRef(
+        term_key="extended:asfa-like",
+        canonical_name="Asfa-like",
+        rank="informal affinity group",
+        snapshot_key="lineage-snapshot:extended:asfa-like-v1",
+        authority_namespace="curated-extended-viral-lineage",
+        snapshot_version="test-v1",
+        scheme_kind="study_defined",
+        role="extended_viral_lineage",
+    )
+
+    assert lineage.role == "extended_viral_lineage"
+    assert lineage.scheme_kind == "study_defined"
+
+    with pytest.raises(ValidationError, match="role and scheme_kind"):
+        LineageRef.model_validate({**lineage.model_dump(), "scheme_kind": "formal_taxonomy"})
+
+
 def _placement() -> ExactPlacement:
     return ExactPlacement(
         sequence_key=f"sequence:insdc:{CONTIG}",
