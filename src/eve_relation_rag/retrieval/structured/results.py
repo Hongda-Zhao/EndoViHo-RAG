@@ -597,6 +597,39 @@ class PublishedReleaseRef(FrozenSchema):
         return value
 
 
+class ValidationCandidateReleaseRef(FrozenSchema):
+    """Non-public provenance emitted only by an approved validation run."""
+
+    dataset_key: Literal["dataset:endoviho-rag"]
+    release_key: StableToken
+    schema_version: NonEmptyString
+    status: Literal["validation_candidate"] = "validation_candidate"
+    manifest_sha256: Sha256
+    candidate_created_at: datetime
+    candidate_validation_input_sha256: Sha256
+    candidate_capability_sha256: Sha256
+
+    @field_validator("release_key")
+    @classmethod
+    def validate_release_key(cls, value: str) -> str:
+        if not value.startswith(_RELEASE_PREFIX) or not is_release_key(value):
+            raise ValueError("release_key does not follow the approved immutable grammar")
+        return value
+
+    @field_validator("candidate_created_at")
+    @classmethod
+    def validate_created_at(cls, value: datetime) -> datetime:
+        if value.tzinfo is None or value.utcoffset() is None:
+            raise ValueError("candidate_created_at must be timezone-aware")
+        return value
+
+
+type StructuredReleaseRef = Annotated[
+    PublishedReleaseRef | ValidationCandidateReleaseRef,
+    Field(discriminator="status"),
+]
+
+
 class Diagnostic(FrozenSchema):
     """Stable warning with a machine code and concise English message."""
 
@@ -787,11 +820,11 @@ def _required_limitation_codes(data: StructuredData) -> set[LimitationCode]:
 
 
 class StructuredResult(FrozenSchema):
-    """One semantically stable public fact result bound to a published release."""
+    """One fact result bound to explicit published or validation-only provenance."""
 
     result_schema_version: Literal["structured-result-v1"] = "structured-result-v1"
     plan_sha256: Sha256
-    release: PublishedReleaseRef
+    release: StructuredReleaseRef
     data: StructuredData
     warnings: tuple[Diagnostic, ...] = ()
     limitations: tuple[Limitation, ...] = ()

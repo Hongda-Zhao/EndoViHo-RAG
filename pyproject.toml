@@ -16,6 +16,7 @@ dependencies = [
   "alembic>=1.14,<2",
   "defusedxml>=0.7,<1",
   "fastapi>=0.115,<1",
+  "httpx>=0.28,<1",
   "markdown-it-py>=4.2,<5",
   "pgvector>=0.5,<1",
   "psycopg[binary]>=3.2,<4",
@@ -34,7 +35,6 @@ eve-relation-rag = "eve_relation_rag.cli:app"
 
 [project.optional-dependencies]
 demo = [
-  "httpx>=0.28,<1",
   "streamlit>=1.62,<2",
 ]
 local-embeddings = [

@@ -1,0 +1,3 @@
+# Operator-only Apple-silicon inference runtime for the V0 activation candidate.
+# This is intentionally separate from the application distribution dependencies.
+mlx-lm==0.31.3

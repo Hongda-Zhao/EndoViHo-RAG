@@ -41,7 +41,18 @@ class StructuredSemanticValidator:
         planning_audit: PlanningAudit,
         resolved_entities: tuple[ResolvedEntity, ...],
     ) -> ValidatedQuery:
-        if release.release_key != plan.release_key or release.status != "published":
+        status_is_authorized = release.status in {"published", "validation_candidate"}
+        candidate_identity_is_complete = release.status != "validation_candidate" or (
+            release.candidate_validation_input_sha256 is not None
+            and release.candidate_capability_sha256 is not None
+            and release.validation_receipt_key == "validation-candidate:no-receipt"
+            and release.validation_receipt_sha256 == "0" * 64
+        )
+        if (
+            release.release_key != plan.release_key
+            or not status_is_authorized
+            or not candidate_identity_is_complete
+        ):
             raise RetrievalRefusal(
                 "release_dependencies_incomplete",
                 "authorized release capability does not match the query plan",

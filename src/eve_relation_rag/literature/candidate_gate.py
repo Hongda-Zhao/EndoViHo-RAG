@@ -30,11 +30,20 @@ class ValidatedCandidateGate:
     def __init__(self, engine: Engine) -> None:
         self._engine = engine
 
+    def bind(self, report: RebuildValidationReport) -> BoundCandidateCorpusGate:
+        """Bind this issuer to one rebuild-approved corpus for routed benchmarks."""
+
+        try:
+            trusted = RebuildValidationReport.model_validate(report.model_dump(mode="python"))
+        except Exception as exc:
+            raise LiteratureRetrievalRefusal(
+                "corpus_manifest_invalid", "candidate rebuild report is invalid"
+            ) from exc
+        return BoundCandidateCorpusGate(self, trusted)
+
     def authorize(self, report: RebuildValidationReport) -> CorpusCapability:
         try:
-            report = RebuildValidationReport.model_validate(
-                report.model_dump(mode="python")
-            )
+            report = RebuildValidationReport.model_validate(report.model_dump(mode="python"))
         except Exception as exc:
             raise LiteratureRetrievalRefusal(
                 "corpus_manifest_invalid", "candidate rebuild report is invalid"
@@ -80,8 +89,7 @@ class ValidatedCandidateGate:
         if (
             row.manifest_sha256 != report.manifest_sha256
             or row.policy_graph_sha256 != report.policy_graph_sha256
-            or row.model_artifact_manifest_sha256
-            != report.model_artifact_manifest_sha256
+            or row.model_artifact_manifest_sha256 != report.model_artifact_manifest_sha256
         ):
             raise LiteratureRetrievalRefusal(
                 "corpus_manifest_invalid", "candidate changed after rebuild validation"
@@ -124,3 +132,30 @@ class ValidatedCandidateGate:
             embedding_dimension=row.embedding_dimension,
             model_artifact_manifest_sha256=row.model_artifact_manifest_sha256,
         )
+
+
+class BoundCandidateCorpusGate:
+    """Routed-application gate fixed to one exact candidate rebuild report."""
+
+    def __init__(
+        self,
+        issuer: ValidatedCandidateGate,
+        report: RebuildValidationReport,
+    ) -> None:
+        self._issuer = issuer
+        self._report = report
+
+    @property
+    def rebuild_sha256(self) -> str:
+        return self._report.rebuild_sha256
+
+    def authorize(self, corpus_release_key: str) -> CorpusCapability:
+        if corpus_release_key != self._report.corpus_release_key:
+            raise LiteratureRetrievalRefusal(
+                "corpus_manifest_invalid",
+                "request corpus differs from the bound validation candidate",
+            )
+        return self._issuer.authorize(self._report)
+
+
+__all__ = ["BoundCandidateCorpusGate", "ValidatedCandidateGate"]

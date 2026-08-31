@@ -55,12 +55,14 @@ class ReleaseCapability(Protocol):
     release_id: int
     dataset_key: Literal["dataset:endoviho-rag"]
     release_key: str
-    status: Literal["published"]
+    status: Literal["published", "validation_candidate"]
     schema_version: str
     published_at: datetime
     manifest_sha256: str
     validation_receipt_key: str
     validation_receipt_sha256: str
+    candidate_validation_input_sha256: str | None
+    candidate_capability_sha256: str | None
     source_dependencies: Mapping[str, SourceDependencyBinding]
     lineage_dependencies: Mapping[LineageRole, LineageDependencyBinding]
     complete_lineage_closure_roles: frozenset[LineageRole]
@@ -76,12 +78,14 @@ class _QueryableRelease:
     release_id: int
     dataset_key: Literal["dataset:endoviho-rag"]
     release_key: str
-    status: Literal["published"]
+    status: Literal["published", "validation_candidate"]
     schema_version: str
     published_at: datetime
     manifest_sha256: str
     validation_receipt_key: str
     validation_receipt_sha256: str
+    candidate_validation_input_sha256: str | None
+    candidate_capability_sha256: str | None
     source_dependencies: Mapping[str, SourceDependencyBinding]
     lineage_dependencies: Mapping[LineageRole, LineageDependencyBinding]
     complete_lineage_closure_roles: frozenset[LineageRole]
@@ -90,6 +94,19 @@ class _QueryableRelease:
     def __post_init__(self) -> None:
         if self._issuer is not _GATE_ISSUER:
             raise TypeError("QueryableRelease may only be issued by PublishedReleaseGate")
+        if self.status == "validation_candidate":
+            if (
+                self.candidate_validation_input_sha256 is None
+                or self.candidate_capability_sha256 is None
+                or self.validation_receipt_key != "validation-candidate:no-receipt"
+                or self.validation_receipt_sha256 != "0" * 64
+            ):
+                raise TypeError("validation candidate capability identity is incomplete")
+        elif (
+            self.candidate_validation_input_sha256 is not None
+            or self.candidate_capability_sha256 is not None
+        ):
+            raise TypeError("published capability must not claim candidate-only identity")
         object.__setattr__(
             self,
             "source_dependencies",
@@ -107,11 +124,14 @@ def _issue_queryable_release(
     release_id: int,
     dataset_key: Literal["dataset:endoviho-rag"],
     release_key: str,
+    status: Literal["published", "validation_candidate"],
     schema_version: str,
     published_at: datetime,
     manifest_sha256: str,
     validation_receipt_key: str,
     validation_receipt_sha256: str,
+    candidate_validation_input_sha256: str | None = None,
+    candidate_capability_sha256: str | None = None,
     source_dependencies: Mapping[str, SourceDependencyBinding],
     lineage_dependencies: Mapping[LineageRole, LineageDependencyBinding],
     complete_lineage_closure_roles: frozenset[LineageRole],
@@ -126,12 +146,14 @@ def _issue_queryable_release(
         release_id=release_id,
         dataset_key=dataset_key,
         release_key=release_key,
-        status="published",
+        status=status,
         schema_version=schema_version,
         published_at=published_at,
         manifest_sha256=manifest_sha256,
         validation_receipt_key=validation_receipt_key,
         validation_receipt_sha256=validation_receipt_sha256,
+        candidate_validation_input_sha256=candidate_validation_input_sha256,
+        candidate_capability_sha256=candidate_capability_sha256,
         source_dependencies=source_dependencies,
         lineage_dependencies=lineage_dependencies,
         complete_lineage_closure_roles=complete_lineage_closure_roles,

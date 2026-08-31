@@ -8,6 +8,7 @@ from eve_relation_rag.application import StructuredQueryApplication
 from eve_relation_rag.application.rag import RagQueryApplication
 from eve_relation_rag.bootstrap import (
     get_rag_query_application,
+    get_readiness_service,
     get_structured_query_application,
 )
 from eve_relation_rag.config import get_settings
@@ -21,6 +22,12 @@ from eve_relation_rag.hybrid.transport import (
     rag_http_status_for,
     rag_internal_error_response,
     rag_request_validation_response,
+)
+from eve_relation_rag.operations.readiness import (
+    READINESS_CHECK_NAMES,
+    ReadinessCheckResult,
+    ReadinessReport,
+    ReadinessService,
 )
 from eve_relation_rag.planning.parser import StructuredQueryRequest
 from eve_relation_rag.retrieval.structured.rendering import serialize_structured_response
@@ -101,6 +108,8 @@ async def structured_validation_error(
 async def structured_internal_error(request: Request, _exc: Exception) -> Response:
     """Keep configuration, database, and programming details out of public responses."""
 
+    if request.url.path == "/ready":
+        return _readiness_response(_unavailable_readiness_report())
     if request.url.path == "/v0/query":
         rag_response = rag_internal_error_response()
         return _canonical_rag_response(
@@ -119,6 +128,38 @@ def health() -> HealthResponse:
         service=settings.app_name,
         version=settings.app_version,
     )
+
+
+def _unavailable_readiness_report() -> ReadinessReport:
+    checks = tuple(
+        ReadinessCheckResult(check=check, status="not_ready") for check in READINESS_CHECK_NAMES
+    )
+    return ReadinessReport(
+        status="not_ready",
+        service=settings.app_name,
+        version=settings.app_version,
+        checks=checks,
+    )
+
+
+def _readiness_response(report: ReadinessReport) -> Response:
+    return Response(
+        content=report.model_dump_json(),
+        status_code=200 if report.status == "ready" else 503,
+        media_type="application/json",
+    )
+
+
+@app.get("/ready", response_model=ReadinessReport, tags=["operations"])
+def readiness(
+    service: Annotated[ReadinessService, Depends(get_readiness_service)],
+) -> Response:
+    """Verify V0 activation dependencies without exposing internal failure detail."""
+
+    try:
+        return _readiness_response(service.check())
+    except Exception:  # pragma: no cover - last-resort readiness safety boundary.
+        return _readiness_response(_unavailable_readiness_report())
 
 
 @app.post(

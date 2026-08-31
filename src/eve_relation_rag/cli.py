@@ -14,6 +14,7 @@ from click import UsageError
 from pydantic import ValidationError
 from typer.core import TyperGroup
 
+from eve_relation_rag.activation.corpus import V0_CORPUS_RELEASE_KEY
 from eve_relation_rag.application.literature import CandidateBenchmarkService
 from eve_relation_rag.bootstrap import (
     get_engine,
@@ -22,6 +23,7 @@ from eve_relation_rag.bootstrap import (
     get_rag_query_application,
     get_structured_query_application,
 )
+from eve_relation_rag.cli_v0 import register_v0_commands
 from eve_relation_rag.hybrid.contracts import RagErrorResponse, RagQueryRequest
 from eve_relation_rag.hybrid.rendering import serialize_rag_response
 from eve_relation_rag.hybrid.transport import (
@@ -52,6 +54,20 @@ from eve_relation_rag.literature.publication import (
 from eve_relation_rag.literature.validation import validate_corpus_rebuild
 from eve_relation_rag.planning.parser import StructuredQueryRequest
 from eve_relation_rag.planning.query_plans import PageSpec
+from eve_relation_rag.releases.publication import (
+    prepare_dataset_candidate_validation_input,
+    prepare_dataset_validation_input,
+    publish_dataset_release,
+    record_dataset_validation_receipt,
+)
+from eve_relation_rag.releases.receipt_integrity import (
+    load_approved_validation_input,
+    load_dataset_activation_evidence,
+    load_dataset_candidate_activation_evidence,
+    load_dataset_candidate_validation_input,
+    load_validation_request,
+)
+from eve_relation_rag.retrieval.structured.capability import LineageRole
 from eve_relation_rag.retrieval.structured.rendering import (
     render_structured_result_table,
     serialize_structured_response,
@@ -195,6 +211,7 @@ rag_app = typer.Typer(
     no_args_is_help=True,
 )
 app.add_typer(rag_app, name="rag")
+register_v0_commands(app)
 
 
 def _request(
@@ -300,6 +317,185 @@ def query_command(
         typer.echo(render_structured_result_table(response.structured_result))
     else:
         typer.echo(serialize_structured_response(response))
+
+
+@structured_app.command("release-validate")
+def structured_release_validate_command(
+    input_path: Annotated[
+        Path,
+        typer.Option(
+            "--input-path",
+            exists=True,
+            dir_okay=False,
+            help="Exact canonical dataset-validation-input-v1 JSON.",
+        ),
+    ],
+    approved_input_sha256: Annotated[
+        str,
+        typer.Option(
+            "--approved-input-sha256",
+            help="Separately approved self-checksum of the validation input.",
+        ),
+    ],
+) -> None:
+    """Replay approved science, record a trusted receipt, and validate the candidate."""
+
+    try:
+        approved = load_approved_validation_input(
+            input_path,
+            approved_input_sha256=approved_input_sha256,
+        )
+        report = record_dataset_validation_receipt(
+            get_engine(),
+            approved_input=approved,
+            approved_input_sha256=approved_input_sha256,
+        )
+    except Exception as exc:
+        _structured_admin_operation_error(str(exc), exit_code=4)
+    typer.echo(report.model_dump_json())
+
+
+@structured_app.command("release-prepare-candidate-validation-input")
+def structured_release_prepare_candidate_validation_input_command(
+    request_path: Annotated[
+        Path,
+        typer.Option(
+            "--request-path",
+            exists=True,
+            dir_okay=False,
+            help="Complete canonical ReleaseValidationRequest JSON.",
+        ),
+    ],
+    candidate_activation_evidence_path: Annotated[
+        Path,
+        typer.Option(
+            "--candidate-activation-evidence-path",
+            exists=True,
+            dir_okay=False,
+            help="Exact dataset-candidate-activation-evidence-v1 JSON.",
+        ),
+    ],
+    approved_candidate_activation_evidence_sha256: Annotated[
+        str,
+        typer.Option(
+            "--approved-candidate-activation-evidence-sha256",
+            help="Separately approved checksum of the candidate activation evidence.",
+        ),
+    ],
+    include_study_viral_lineage: Annotated[
+        bool,
+        typer.Option(
+            "--include-study-viral-lineage",
+            help="Also attest the release-bound study viral lineage closure.",
+        ),
+    ] = False,
+) -> None:
+    """Build the acyclic checksum approval artifact without changing release state."""
+
+    roles: tuple[LineageRole, ...] = (
+        (
+            "assembly_source_taxonomy",
+            "formal_viral_taxonomy",
+            "study_viral_lineage",
+        )
+        if include_study_viral_lineage
+        else ("assembly_source_taxonomy", "formal_viral_taxonomy")
+    )
+    try:
+        request = load_validation_request(request_path)
+        candidate_activation_evidence = load_dataset_candidate_activation_evidence(
+            candidate_activation_evidence_path,
+            approved_evidence_sha256=approved_candidate_activation_evidence_sha256,
+        )
+        candidate = prepare_dataset_candidate_validation_input(
+            get_engine(),
+            request=request,
+            candidate_activation_evidence=candidate_activation_evidence,
+            complete_lineage_closure_roles=roles,
+        )
+    except Exception as exc:
+        _structured_admin_operation_error(str(exc), exit_code=3)
+    typer.echo(candidate.model_dump_json())
+
+
+@structured_app.command("release-prepare-validation-input")
+def structured_release_prepare_validation_input_command(
+    candidate_input_path: Annotated[
+        Path,
+        typer.Option(
+            "--candidate-input-path",
+            exists=True,
+            dir_okay=False,
+            help="Exact dataset-candidate-validation-input-v1 JSON.",
+        ),
+    ],
+    approved_candidate_input_sha256: Annotated[
+        str,
+        typer.Option(
+            "--approved-candidate-input-sha256",
+            help="Separately approved candidate input self-checksum.",
+        ),
+    ],
+    activation_evidence_path: Annotated[
+        Path,
+        typer.Option(
+            "--activation-evidence-path",
+            exists=True,
+            dir_okay=False,
+            help="Exact post-report dataset-activation-evidence-v2 JSON.",
+        ),
+    ],
+    approved_activation_evidence_sha256: Annotated[
+        str,
+        typer.Option(
+            "--approved-activation-evidence-sha256",
+            help="Separately approved post-report evidence self-checksum.",
+        ),
+    ],
+) -> None:
+    """Finalize the receipt input after independently approved reports exist."""
+
+    try:
+        candidate = load_dataset_candidate_validation_input(
+            candidate_input_path,
+            approved_input_sha256=approved_candidate_input_sha256,
+        )
+        activation_evidence = load_dataset_activation_evidence(
+            activation_evidence_path,
+            approved_evidence_sha256=approved_activation_evidence_sha256,
+        )
+        approved = prepare_dataset_validation_input(
+            get_engine(),
+            candidate_validation_input=candidate,
+            activation_evidence=activation_evidence,
+        )
+    except Exception as exc:
+        _structured_admin_operation_error(str(exc), exit_code=3)
+    typer.echo(approved.model_dump_json())
+
+
+@structured_app.command("release-publish")
+def structured_release_publish_command(
+    release_key: Annotated[str, typer.Option("--release-key")],
+    expected_manifest_sha256: Annotated[
+        str, typer.Option("--expected-manifest-sha256")
+    ],
+    expected_receipt_sha256: Annotated[
+        str, typer.Option("--expected-receipt-sha256")
+    ],
+) -> None:
+    """Explicitly publish one validated dataset release named by exact checksums."""
+
+    try:
+        report = publish_dataset_release(
+            get_engine(),
+            release_key=release_key,
+            expected_manifest_sha256=expected_manifest_sha256,
+            expected_receipt_sha256=expected_receipt_sha256,
+        )
+    except Exception as exc:
+        _structured_admin_operation_error(str(exc), exit_code=5)
+    typer.echo(report.model_dump_json())
 
 
 @rag_app.command(
@@ -463,11 +659,28 @@ def literature_corpus_stage_command(
     approved_anchor_manifest_sha256: Annotated[
         str, typer.Option("--approved-anchor-manifest-sha256")
     ],
+    policy_code_sha256: Annotated[
+        str | None,
+        typer.Option(
+            "--policy-code-sha256",
+            help=(
+                "Exact immutable code identity already bound to reused policy rows; "
+                "defaults to the importer identity for backward-compatible replay."
+            ),
+        ),
+    ] = None,
 ) -> None:
     """Parse, chunk, embed, and atomically stage one exact candidate corpus."""
 
     try:
         manifest = _load_corpus_manifest(manifest_path, approved_manifest_sha256)
+        if (
+            manifest.corpus_release_key == V0_CORPUS_RELEASE_KEY
+            and policy_code_sha256 is None
+        ):
+            raise ValueError(
+                "V0 corpus staging requires an explicit immutable policy code SHA-256"
+            )
         anchor_manifest = _load_anchor_manifest(
             anchor_manifest_path,
             approved_anchor_manifest_sha256,
@@ -481,6 +694,7 @@ def literature_corpus_stage_command(
             tokenizer=provider,
             approved_manifest_sha256=approved_manifest_sha256,
             importer_code_sha256=importer_code_sha256,
+            policy_code_sha256=policy_code_sha256,
             model_artifact_manifest_sha256=model_artifact_manifest_sha256,
             embedding_provider=provider,
         )
@@ -700,6 +914,18 @@ def _literature_operation_error(message: str, *, exit_code: int) -> None:
     typer.echo(
         json.dumps(
             {"message": message or "literature operation failed", "status": "error"},
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
+        err=True,
+    )
+    raise typer.Exit(exit_code)
+
+
+def _structured_admin_operation_error(message: str, *, exit_code: int) -> None:
+    typer.echo(
+        json.dumps(
+            {"message": message or "structured release operation failed", "status": "error"},
             separators=(",", ":"),
             sort_keys=True,
         ),

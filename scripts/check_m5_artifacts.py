@@ -263,7 +263,7 @@ def _package_version() -> str:
     return str(project["version"])
 
 
-def _validate_benchmark(payload: dict[str, Any]) -> None:
+def _validate_preview_benchmark(payload: dict[str, Any]) -> None:
     _require_exact_keys(payload, _BENCHMARK_TOP_LEVEL_KEYS, "benchmark report")
     _require(
         payload["benchmark_report_schema_version"] == "v0-benchmark-report-v1",
@@ -284,7 +284,6 @@ def _validate_benchmark(payload: dict[str, Any]) -> None:
         and _SHA256.fullmatch(payload["report_sha256"]) is not None,
         "invalid benchmark report checksum",
     )
-
     suites = payload["suites"]
     _require(isinstance(suites, list), "benchmark suites must be a list")
     suite_by_key: dict[str, dict[str, Any]] = {}
@@ -480,7 +479,7 @@ def _validate_benchmark(payload: dict[str, Any]) -> None:
     )
 
 
-def _validate_checklist(payload: dict[str, Any]) -> None:
+def _validate_preview_checklist(payload: dict[str, Any]) -> None:
     _require_exact_keys(payload, _CHECKLIST_TOP_LEVEL_KEYS, "release checklist")
     _require(
         payload["release_checklist_schema_version"] == "v0-release-checklist-v1",
@@ -552,15 +551,363 @@ def _canonical_sha256(payload: dict[str, Any], checksum_field: str) -> str:
     return hashlib.sha256(encoded).hexdigest()
 
 
-def _load_checked(path: Path, checksum_field: str) -> dict[str, Any]:
+def _validate_activation_benchmark(payload: dict[str, Any]) -> None:
+    """Validate the final projection without weakening the frozen preview contract."""
+
+    _require_exact_keys(payload, _BENCHMARK_TOP_LEVEL_KEYS, "benchmark report")
+    _require(
+        payload["benchmark_report_schema_version"] == "v0-benchmark-report-v1",
+        "unexpected benchmark schema version",
+    )
+    _require(payload["product_version"] == "V0", "benchmark product version must be V0")
+    _require(
+        payload["package_version"] == _package_version(),
+        "benchmark package version differs from pyproject.toml",
+    )
+    _require(payload["engineering_benchmarks_passed"] is True, "engineering gates must pass")
+    _require(
+        payload["real_hybrid_activation_qualified"] is True,
+        "activation profile requires real hybrid qualification",
+    )
+    _require(
+        isinstance(payload["report_sha256"], str)
+        and _SHA256.fullmatch(payload["report_sha256"]) is not None,
+        "invalid benchmark report checksum",
+    )
+    raw_artifacts = payload["source_artifacts"]
+    _require(
+        isinstance(raw_artifacts, list) and raw_artifacts,
+        "activation source_artifacts must be a non-empty list",
+    )
+
+    suites = payload["suites"]
+    _require(isinstance(suites, list), "benchmark suites must be a list")
+    suite_by_key: dict[str, dict[str, Any]] = {}
+    for suite in suites:
+        _require(isinstance(suite, dict), "each benchmark suite must be an object")
+        suite_key = suite.get("suite_key")
+        _require(isinstance(suite_key, str), "each benchmark suite requires a string suite_key")
+        _require(suite_key not in suite_by_key, f"duplicate benchmark suite: {suite_key}")
+        suite_by_key[suite_key] = suite
+    expected_suite_keys = frozenset(_BENCHMARK_SUITE_SPECS) | {
+        "v0-real-structured",
+        "v0-real-hybrid",
+    }
+    _require(
+        frozenset(suite_by_key) == expected_suite_keys,
+        "activation benchmark suite set is incomplete or contains an unknown suite",
+    )
+
+    # Reuse the complete frozen M5 suite/source validation against a synthetic preview
+    # projection.  Final-only review and verification values are checked independently below.
+    preview_projection = dict(payload)
+    preview_projection["real_hybrid_activation_qualified"] = False
+    preview_projection["suites"] = [
+        suite_by_key[suite_key] for suite_key in _BENCHMARK_SUITE_SPECS
+    ]
+    preview_projection["source_artifacts"] = [
+        artifact
+        for artifact in raw_artifacts
+        if isinstance(artifact, dict) and artifact.get("path") in _SOURCE_ARTIFACT_PATHS
+    ]
+    preview_projection["human_semantic_support_review"] = {
+        "status": "not_run",
+        "approved": False,
+        "blocking": True,
+        "reviewed_claim_count": 0,
+    }
+    preview_projection["local_verification"] = {
+        "status": "passed",
+        "verified_at": "2026-08-28",
+        "full_pytest_passed": True,
+        "full_pytest_case_count": 724,
+        "full_pytest_warning_count": 1,
+        "frozen_benchmark_pytest_passed": True,
+        "frozen_benchmark_case_count": 72,
+        "ruff_passed": True,
+        "mypy_passed": True,
+        "mypy_source_file_count": 84,
+        "lock_check_passed": True,
+        "locked_package_count": 114,
+        "alembic_check_passed": True,
+        "alembic_head": "0010_m3_lock_hardening",
+        "clean_history_replay_passed": True,
+        "package_build_passed": True,
+        "wheel_member_count": 89,
+        "sdist_member_count": 129,
+        "container_smoke_passed": True,
+        "container_demo_api_wiring_passed": True,
+        "container_cleanup_passed": True,
+        "tools": _TOOL_VERSIONS,
+    }
+    _validate_preview_benchmark(preview_projection)
+
+    structured = suite_by_key["v0-real-structured"]
+    _require_exact_keys(
+        structured,
+        frozenset(
+            {"suite_key", "tier", "case_count", "result", "benchmark_report_sha256"}
+        ),
+        "real structured suite",
+    )
+    _require(
+        structured["tier"] == "approved_real_structured"
+        and structured["case_count"] == 10
+        and structured["result"] == "passed"
+        and isinstance(structured["benchmark_report_sha256"], str)
+        and _SHA256.fullmatch(structured["benchmark_report_sha256"]) is not None,
+        "real structured suite is not one passing typed ten-case report",
+    )
+    hybrid = suite_by_key["v0-real-hybrid"]
+    _require_exact_keys(
+        hybrid,
+        frozenset(
+            {
+                "suite_key",
+                "tier",
+                "case_count",
+                "result",
+                "benchmark_report_sha256",
+                "human_review_evaluation_sha256",
+            }
+        ),
+        "real hybrid suite",
+    )
+    _require(
+        hybrid["tier"] == "approved_real_hybrid"
+        and hybrid["case_count"] == 10
+        and hybrid["result"] == "passed"
+        and isinstance(hybrid["benchmark_report_sha256"], str)
+        and _SHA256.fullmatch(hybrid["benchmark_report_sha256"]) is not None
+        and isinstance(hybrid["human_review_evaluation_sha256"], str)
+        and _SHA256.fullmatch(hybrid["human_review_evaluation_sha256"]) is not None,
+        "real hybrid suite is not one reviewed typed ten-case report",
+    )
+
+    review = payload["human_semantic_support_review"]
+    _require(isinstance(review, dict), "human semantic-support review must be an object")
+    _require_exact_keys(
+        review,
+        frozenset(
+            {
+                "status",
+                "approved",
+                "blocking",
+                "reviewed_claim_count",
+                "reviewer_key",
+                "reviewer_name",
+                "reviewed_at",
+                "packet_sha256",
+                "submission_sha256",
+                "evaluation_sha256",
+            }
+        ),
+        "human semantic-support review",
+    )
+    _require(
+        review["status"] == "approved"
+        and review["approved"] is True
+        and review["blocking"] is False
+        and isinstance(review["reviewed_claim_count"], int)
+        and review["reviewed_claim_count"] > 0
+        and isinstance(review["reviewer_key"], str)
+        and bool(review["reviewer_key"])
+        and isinstance(review["reviewer_name"], str)
+        and bool(review["reviewer_name"].strip())
+        and isinstance(review["reviewed_at"], str)
+        and review["reviewed_at"].endswith("Z")
+        and all(
+            isinstance(review[field], str) and _SHA256.fullmatch(review[field]) is not None
+            for field in ("packet_sha256", "submission_sha256", "evaluation_sha256")
+        ),
+        "human semantic-support review lacks a named immutable evaluation",
+    )
+
+    verification = payload["local_verification"]
+    _require(isinstance(verification, dict), "local_verification must be an object")
+    _require_exact_keys(verification, _LOCAL_VERIFICATION_KEYS, "local verification")
+    _require(verification["status"] == "passed", "local verification must be passed")
+    for gate in (
+        "full_pytest_passed",
+        "frozen_benchmark_pytest_passed",
+        "ruff_passed",
+        "mypy_passed",
+        "lock_check_passed",
+        "alembic_check_passed",
+        "clean_history_replay_passed",
+        "package_build_passed",
+        "container_smoke_passed",
+        "container_demo_api_wiring_passed",
+        "container_cleanup_passed",
+    ):
+        _require(verification[gate] is True, f"local gate did not pass: {gate}")
+    for count_field in (
+        "full_pytest_case_count",
+        "frozen_benchmark_case_count",
+        "mypy_source_file_count",
+        "locked_package_count",
+        "wheel_member_count",
+        "sdist_member_count",
+    ):
+        _require(
+            isinstance(verification[count_field], int) and verification[count_field] > 0,
+            f"local verification count is invalid: {count_field}",
+        )
+    _require(
+        isinstance(verification["full_pytest_warning_count"], int)
+        and verification["full_pytest_warning_count"] >= 0,
+        "local warning count is invalid",
+    )
+    _require(
+        verification["alembic_head"] == "0011_dataset_validation_receipt",
+        "activation verification did not replay the V0 receipt migration head",
+    )
+    tools = verification["tools"]
+    _require(isinstance(tools, dict), "local verification tools must be an object")
+    _require_exact_keys(tools, _TOOL_KEYS, "local verification tools")
+    _require(tools == _TOOL_VERSIONS, "local verification tool versions drifted")
+
+    artifacts = raw_artifacts
+    paths: set[str] = set()
+    for artifact in artifacts:
+        _require(isinstance(artifact, dict), "each source artifact must be an object")
+        _require(
+            frozenset(artifact)
+            in {
+                frozenset({"path", "file_sha256"}),
+                frozenset({"path", "file_sha256", "canonical_payload_sha256"}),
+            },
+            "source artifact keys drifted",
+        )
+        relative_path = artifact["path"]
+        _require(isinstance(relative_path, str), "source artifact path must be a string")
+        source = Path(relative_path)
+        _require(not source.is_absolute() and ".." not in source.parts, "unsafe source path")
+        _require(relative_path not in paths, f"duplicate source artifact: {relative_path}")
+        paths.add(relative_path)
+        source_path = ROOT / source
+        _require(
+            source_path.is_file() and not source_path.is_symlink(),
+            f"missing source: {relative_path}",
+        )
+        _require(
+            artifact["file_sha256"] == hashlib.sha256(source_path.read_bytes()).hexdigest(),
+            f"source hash drifted: {relative_path}",
+        )
+        expected_canonical = _SOURCE_CANONICAL_HASHES.get(relative_path)
+        if expected_canonical is None:
+            _require(
+                "canonical_payload_sha256" not in artifact,
+                f"unexpected canonical payload hash: {relative_path}",
+            )
+        else:
+            _require(
+                artifact.get("canonical_payload_sha256") == expected_canonical,
+                f"canonical payload hash drifted: {relative_path}",
+            )
+    _require(
+        _SOURCE_ARTIFACT_PATHS.issubset(paths),
+        "activation report removed a frozen M5 source artifact",
+    )
+    limitations = payload["limitations"]
+    _require(
+        isinstance(limitations, list)
+        and len(limitations) == 4
+        and all(isinstance(item, str) and item for item in limitations),
+        "benchmark limitations must contain four non-empty statements",
+    )
+
+
+def _validate_activation_checklist(payload: dict[str, Any]) -> None:
+    _require_exact_keys(payload, _CHECKLIST_TOP_LEVEL_KEYS, "release checklist")
+    _require(
+        payload["release_checklist_schema_version"] == "v0-release-checklist-v1",
+        "unexpected release-checklist schema version",
+    )
+    _require(payload["product_version"] == "V0", "checklist product version must be V0")
+    _require(
+        payload["package_version"] == _package_version(),
+        "checklist package version differs from pyproject.toml",
+    )
+    _require(
+        isinstance(payload["benchmark_report_sha256"], str)
+        and _SHA256.fullmatch(payload["benchmark_report_sha256"]) is not None,
+        "invalid benchmark report identity",
+    )
+    _require(payload["milestone_5_engineering_status"] == "fulfilled", "M5 is not fulfilled")
+    _require(
+        payload["software_distribution_status"] == "release_candidate",
+        "activation checklist is not an exact release candidate",
+    )
+    _require(
+        payload["v0_definition_of_done_status"] == "publication_pending",
+        "activation checklist is not publication_pending",
+    )
+    _require(
+        payload["real_hybrid_activation_qualified"] is True,
+        "activation checklist does not qualify real hybrid activation",
+    )
+    _require(
+        isinstance(payload["checklist_sha256"], str)
+        and _SHA256.fullmatch(payload["checklist_sha256"]) is not None,
+        "invalid release checklist checksum",
+    )
+    items = payload["items"]
+    _require(isinstance(items, list), "checklist items must be a list")
+    item_by_id: dict[str, dict[str, Any]] = {}
+    for item in items:
+        _require(isinstance(item, dict), "each checklist item must be an object")
+        _require_exact_keys(
+            item,
+            frozenset({"id", "category", "status", "evidence"}),
+            "release checklist item",
+        )
+        item_id = item["id"]
+        _require(isinstance(item_id, str), "checklist item id must be a string")
+        _require(item_id not in item_by_id, f"duplicate checklist item: {item_id}")
+        _require(item_id in _CHECKLIST_ITEM_SPECS, f"unexpected checklist item: {item_id}")
+        category, _preview_status = _CHECKLIST_ITEM_SPECS[item_id]
+        expected_status = "block" if category == "external_publication" else "pass"
+        _require(item["category"] == category, f"checklist category drifted: {item_id}")
+        _require(item["status"] == expected_status, f"checklist status drifted: {item_id}")
+        _require(
+            isinstance(item["evidence"], str) and item["evidence"] and item["evidence"].isascii(),
+            f"checklist evidence must be non-empty ASCII: {item_id}",
+        )
+        item_by_id[item_id] = item
+    _require(
+        frozenset(item_by_id) == frozenset(_CHECKLIST_ITEM_SPECS),
+        "release checklist item set is incomplete",
+    )
+
+
+def _validate_benchmark(payload: dict[str, Any], profile: str = "preview") -> None:
+    if profile == "preview":
+        _validate_preview_benchmark(payload)
+    elif profile == "activation":
+        _validate_activation_benchmark(payload)
+    else:  # pragma: no cover - argparse and callers constrain the versioned modes.
+        raise RuntimeError(f"unknown M5 artifact profile: {profile}")
+
+
+def _validate_checklist(payload: dict[str, Any], profile: str = "preview") -> None:
+    if profile == "preview":
+        _validate_preview_checklist(payload)
+    elif profile == "activation":
+        _validate_activation_checklist(payload)
+    else:  # pragma: no cover - argparse and callers constrain the versioned modes.
+        raise RuntimeError(f"unknown M5 artifact profile: {profile}")
+
+
+def _load_checked(path: Path, checksum_field: str, profile: str = "preview") -> dict[str, Any]:
     raw_payload = json.loads(path.read_text(encoding="utf-8"))
     if not isinstance(raw_payload, dict):
         raise RuntimeError(f"{path.relative_to(ROOT)} must contain a JSON object")
     payload: dict[str, Any] = raw_payload
     if path == BENCHMARK_JSON:
-        _validate_benchmark(payload)
+        _validate_benchmark(payload, profile)
     elif path == CHECKLIST_JSON:
-        _validate_checklist(payload)
+        _validate_checklist(payload, profile)
     expected = _canonical_sha256(payload, checksum_field)
     if payload.get(checksum_field) != expected:
         raise RuntimeError(f"{path.relative_to(ROOT)} has a stale {checksum_field}: {expected}")
@@ -581,7 +928,8 @@ def _render_benchmark(payload: dict[str, Any]) -> str:
         "",
         f"- Engineering benchmarks passed: `{engineering_passed}`",
         f"- Real hybrid activation qualified: `{activation_qualified}`",
-        f"- Human semantic-support review: `{human_review_status}` (blocking)",
+        f"- Human semantic-support review: `{human_review_status}` "
+        f"({'blocking' if payload['human_semantic_support_review']['blocking'] else 'approved'})",
         "",
         "Mechanical citation, quote, and identifier checks do not establish semantic "
         "entailment or biological truth.",
@@ -692,9 +1040,9 @@ def _render_checklist(payload: dict[str, Any]) -> str:
     return "\n".join(lines)
 
 
-def expected_artifacts() -> dict[Path, str]:
-    benchmark = _load_checked(BENCHMARK_JSON, "report_sha256")
-    checklist = _load_checked(CHECKLIST_JSON, "checklist_sha256")
+def expected_artifacts(profile: str = "preview") -> dict[Path, str]:
+    benchmark = _load_checked(BENCHMARK_JSON, "report_sha256", profile)
+    checklist = _load_checked(CHECKLIST_JSON, "checklist_sha256", profile)
     if checklist["benchmark_report_sha256"] != benchmark["report_sha256"]:
         raise RuntimeError("release checklist points to a stale benchmark report")
     return {
@@ -707,10 +1055,16 @@ def main() -> int:
     parser = argparse.ArgumentParser()
     parser.add_argument("--check", action="store_true", help="fail when Markdown projections drift")
     parser.add_argument("--write", action="store_true", help="rewrite Markdown projections")
+    parser.add_argument(
+        "--profile",
+        choices=("preview", "activation"),
+        default="preview",
+        help="validate either the immutable M5 preview or final activation projection",
+    )
     args = parser.parse_args()
     if args.check == args.write:
         parser.error("choose exactly one of --check or --write")
-    for path, expected in expected_artifacts().items():
+    for path, expected in expected_artifacts(args.profile).items():
         if args.check:
             if not path.exists() or path.read_text(encoding="utf-8") != expected:
                 raise RuntimeError(f"{path.relative_to(ROOT)} is stale")

@@ -29,6 +29,7 @@ from eve_relation_rag.retrieval.structured.results import (
     StructuredError,
     StructuredResponse,
     StructuredResult,
+    ValidationCandidateReleaseRef,
 )
 
 __all__ = [
@@ -60,4 +61,5 @@ __all__ = [
     "StructuredError",
     "StructuredResponse",
     "StructuredResult",
+    "ValidationCandidateReleaseRef",
 ]

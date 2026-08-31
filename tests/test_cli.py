@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import json
 from pathlib import Path
+from types import SimpleNamespace
 
 import pytest
 from click import unstyle
@@ -54,6 +55,45 @@ def test_literature_admin_commands_expose_an_explicit_uv_lock_path() -> None:
         assert "--uv-lock-path" in help_text
         assert "Exact approved uv.lock" in help_text
         assert "required outside a source" in help_text
+
+
+def test_v0_corpus_stage_requires_explicit_policy_code_identity(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    monkeypatch.setattr(
+        cli_module,
+        "_load_corpus_manifest",
+        lambda *_args: SimpleNamespace(
+            corpus_release_key="corpus:endoviho-rag:v0:20260829:001"
+        ),
+    )
+    manifest = LITERATURE_FIXTURE_ROOT / "synthetic_corpus_manifest.json"
+    anchors = LITERATURE_FIXTURE_ROOT / "synthetic_anchor_manifest.json"
+
+    result = runner.invoke(
+        app,
+        [
+            "literature",
+            "corpus-stage",
+            "--manifest-path",
+            str(manifest),
+            "--approved-manifest-sha256",
+            "a" * 64,
+            "--import-root",
+            str(LITERATURE_FIXTURE_ROOT),
+            "--importer-code-sha256",
+            "b" * 64,
+            "--model-artifact-manifest-sha256",
+            "c" * 64,
+            "--anchor-manifest-path",
+            str(anchors),
+            "--approved-anchor-manifest-sha256",
+            "d" * 64,
+        ],
+    )
+
+    assert result.exit_code == 3
+    assert "requires an explicit immutable policy code SHA-256" in result.stderr
 
 
 def test_uv_lock_path_fails_closed_outside_a_source_checkout(

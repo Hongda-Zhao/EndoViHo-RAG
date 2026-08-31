@@ -1,0 +1,1 @@
+"""Structured release publication tests."""
