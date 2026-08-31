@@ -80,22 +80,43 @@ mechanical checks. Mechanical validation does not prove semantic entailment or b
 The Demo is an HTTP client, not a second application backend: it cannot import the database,
 construct an LLM, execute the CLI, choose a route, submit SQL, or use a tests-only capability.
 
-## Docker quick start
+## 运行方法（Docker Compose quick start）
 
-Prerequisites: Git and Docker Compose.
+**可以运行。** 2026-08-31 使用全新临时数据库卷重新验证了当前源码：容器镜像可构建，
+`db → migrate → api → demo` 可依次启动并通过健康检查；完整测试为 `995 passed`，Ruff 和
+严格 mypy 均通过。这说明工程预览可以本地运行，不代表尚未随仓库分发的数据、模型和真实
+生成能力已经激活。
+
+Prerequisites: Git and Docker Compose. The first build needs network access to pull the pinned
+base images and dependency archives.
+
+### 1. 启动服务
 
 ```sh
 git clone https://github.com/Hongda-Zhao/EndoViHo-RAG.git
 cd EndoViHo-RAG
 cp .env.example .env
-docker compose up --build
+docker compose up --detach --build --wait
 ```
 
-Open:
+`.env.example` 只包含本地 Demo 默认值，不能作为生产配置。启动完成后打开：
 
 - Demo: <http://127.0.0.1:8501>
 - API documentation: <http://127.0.0.1:8000/docs>
 - process liveness: <http://127.0.0.1:8000/health>
+
+### 2. 确认启动输出
+
+```sh
+curl -sS -w '\nHTTP %{http_code}\n' http://127.0.0.1:8000/health
+```
+
+Expected output:
+
+```text
+{"status":"ok","service":"EVE Relation RAG","version":"V0"}
+HTTP 200
+```
 
 Compose starts `db → migrate → api → demo`. The migration is a one-shot service. API and Demo run
 as UID/GID `10001`, with read-only filesystems, dropped capabilities, no-new-privileges, loopback
@@ -105,7 +126,11 @@ does not claim that data, a release, a model, or a provider is ready.
 A fresh volume is intentionally empty. Compose does not stage Zhao rows, publish a structured
 release, ingest literature, download a model, create a binding, add anchors, or enable generation.
 Its data-dependent examples therefore return typed fail-closed envelopes. That is the correct
-quick-start result, not a degraded success mode.
+quick-start result, not a degraded success mode. A `200` response from `/health` proves only that
+the API process is alive; the data-dependent example below is the expected way to verify the
+empty-volume behavior.
+
+### 3. 停止服务
 
 Stop while preserving the PostgreSQL volume:
 
@@ -138,7 +163,7 @@ Each stage is marked `EXECUTED` or `HELD` from canonical server flags. Refusal c
 codes, structured limitations, anchor diagnostics, generation limitations, validation scope,
 document/chunk/checksum provenance, and the validated response envelope remain inspectable.
 
-## API route contract
+## API 与 CLI 输入/输出示例
 
 The outer grammar is deliberately narrow:
 
@@ -152,19 +177,67 @@ The outer grammar is deliberately narrow:
 The public routed endpoint is `POST /v0/query`. Clients cannot submit route, SQL, `QueryPlan`,
 anchors, provider/model/prompt parameters, citation IDs, or sampling settings.
 
+The request fields are:
+
+| Field | Required | Meaning |
+|---|---|---|
+| `question` | yes | One printable-ASCII English line, 1–2,000 characters |
+| `release_key` | structured/hybrid only | Exact published structured-release selector |
+| `corpus_release_key` | literature/hybrid only | Exact published corpus selector |
+| `page` | no | Structured-list pagination; valid only with `release_key` |
+| `literature_top_k` | no | Literature retrieval depth `1..8`; valid only with `corpus_release_key` |
+
+### Example 1 — structured input on a fresh volume
+
 ```sh
-curl -sS http://127.0.0.1:8000/v0/query \
+curl -sS -w '\nHTTP %{http_code}\n' http://127.0.0.1:8000/v0/query \
   -H 'content-type: application/json' \
   -d '{"release_key":"release:endoviho-rag:v0:20260826:001","question":"Count distinct included loci in this release."}'
 ```
 
-The CLI uses the same application service:
+Expected output from a newly created Compose volume:
+
+```text
+{"code":"structured_refused","execution":{"generation_executed":false,"literature_retrieval_executed":false,"structured_retrieval_executed":false},"message":"The exact structured query was refused.","requested_corpus_release_key":null,"requested_release_key":"release:endoviho-rag:v0:20260826:001","response_kind":"error","response_schema_version":"rag-error-v1","route":"structured","upstream_code":"release_not_found"}
+HTTP 404
+```
+
+`structured_refused` / `release_not_found` is expected: the image contains the application and
+schema migrations, but it does not silently stage or publish the candidate Zhao dataset.
+
+### Example 2 — unsupported input is rejected before execution
 
 ```sh
-uv run eve-relation-rag rag query \
+curl -sS -w '\nHTTP %{http_code}\n' http://127.0.0.1:8000/v0/query \
+  -H 'content-type: application/json' \
+  -d '{"question":"Which host lineage has the highest EVE prevalence?"}'
+```
+
+Expected output:
+
+```text
+{"code":"unsupported_request","execution":{"generation_executed":false,"literature_retrieval_executed":false,"structured_retrieval_executed":false},"message":"The question is outside the approved routed query grammar.","requested_corpus_release_key":null,"requested_release_key":null,"response_kind":"error","response_schema_version":"rag-error-v1","route":"unsupported","upstream_code":null}
+HTTP 422
+```
+
+All three execution flags are `false`, so this refusal occurs before structured retrieval,
+literature retrieval, or generation.
+
+### CLI input and output
+
+The CLI uses the same application service. After Docker quick start, run it inside the API
+container from a second terminal:
+
+```sh
+docker compose exec -T api eve-relation-rag rag query \
   --release-key release:endoviho-rag:v0:20260826:001 \
   --question "Count distinct included loci in this release."
 ```
+
+On a fresh volume, `stdout` is empty, `stderr` is the same `structured_refused` JSON shown in
+Example 1 (without the `HTTP 404` line), and the process exit code is `4`. Source-checkout
+developers can run the equivalent command with `uv run eve-relation-rag rag query ...` after
+installing the locked development environment below.
 
 ## Frozen scientific state
 
@@ -220,7 +293,7 @@ identity; it is not approval, legal permission, semantic proof, or a release sig
 | Python | `>=3.12,<3.13`; container `3.12.13-slim-bookworm` |
 | dependency manager | uv `0.12.5`; `uv.lock` |
 | Demo | Streamlit `1.62.0`; HTTP timeout 20 s; response cap 2 MiB; identity encoding; zero retries/redirects |
-| database | PostgreSQL 16 + pgvector; Alembic head `0010_m3_lock_hardening` |
+| database | PostgreSQL 16 + pgvector; Alembic head `0011_dataset_validation_receipt` |
 | literature chunking | pinned BGE tokenizer; target/overlap/hard max `384/64/448` tokens |
 | retrieval | English weighted FTS + full-chunk dense + summary dense; RRF60; depth 100 per branch |
 | M4 context | maximum 131,072 UTF-8 bytes; maximum 8 chunks and 16 generated claims |
