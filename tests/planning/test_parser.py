@@ -42,6 +42,8 @@ FORMAL_TERM = "ictv:orthopolintovirales"
 FORMAL_SNAPSHOT = "lineage-snapshot:ictv:test"
 STUDY_TERM = "study:orthopolintovirales"
 STUDY_SNAPSHOT = "lineage-snapshot:study:zhao-v4"
+EXTENDED_TERM = "extended:asfa-like"
+EXTENDED_SNAPSHOT = "lineage-snapshot:extended:asfa-like-v1"
 
 
 def _resolver() -> CatalogReleaseResolver:
@@ -86,6 +88,17 @@ def _resolver() -> CatalogReleaseResolver:
                 snapshot_version="v4",
                 scheme_kind="study_defined",
                 role="study_viral_lineage",
+            ),
+            LineageResolverRecord(
+                entity_kind="viral_lineage",
+                term_key=EXTENDED_TERM,
+                canonical_name="Asfa-like",
+                aliases=("Asfarviridae-like",),
+                snapshot_key=EXTENDED_SNAPSHOT,
+                authority_namespace="curated-extended-viral-lineage",
+                snapshot_version="test-v1",
+                scheme_kind="study_defined",
+                role="extended_viral_lineage",
             ),
         ),
     )
@@ -254,14 +267,36 @@ def test_exact_snapshot_qualified_lineage_and_descendant_bit_are_preserved() -> 
     assert response.resolved_entities[0].match_mode == "exact_stable_key"
 
 
-def test_formal_and_study_role_words_select_separate_namespaces() -> None:
+def test_formal_study_and_extended_role_words_select_separate_namespaces() -> None:
     formal = _success("List loci with formal viral lineage Orthopolintovirales exactly.")
     study = _success("List loci with study viral lineage Orthopolintovirales exactly.")
+    extended = _success("List loci with extended viral lineage asfa-like including descendants.")
 
     assert formal.resolved_entities[0].stable_key == FORMAL_TERM
     assert study.resolved_entities[0].stable_key == STUDY_TERM
+    assert extended.resolved_entities[0].stable_key == EXTENDED_TERM
     assert formal.resolved_entities[0].role == "formal_viral_taxonomy"
     assert study.resolved_entities[0].role == "study_viral_lineage"
+    assert extended.resolved_entities[0].role == "extended_viral_lineage"
+    assert isinstance(extended.query_plan.scope, FilteredScope)
+    extended_filter = extended.query_plan.scope.filters[0]
+    assert isinstance(extended_filter, ViralLineageFilter)
+    assert extended_filter.include_descendants is True
+
+
+def test_extended_snapshot_qualified_reference_preserves_exact_identity() -> None:
+    response = _success(
+        f"List loci with extended viral lineage term {EXTENDED_TERM} in snapshot "
+        f"{EXTENDED_SNAPSHOT} exactly."
+    )
+
+    assert isinstance(response.query_plan.scope, FilteredScope)
+    query_filter = response.query_plan.scope.filters[0]
+    assert isinstance(query_filter, ViralLineageFilter)
+    assert query_filter.role == "extended_viral_lineage"
+    assert query_filter.snapshot_key == EXTENDED_SNAPSHOT
+    assert query_filter.term_key == EXTENDED_TERM
+    assert query_filter.include_descendants is False
 
 
 @pytest.mark.parametrize(
@@ -284,10 +319,11 @@ def test_negation_or_and_ranges_fail_closed_with_unconsumed_audit(question: str)
 
 def test_missing_full_scope_role_and_lineage_scope_have_stable_errors() -> None:
     _error("List loci in this release.", "full_release_scope_not_explicit")
-    _error(
+    ambiguous = _error(
         "List loci with viral lineage Orthopolintovirales exactly.",
         "lineage_role_ambiguous",
     )
+    assert "formal, study, or extended" in ambiguous.error.message
     _error(
         "List loci with study viral lineage Orthopolintovirales.",
         "lineage_scope_ambiguous",

@@ -5,6 +5,18 @@ release or scientific-data publication is implied by this file.
 
 ## V0 — Unreleased
 
+### Extended viral-lineage query layer
+
+- Added the release-bound `extended_viral_lineage` role for evidence-backed, non-ICTV affinity
+  groups such as `asfa-like`, with a distinct controlled-English query qualifier.
+- Added database constraints, migration, resolver/capability support, closure attestation, and
+  tests that keep formal, study-defined, and extended namespaces separate.
+- Advanced the clean-rebuild contract to migration head `0012_extended_viral_lineage`. Because
+  structured validator code is checksum-bound, pre-change candidate validation inputs must be
+  rebuilt and re-approved; no published structured release currently exists to migrate.
+- Kept real asfa-like loci and a new published dataset/corpus out of the repository until their
+  exact source artifacts, assertions, review, and immutable release receipts are approved.
+
 ### Milestone 5 — demo and release packaging
 
 - Added an English-only Streamlit evidence workbench over the existing `/v0/query` API.

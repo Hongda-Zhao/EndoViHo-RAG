@@ -759,7 +759,7 @@ def _validate_activation_benchmark(payload: dict[str, Any]) -> None:
         "local warning count is invalid",
     )
     _require(
-        verification["alembic_head"] == "0011_dataset_validation_receipt",
+        verification["alembic_head"] == "0012_extended_viral_lineage",
         "activation verification did not replay the V0 receipt migration head",
     )
     tools = verification["tools"]

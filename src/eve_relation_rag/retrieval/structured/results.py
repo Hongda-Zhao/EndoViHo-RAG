@@ -120,6 +120,7 @@ type LineageRole = Literal[
     "assembly_source_taxonomy",
     "formal_viral_taxonomy",
     "study_viral_lineage",
+    "extended_viral_lineage",
 ]
 type SchemeKind = Literal["formal_taxonomy", "study_defined"]
 type EntityKind = Literal["assembly", "locus", "source_lineage", "viral_lineage"]
@@ -228,7 +229,11 @@ class LineageRef(FrozenSchema):
 
     @model_validator(mode="after")
     def validate_role_scheme(self) -> LineageRef:
-        expected = "study_defined" if self.role == "study_viral_lineage" else "formal_taxonomy"
+        expected = (
+            "study_defined"
+            if self.role in {"study_viral_lineage", "extended_viral_lineage"}
+            else "formal_taxonomy"
+        )
         if self.scheme_kind != expected:
             raise ValueError("lineage role and scheme_kind are inconsistent")
         return self
@@ -683,7 +688,9 @@ class ResolvedEntity(FrozenSchema):
             if self.entity_kind == "viral_lineage" and self.role == "assembly_source_taxonomy":
                 raise ValueError("viral lineage resolutions require a viral role")
             expected_scheme = (
-                "study_defined" if self.role == "study_viral_lineage" else "formal_taxonomy"
+                "study_defined"
+                if self.role in {"study_viral_lineage", "extended_viral_lineage"}
+                else "formal_taxonomy"
             )
             if self.scheme_kind != expected_scheme:
                 raise ValueError("resolved lineage role and scheme_kind are inconsistent")

@@ -95,6 +95,7 @@ _CLAUSE_MARKER_RE = re.compile(
     r"(?:^|(?P<separator> +and +))(?P<marker>in +assembly|"
     r"assigned +exactly +to +source +lineage|assigned +to +source +lineage|"
     r"with +formal +viral +lineage|with +study +viral +lineage|"
+    r"with +extended +viral +lineage|"
     r"with +viral +lineage) +",
     re.IGNORECASE,
 )
@@ -526,7 +527,7 @@ def _parse_filter_tail(
                 )
                 raise _PlanningRefusal(
                     "lineage_role_ambiguous",
-                    "A viral lineage must be qualified as formal or study.",
+                    "A viral lineage must be qualified as formal, study, or extended.",
                     _build_audit(state, unresolved_keys=frozenset({key})),
                 )
             if "source lineage" in marker:
@@ -536,19 +537,20 @@ def _parse_filter_tail(
             else:
                 filter_type = "viral_lineage"
                 entity_kind = "viral_lineage"
-                role = (
-                    "formal_viral_taxonomy"
-                    if marker == "with formal viral lineage"
-                    else "study_viral_lineage"
-                )
+                viral_role_by_marker: dict[str, LineageRole] = {
+                    "with formal viral lineage": "formal_viral_taxonomy",
+                    "with study viral lineage": "study_viral_lineage",
+                    "with extended viral lineage": "extended_viral_lineage",
+                }
+                role = viral_role_by_marker[marker]
             role_phrase = (
                 "source lineage"
                 if filter_type == "source_lineage"
-                else (
-                    "formal viral lineage"
-                    if role == "formal_viral_taxonomy"
-                    else "study viral lineage"
-                )
+                else {
+                    "formal_viral_taxonomy": "formal viral lineage",
+                    "study_viral_lineage": "study viral lineage",
+                    "extended_viral_lineage": "extended viral lineage",
+                }[role]
             )
             role_match = re.search(role_phrase.replace(" ", r" +"), marker_text, re.I)
             if role_match is not None:
@@ -715,7 +717,7 @@ def _parse_question(question: str) -> _ParsedQuery:
         return _ParsedQuery("aggregate", metric_key, False, mentions, state)
 
     if re.search(r"\blineage\b", body, re.I) and not re.search(
-        r"\b(?:source|formal +viral|study +viral) +lineage\b", body, re.I
+        r"\b(?:source|formal +viral|study +viral|extended +viral) +lineage\b", body, re.I
     ):
         match = re.search(r"\b(?:viral +)?lineage\b", body, re.I)
         assert match is not None
@@ -727,7 +729,8 @@ def _parse_question(question: str) -> _ParsedQuery:
         )
         raise _PlanningRefusal(
             "lineage_role_ambiguous",
-            "A lineage mention must state source, formal viral, or study viral lineage.",
+            "A lineage mention must state source, formal viral, study viral, or extended viral "
+            "lineage.",
             _build_audit(state, unresolved_keys=frozenset({key})),
         )
     raise _refuse_unknown(question)

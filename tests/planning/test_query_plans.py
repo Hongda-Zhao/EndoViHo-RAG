@@ -66,6 +66,19 @@ def _viral_lineage_filter() -> ViralLineageFilter:
     )
 
 
+def test_extended_viral_lineage_role_is_a_valid_typed_filter() -> None:
+    query_filter = ViralLineageFilter(
+        filter_type="viral_lineage",
+        snapshot_key="lineage-snapshot:extended:asfa-like-v1",
+        term_key="extended:asfa-like",
+        role="extended_viral_lineage",
+        include_descendants=True,
+    )
+
+    assert query_filter.role == "extended_viral_lineage"
+    assert query_filter.include_descendants is True
+
+
 def _base_fields(question: str) -> dict[str, str]:
     return {
         "plan_version": PLAN_VERSION,

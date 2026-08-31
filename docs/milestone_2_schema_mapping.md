@@ -209,9 +209,13 @@ The role constraints are exact:
 | `assembly_source_taxonomy` | `host` | `formal_taxonomy` | Taxon assigned to the source assembly; not a modern or ancient infection claim. |
 | `formal_viral_taxonomy` | `viral` | `formal_taxonomy` | Formal viral taxonomy in its exact frozen authority snapshot. |
 | `study_viral_lineage` | `viral` | `study_defined` | A versioned source/study label; it must not masquerade as formal taxonomy. |
+| `extended_viral_lineage` | `viral` | `study_defined` | A versioned, release-curated broad affinity layer; it is not formal taxonomy and requires explicit evidence-backed assertions. |
 
 The staged Zhao label `Orthopolintovirales` is a `study_viral_lineage` source assertion. A query
 for formal ICTV taxonomy cannot silently resolve to it even if the canonical names coincide.
+Likewise, an approved `asfa-like` affinity group belongs in an `extended_viral_lineage` snapshot
+rather than the formal `Asfarviridae` namespace. Extended descendants are materialized assertions,
+never aliases that silently broaden a formal query.
 
 ### 6.2 Assembly-source assignments
 
@@ -240,7 +244,8 @@ include_descendants = true
 Table presence does not establish closure completeness. The current host snapshot contains
 assembly-report leaf terms and self-rows only; the study viral snapshot is also self-only. The
 complete NCBI Taxonomy dump with merged/deleted TaxId history and the required formal ICTV
-snapshot are not loaded. There is no closure-completeness column or receipt attestation.
+snapshot are not loaded, and no real extended viral snapshot is bound. There is no
+closure-completeness column or receipt attestation.
 
 The real current pilot is only a candidate, so its requests fail first with
 `release_not_published` and do not enter lineage resolution. For a future gate-qualified release
@@ -282,7 +287,7 @@ membership and is never a quality threshold or default filter.
 | Assertion type | Typed fields | Public interpretation |
 |---|---|---|
 | `hcvr` | Required `SourceAssessment`, source label, and source confidence. | Versioned source assessment only. |
-| `viral_major_taxon` | Required lineage snapshot/term and role `formal_viral_taxonomy` or `study_viral_lineage`. | Formal and study-defined namespaces remain distinct. |
+| `viral_major_taxon` | Required lineage snapshot/term and role `formal_viral_taxonomy`, `study_viral_lineage`, or `extended_viral_lineage`. | Formal, study-defined, and extended namespaces remain distinct. |
 | `vr_type` | No source-assessment or lineage columns. | Versioned source `VR Type` assertion, not independent flank evidence. |
 
 A bare `ScientificAssertion` is not public. `PublicAssertionDetail` begins at

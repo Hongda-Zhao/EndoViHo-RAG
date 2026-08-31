@@ -17,6 +17,7 @@ type LineageRole = Literal[
     "assembly_source_taxonomy",
     "formal_viral_taxonomy",
     "study_viral_lineage",
+    "extended_viral_lineage",
 ]
 
 

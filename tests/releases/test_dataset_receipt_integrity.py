@@ -6,6 +6,7 @@ import pytest
 from pydantic import ValidationError
 
 from eve_relation_rag.releases.receipt_integrity import (
+    DatasetCandidateValidationInput,
     DatasetReceiptIntegrityError,
     TrustedDatasetReceiptEvidence,
     build_approved_validation_input,
@@ -20,6 +21,7 @@ from eve_relation_rag.releases.receipt_integrity import (
     validation_request_from_payload,
     validation_request_payload,
 )
+from eve_relation_rag.retrieval.structured.capability import LineageRole
 from tests.test_release_validator import _request
 
 MANIFEST_SHA256 = "d" * 64
@@ -38,7 +40,12 @@ def _activation_evidence():
     )
 
 
-def _candidate_input():
+def _candidate_input(
+    complete_roles: tuple[LineageRole, ...] = (
+        "assembly_source_taxonomy",
+        "formal_viral_taxonomy",
+    ),
+) -> DatasetCandidateValidationInput:
     activation = build_dataset_candidate_activation_evidence(
         release_key=_request().release_key,
         structured_activation_manifest_sha256=MANIFEST_SHA256,
@@ -59,10 +66,7 @@ def _candidate_input():
         release_manifest_sha256=MANIFEST_SHA256,
         expected_dependency_graph_sha256=GRAPH_SHA256,
         candidate_activation_evidence=activation,
-        complete_lineage_closure_roles=(
-            "assembly_source_taxonomy",
-            "formal_viral_taxonomy",
-        ),
+        complete_lineage_closure_roles=complete_roles,
         request=_request(),
     )
 
@@ -212,3 +216,15 @@ def test_noncanonical_lineage_role_order_is_refused() -> None:
 
     with pytest.raises(ValidationError, match="canonically ordered"):
         type(approved).model_validate_json(json.dumps(payload), strict=True)
+
+
+def test_extended_lineage_closure_role_is_optional_and_canonically_ordered() -> None:
+    candidate = _candidate_input(
+        complete_roles=(
+            "assembly_source_taxonomy",
+            "formal_viral_taxonomy",
+            "extended_viral_lineage",
+        )
+    )
+
+    assert candidate.complete_lineage_closure_roles[-1] == "extended_viral_lineage"

@@ -79,6 +79,12 @@ checksums recorded in the Milestone 1 manifest. Public release additionally requ
 versioned NCBI Taxonomy snapshot including merged and deleted taxon history, plus an explicit ICTV
 release/snapshot binding for viral lineage assertions.
 
+If approved for a future release, the optional `extended_viral_lineage` role is a separate
+`study_defined` affinity layer for broad groups such as `asfa-like`. It does not reclassify a record
+as formal `Asfarviridae`. A locus enters an extended result only through a release-bound,
+evidence-backed extended assertion and public assertion membership; spelling similarity or an
+alias is never sufficient.
+
 ## Public-membership gates
 
 A locus can enter a public release only when the release validator can verify all required

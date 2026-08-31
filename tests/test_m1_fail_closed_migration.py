@@ -24,6 +24,8 @@ REPOSITORY_ROOT = Path(__file__).resolve().parents[1]
 REVISION_0002 = "0002_milestone_1_truth_layer"
 REVISION_0004 = "0004_m1_shared_intervals"
 REVISION_HEAD = "0005_m1_fail_closed_publication"
+REVISION_0011 = "0011_dataset_validation_receipt"
+REVISION_0012 = "0012_extended_viral_lineage"
 SHA_A = "a" * 64
 SHA_B = "b" * 64
 
@@ -284,6 +286,69 @@ def test_0005_bad_ledger_preflight_fails_before_any_ddl(
         assert "fk_import_ledger_call_same_source_record" not in ledger_foreign_keys
 
 
+def test_0012_empty_downgrade_and_reupgrade_replace_role_checks(
+    isolated_schema: tuple[Engine, str],
+) -> None:
+    engine, schema = isolated_schema
+    with engine.connect() as connection:
+        _set_search_path(connection, schema)
+        _upgrade(connection, through=REVISION_0012)
+
+        assert "extended_viral_lineage" in _check_sql(
+            connection,
+            table_name="release_lineage_snapshot",
+            constraint_name="ck_release_lineage_snapshot_valid_role",
+        )
+        connection.commit()
+
+        _downgrade(connection, revision_id=REVISION_0012)
+
+        assert "extended_viral_lineage" not in _check_sql(
+            connection,
+            table_name="release_lineage_snapshot",
+            constraint_name="ck_release_lineage_snapshot_valid_role",
+        )
+        connection.commit()
+
+        _upgrade(connection, after=REVISION_0011, through=REVISION_0012)
+
+        assert "extended_viral_lineage" in _check_sql(
+            connection,
+            table_name="release_lineage_snapshot",
+            constraint_name="ck_release_lineage_snapshot_valid_role",
+        )
+
+
+def test_0012_downgrade_fails_closed_when_extended_rows_exist(
+    isolated_schema: tuple[Engine, str],
+) -> None:
+    engine, schema = isolated_schema
+    with engine.connect() as connection:
+        _set_search_path(connection, schema)
+        _upgrade(connection, through=REVISION_0012)
+        _insert_candidate_release(connection, dataset_id=501, release_id=502)
+        _insert_extended_lineage_binding(connection, release_id=502)
+        connection.commit()
+
+        with pytest.raises(DBAPIError) as error:
+            _downgrade(connection, revision_id=REVISION_0012)
+
+        assert "cannot downgrade 0012 while extended_viral_lineage rows exist" in str(
+            error.value.orig
+        )
+        assert connection.scalar(
+            text(
+                "SELECT count(*) FROM release_lineage_snapshot "
+                "WHERE release_id = 502 AND role = 'extended_viral_lineage'"
+            )
+        ) == 1
+        assert "extended_viral_lineage" in _check_sql(
+            connection,
+            table_name="release_lineage_snapshot",
+            constraint_name="ck_release_lineage_snapshot_valid_role",
+        )
+
+
 def _unique_constraints(table: sa.Table) -> dict[str, tuple[str, ...]]:
     return {
         constraint.name: tuple(column.name for column in constraint.columns)
@@ -343,6 +408,34 @@ def _upgrade(
         raise AssertionError(f"Alembic revision {through!r} was not reached")
 
 
+def _downgrade(connection: sa.Connection, *, revision_id: str) -> None:
+    script = ScriptDirectory.from_config(Config(str(REPOSITORY_ROOT / "alembic.ini")))
+    revision = script.get_revision(revision_id)
+    if revision is None:
+        raise AssertionError(f"Alembic revision {revision_id!r} was not found")
+
+    with connection.begin():
+        context = MigrationContext.configure(
+            connection,
+            opts={"target_metadata": Base.metadata},
+        )
+        with Operations.context(context):
+            revision.module.downgrade()
+
+
+def _check_sql(
+    connection: sa.Connection,
+    *,
+    table_name: str,
+    constraint_name: str,
+) -> str:
+    constraints = {
+        constraint["name"]: constraint["sqltext"]
+        for constraint in inspect(connection).get_check_constraints(table_name)
+    }
+    return str(constraints[constraint_name])
+
+
 def _insert_candidate_release(
     connection: sa.Connection,
     *,
@@ -374,6 +467,64 @@ def _insert_candidate_release(
             "release_key": f"release:{release_id}",
         },
     )
+
+
+def _insert_extended_lineage_binding(
+    connection: sa.Connection,
+    *,
+    release_id: int,
+) -> None:
+    statements: tuple[tuple[str, dict[str, object]], ...] = (
+        (
+            """
+            INSERT INTO source_snapshot (
+                id, snapshot_key, source_name, source_version, source_uri,
+                retrieved_at, verified_manifest_sha256, verified_license_key
+            ) VALUES (
+                503, 'source-snapshot:extended-downgrade', 'fixture', 'v1',
+                'https://example.invalid/extended', now(), :sha_a, 'fixture-license'
+            )
+            """,
+            {"sha_a": SHA_A},
+        ),
+        (
+            """
+            INSERT INTO source_artifact (
+                id, snapshot_id, artifact_key, filename, media_type, byte_size,
+                verified_sha256, source_uri, retrieved_at, verified_license_key
+            ) VALUES (
+                504, 503, 'source-artifact:extended-downgrade', 'extended.tsv',
+                'text/tab-separated-values', 1, :sha_b,
+                'https://example.invalid/extended.tsv', now(), 'fixture-license'
+            )
+            """,
+            {"sha_b": SHA_B},
+        ),
+        (
+            """
+            INSERT INTO lineage_snapshot (
+                id, snapshot_key, domain, scheme_kind, authority_namespace,
+                version, source_artifact_id, snapshot_sha256
+            ) VALUES (
+                505, 'lineage-snapshot:extended-downgrade', 'viral',
+                'study_defined', 'fixture-extended', 'v1', 504, :sha_a
+            )
+            """,
+            {"sha_a": SHA_A},
+        ),
+        (
+            """
+            INSERT INTO release_lineage_snapshot (
+                release_id, snapshot_id, role, domain, scheme_kind
+            ) VALUES (
+                :release_id, 505, 'extended_viral_lineage', 'viral', 'study_defined'
+            )
+            """,
+            {"release_id": release_id},
+        ),
+    )
+    for statement, parameters in statements:
+        connection.execute(text(statement), parameters)
 
 
 def _insert_provenance_graph(

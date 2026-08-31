@@ -140,6 +140,7 @@ def test_release_prepare_cli_builds_read_only_approval_artifact(
             "--approved-candidate-activation-evidence-sha256",
             candidate.candidate_activation_evidence_sha256,
             "--include-study-viral-lineage",
+            "--include-extended-viral-lineage",
         ],
     )
 
@@ -152,6 +153,7 @@ def test_release_prepare_cli_builds_read_only_approval_artifact(
                 "assembly_source_taxonomy",
                 "formal_viral_taxonomy",
                 "study_viral_lineage",
+                "extended_viral_lineage",
             ),
         )
     ]
