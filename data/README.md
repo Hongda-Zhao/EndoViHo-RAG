@@ -3,7 +3,7 @@
 This directory contains only small, versioned metadata and audit records. Source workbooks, NCBI
 reports, genome assemblies, and other large or license-controlled artifacts are not committed.
 
-## Milestone 1 files
+## Structured pilot metadata
 
 - `manifests/milestone1_zhao_v4_data_s1.json` is the typed source manifest: approved scope,
   checksums, licenses/usage bases, acquisition commands, and expected counts.
