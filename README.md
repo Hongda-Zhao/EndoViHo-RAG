@@ -3,6 +3,33 @@
 An auditable V0 hybrid RAG engineering foundation for assembly-local endogenous viral element
 (EVE) records, exact fixed literature corpora, and provenance-preserving answers.
 
+## 30 秒看懂这个项目
+
+> **RAG 就是“先查资料，再回答问题”。** AI 不直接凭记忆猜答案，而是先查数据库和论文，
+> 然后根据找到的证据回答，并告诉你证据来自哪里。
+
+EndoViHo-RAG 用来查询和解释内源性病毒元件（EVE）资料：
+
+```text
+你提出问题 → 查询 EVE 数据库 → 查找相关论文 → 整理证据 → 返回带引用的回答
+```
+
+它主要做五件事：
+
+1. 保存 EVE 记录，并保留每条记录的来源、坐标和检查状态；
+2. 回答固定范围内的数量、列表和详情问题；
+3. 从经过批准的论文语料中寻找相关段落；
+4. 把数据库事实和论文解释组合成带引用的答案；
+5. 当数据、版本或证据对不上时，明确拒绝回答，而不是编造结果。
+
+**当前状态：**核心代码、API、命令行、网页 Demo、Docker 和自动测试已经完成并通过。
+项目目前处于 **V0 发布候选阶段**，还需要完成最终数据验收、具名专家审阅、空数据库重建
+验证，以及 `v0.1.0` 标签、GitHub Release 和容器镜像发布。因此，它现在适合本地研究、
+验证和审计，还不能被描述为已经正式发布的完整生物学知识产品。
+
+这个项目不是开放式聊天机器人，也不能证明感染、流行率、独立整合或其他新的生物学结论。
+它的目标是：**在一个固定、可追踪的数据范围内，给出能够回到原始记录和论文段落核对的答案。**
+
 ## Current state
 
 Milestones 1–5 engineering mechanisms are fulfilled locally. Milestone 5 provides the Streamlit
