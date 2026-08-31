@@ -1,5 +1,6 @@
 """Production cross-validation for the local-only V0 activation boundary."""
 
+import os
 from pathlib import Path
 
 import pytest
@@ -49,7 +50,11 @@ def _production_values(tmp_path: Path) -> dict[str, object]:
     }
 
 
-def test_production_defaults_fail_closed() -> None:
+def test_production_defaults_fail_closed(monkeypatch: pytest.MonkeyPatch) -> None:
+    for name in tuple(os.environ):
+        if name.casefold().startswith("eve_rag_"):
+            monkeypatch.delenv(name)
+
     with pytest.raises(ValidationError, match="production rejects default"):
         Settings(_env_file=None, environment="production")
 

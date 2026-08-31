@@ -11,6 +11,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
+import eve_relation_rag.generation.qualification as qualification_module
 from eve_relation_rag.generation.context import canonical_context_json
 from eve_relation_rag.generation.qualification import (
     CURRENT_MODEL_POLICY_SHA256,
@@ -44,6 +45,27 @@ from eve_relation_rag.hybrid.contracts import (
 )
 
 _PROJECT_ROOT = Path(__file__).resolve(strict=True).parents[2]
+_SYNTHETIC_PYPROJECT = b"""\
+[project]
+requires-python = ">=3.12,<3.13"
+dependencies = [
+  "httpx>=0.28,<1",
+  "pydantic-settings>=2.7,<3",
+]
+"""
+_SYNTHETIC_UV_LOCK = b"""\
+version = 1
+revision = 0
+requires-python = ">=3.12,<3.13"
+
+[[package]]
+name = "pydantic"
+version = "synthetic-pydantic-v1"
+
+[[package]]
+name = "pydantic-core"
+version = "synthetic-pydantic-core-v1"
+"""
 
 
 def _file(relative_path: str, fill: str, *, byte_size: int = 10) -> QualificationFileIdentity:
@@ -99,7 +121,63 @@ def _candidate() -> ProviderQualificationCandidate:
 
 @lru_cache(maxsize=1)
 def _client_runtime() -> ProviderQualificationClientRuntimeManifest:
-    return build_provider_qualification_client_runtime_manifest(_PROJECT_ROOT)
+    """Return a host-independent runtime identity for pure schema/replay unit tests."""
+
+    source_files = tuple(
+        QualificationFileIdentity(
+            relative_path=relative_path,
+            byte_size=len(relative_path.encode("utf-8")),
+            sha256=hashlib.sha256(f"synthetic-source:{relative_path}".encode()).hexdigest(),
+        )
+        for relative_path in qualification_module._CLIENT_RUNTIME_SOURCE_PATHS
+    )
+    dependency_projection = build_provider_qualification_dependency_projection(
+        _SYNTHETIC_PYPROJECT,
+        _SYNTHETIC_UV_LOCK,
+    )
+    distributions = tuple(
+        {
+            "distribution_name": dependency.distribution_name,
+            "version": dependency.version,
+            "record_relative_path": (
+                "lib/python3.12/site-packages/"
+                f"{dependency.distribution_name.replace('-', '_')}"
+                "-synthetic.dist-info/RECORD"
+            ),
+            "record_byte_size": 128 + index,
+            "record_sha256": hashlib.sha256(
+                f"synthetic-record:{dependency.distribution_name}".encode()
+            ).hexdigest(),
+            "recorded_file_count": 10 + index,
+            "recorded_total_byte_size": 4096 + index,
+            "recorded_content_manifest_sha256": hashlib.sha256(
+                f"synthetic-content:{dependency.distribution_name}".encode()
+            ).hexdigest(),
+        }
+        for index, dependency in enumerate(dependency_projection.locked_critical_dependencies)
+    )
+    payload: dict[str, object] = {
+        "manifest_schema_version": "v0-provider-qualification-client-runtime-v1",
+        "source_files": source_files,
+        "source_manifest_sha256": canonical_model_sha256(source_files),
+        "dependency_projection": dependency_projection,
+        "python": {
+            "implementation": "cpython",
+            "version": "3.12.synthetic",
+            "cache_tag": "cpython-312-synthetic",
+            "compiler": "synthetic-test-compiler",
+            "launcher_relative_path": ".venv/bin/python",
+            "resolved_executable": QualificationFileIdentity(
+                relative_path="runtime/client-python-resolved-executable",
+                byte_size=4096,
+                sha256=hashlib.sha256(b"synthetic-client-python").hexdigest(),
+            ),
+        },
+        "distributions": distributions,
+        "manifest_sha256": "0" * 64,
+    }
+    payload["manifest_sha256"] = canonical_self_sha256(payload, "manifest_sha256")
+    return ProviderQualificationClientRuntimeManifest.model_validate(payload)
 
 
 def _runtime_file(relative_path: str) -> QualificationFileIdentity:
@@ -256,8 +334,14 @@ def _resealed_definition_with_runtime_mutation(
 )
 def test_resealed_client_runtime_drift_is_rejected_before_provider_start(
     mutation: str,
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     resealed = _resealed_definition_with_runtime_mutation(mutation)
+    monkeypatch.setattr(
+        qualification_module,
+        "build_provider_qualification_client_runtime_manifest",
+        lambda _project_root=None: _client_runtime(),
+    )
 
     with pytest.raises(ProviderQualificationError, match="does not replay"):
         verify_provider_qualification_client_runtime_manifest(
