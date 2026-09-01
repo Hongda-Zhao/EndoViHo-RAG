@@ -6,6 +6,7 @@ from pathlib import Path
 from urllib.parse import unquote, urlsplit
 
 from markdown_it import MarkdownIt
+from markdown_it.token import Token
 
 ROOT = Path(__file__).parents[1].resolve()
 
@@ -16,19 +17,34 @@ def markdown_paths() -> tuple[Path, ...]:
             {
                 ROOT / "README.md",
                 ROOT / "CHANGELOG.md",
-                *(ROOT / "docs").glob("*.md"),
+                *(ROOT / "docs").rglob("*.md"),
                 ROOT / "data" / "README.md",
             }
         )
     )
 
 
+def _walk_tokens(tokens: list[Token]) -> tuple[Token, ...]:
+    flattened: list[Token] = []
+    pending = list(reversed(tokens))
+    while pending:
+        token = pending.pop()
+        flattened.append(token)
+        if token.children:
+            pending.extend(reversed(token.children))
+    return tuple(flattened)
+
+
 def check_markdown_links() -> None:
     parser = MarkdownIt("commonmark")
     for path in markdown_paths():
         text = path.read_text(encoding="utf-8")
-        for token in parser.parse(text):
-            href = token.attrGet("href") if token.type == "link_open" else None
+        for token in _walk_tokens(parser.parse(text)):
+            href = None
+            if token.type == "link_open":
+                href = token.attrGet("href")
+            elif token.type == "image":
+                href = token.attrGet("src")
             if href is None:
                 continue
             parts = urlsplit(href)

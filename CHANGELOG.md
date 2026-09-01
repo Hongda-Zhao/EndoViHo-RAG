@@ -5,6 +5,20 @@ release or scientific-data publication is implied by this file.
 
 ## V0 — Unreleased
 
+### Retrieval ablation framework
+
+- Added an isolated, offline-first embedding/reranker ablation framework with checksum-bound model
+  identities, read-only corpus snapshots, exact sidecar dense retrieval, production-equivalent FTS
+  and RRF, optional tier-preserving reranking, exact metrics, telemetry, and deterministic outputs.
+- Added pending-only legacy annotation migration and trust gates that prevent fake or merely
+  structural providers from producing a formal report.
+- Completed a checksum-verified, offline preliminary comparison of BGE, MedCPT, and Qwen3 across
+  the existing 13-question legacy gold set, with machine-readable quality, latency, resource, and
+  per-question outputs plus a deterministic report and README figure.
+- Kept production retrieval, database schema/defaults, model dependencies, published corpus, and
+  embeddings unchanged; formal model selection remains blocked until 30–50 expert-approved gold
+  questions are available.
+
 ### Repository cleanup
 
 - Removed generated benchmark/checklist reports, internal build guides, milestone records, and

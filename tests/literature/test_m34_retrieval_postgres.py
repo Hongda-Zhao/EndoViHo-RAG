@@ -30,6 +30,21 @@ from eve_relation_rag.db.models import (
     DocumentChunk,
     DocumentEmbedding,
 )
+from eve_relation_rag.experiments.embedding_ablation.baseline import (
+    baseline_bge_representation_contract,
+    baseline_system,
+)
+from eve_relation_rag.experiments.embedding_ablation.corpus_snapshot import (
+    assert_corpus_unchanged,
+    read_published_corpus_snapshot,
+)
+from eve_relation_rag.experiments.embedding_ablation.indexing import build_exact_sidecar_index
+from eve_relation_rag.experiments.embedding_ablation.parity import assert_baseline_parity
+from eve_relation_rag.experiments.embedding_ablation.providers import validate_embedding_vector
+from eve_relation_rag.experiments.embedding_ablation.retrieval import (
+    AblationRetriever,
+    PostgresFtsCandidateProvider,
+)
 from eve_relation_rag.literature.benchmarking import BenchmarkDefinition, run_benchmark
 from eve_relation_rag.literature.chunking import TokenSpan
 from eve_relation_rag.literature.contracts import (
@@ -285,6 +300,72 @@ def test_committed_deterministic_benchmark_meets_m3_thresholds(
     assert report.recall_at_10 >= "0.900000000000"
     assert report.citation_id_validity == "1.000000000000"
     assert report.locator_validity == "1.000000000000"
+
+
+def test_embedding_ablation_snapshot_and_fts_leave_published_corpus_unchanged(
+    published_corpus: tuple[Engine, CorpusManifest, KeywordAnchor],
+) -> None:
+    engine, manifest, _anchor = published_corpus
+    before = read_published_corpus_snapshot(engine, manifest.corpus_release_key)
+    fts = PostgresFtsCandidateProvider(engine, before)
+
+    keys = fts.rank(
+        "synthetic retrieval methods",
+        allowed_document_keys=None,
+        limit=100,
+    )
+    after = read_published_corpus_snapshot(engine, manifest.corpus_release_key)
+
+    assert keys
+    assert set(keys) <= set(before.snapshot.chunk_keys)
+    assert before.snapshot.document_count == after.snapshot.document_count
+    assert before.snapshot.chunk_count == after.snapshot.chunk_count
+    assert before.snapshot.anchor_count == after.snapshot.anchor_count
+    assert_corpus_unchanged(before.snapshot, after.snapshot)
+
+
+def test_embedding_ablation_baseline_has_exact_production_rank_parity(
+    published_corpus: tuple[Engine, CorpusManifest, KeywordAnchor],
+) -> None:
+    engine, manifest, _anchor = published_corpus
+    provider = DeterministicFakeEmbeddingProvider()
+    representation = baseline_bge_representation_contract()
+    published = read_published_corpus_snapshot(engine, manifest.corpus_release_key)
+    sidecar = build_exact_sidecar_index(
+        published.snapshot,
+        provider,
+        representation,
+        batch_size=500,
+    ).index
+    experiment = AblationRetriever(
+        system=baseline_system(provider.artifact_manifest_sha256),
+        snapshot=published.snapshot,
+        dense_index=sidecar,
+        fts_provider=PostgresFtsCandidateProvider(engine, published),
+    )
+    question = "synthetic retrieval methods"
+    query_vector = validate_embedding_vector(
+        provider.embed_query(question),
+        representation=representation,
+    )
+
+    experimental_result = experiment.retrieve(
+        question=question,
+        query_vector=query_vector,
+    )
+    production_result = LiteratureRetrievalService(engine, provider).retrieve(
+        LiteratureRetrievalInvocation(
+            request=LiteratureRetrievalRequest(
+                request_schema_version="literature-retrieval-request-v1",
+                corpus_release_key=manifest.corpus_release_key,
+                question=question,
+                top_k=10,
+            )
+        )
+    )
+
+    assert isinstance(production_result, RetrievedChunks)
+    assert_baseline_parity(production_result, experimental_result)
 
 
 def _publish_with_anchor(engine: Engine, manifest: CorpusManifest) -> KeywordAnchor:
