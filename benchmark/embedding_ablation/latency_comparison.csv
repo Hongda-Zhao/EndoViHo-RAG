@@ -1,0 +1,7 @@
+system_key,system_label,embedding_latency_p50_ms,embedding_latency_p95_ms,retrieval_latency_p50_ms,retrieval_latency_p95_ms,reranking_latency_p50_ms,reranking_latency_p95_ms,end_to_end_latency_p50_ms,end_to_end_latency_p95_ms
+bge_small__fts_dense_summary__rrf60,A · BGE-small baseline,28.13225,60.003708,48.609291,68.004833,,,84.207542,128.011208
+bge_small__rrf60__medcpt_ce__d20,B · BGE + MedCPT CE (top 20),68.482167,85.774666,30.836291,82.7965,2652.756125,3036.605833,2751.998708,3109.228917
+medcpt_biencoder_768d__fts_dense_summary__rrf60,C · MedCPT retrieval (768d),28.821875,31.27025,25.665541,71.823333,,,54.196125,100.379084
+medcpt_biencoder_768d__fts_dense_summary__rrf60__medcpt_ce__d20,C+ · MedCPT retrieval + MedCPT CE (top 20),38.315,42.366042,34.652334,115.860625,2395.266167,2937.509917,2460.166459,3087.211333
+qwen3_embedding_0_6b__fts_dense_summary__rrf60,D · Qwen3 embedding (384d),907.724959,1411.270916,30.815166,91.560042,,,985.752875,1438.97925
+qwen3_embedding_0_6b__fts_dense_summary__rrf60__qwen3_reranker__d20,D+ · Qwen3 embedding + Qwen3 reranker (top 20),2241.189416,2526.998125,76.583375,127.8045,219378.508959,310369.780084,221689.085625,312625.138917

@@ -1,0 +1,7 @@
+system_key,system_label,peak_runtime_process_rss_bytes,peak_accelerator_memory_bytes,passage_embedding_model_size_bytes,query_embedding_model_size_bytes,reranker_model_size_bytes,total_unique_model_size_bytes,index_size_bytes,passage_embedding_latency_ns,passage_embedding_truncation_count,passage_embedding_truncated_tokens,query_truncation_count,reranker_query_truncation_count,reranker_passage_truncation_count
+bge_small__fts_dense_summary__rrf60,A · BGE-small baseline,566951936,,134505940,134505940,,134505940,2366958,26089612375,0,0,0,0,0
+bge_small__rrf60__medcpt_ce__d20,B · BGE + MedCPT CE (top 20),1203814400,,134505940,134505940,438938843,573444783,2366958,26089612375,0,0,0,0,0
+medcpt_biencoder_768d__fts_dense_summary__rrf60,C · MedCPT retrieval (768d),869564416,,438893717,438892929,,877786646,4615747,204627839625,0,0,0,0,0
+medcpt_biencoder_768d__fts_dense_summary__rrf60__medcpt_ce__d20,C+ · MedCPT retrieval + MedCPT CE (top 20),1280049152,,438893717,438892929,438938843,1316725489,4615747,204627839625,0,0,0,0,0
+qwen3_embedding_0_6b__fts_dense_summary__rrf60,D · Qwen3 embedding (384d),1497268224,,1207489041,1207489041,,1207489041,2367041,9226247977125,9,737,0,0,0
+qwen3_embedding_0_6b__fts_dense_summary__rrf60__qwen3_reranker__d20,D+ · Qwen3 embedding + Qwen3 reranker (top 20),2853928960,,1207489041,1207489041,1207488344,2414977385,2367041,9226247977125,9,737,0,0,1
