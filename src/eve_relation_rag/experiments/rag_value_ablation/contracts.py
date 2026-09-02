@@ -328,7 +328,59 @@ type RefusalCategory = Literal[
     "modern_infection_not_established",
     "external_computation_requested",
     "instruction_override_attempt",
+    "live_web_search_requested",
+    "external_knowledge_requested",
+    "arbitrary_sql_requested",
+    "multilingual_output_requested",
+    "conversation_memory_requested",
+    "host_lineage_comparison_unsupported",
+    "codivergence_not_established",
 ]
+
+type CandidateRoute = Literal["structured", "literature", "hybrid", "unsupported"]
+type CandidateStructuredIntent = Literal[
+    "assembly_detail",
+    "locus_detail",
+    "list_loci",
+    "list_assemblies",
+    "list_source_taxa",
+    "aggregate",
+]
+
+
+class CandidateQuestionMetadata(StrictFrozenSchema):
+    """Non-gold provenance and parser expectations for one pending candidate."""
+
+    wording_sources: tuple[StableToken, ...] = Field(min_length=1)
+    evaluation_focus: StableToken
+    expected_route: CandidateRoute
+    expected_structured_intent: CandidateStructuredIntent | None = None
+    expected_refusal_code: Literal["unsupported_request"] | None = None
+    semantic_boundary_codes: tuple[StableToken, ...] = Field(min_length=1)
+    parser_fixture_profile: StableToken | None = None
+    uses_fixture_entities: bool = False
+
+    @field_validator("wording_sources", "semantic_boundary_codes")
+    @classmethod
+    def canonical_metadata_tokens(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if values != tuple(sorted(values)) or len(values) != len(set(values)):
+            raise ValueError("candidate metadata collections must be sorted and unique")
+        return values
+
+    @model_validator(mode="after")
+    def validate_expected_route(self) -> Self:
+        has_structured_clause = self.expected_route in {"structured", "hybrid"}
+        if has_structured_clause != (self.expected_structured_intent is not None):
+            raise ValueError("structured/hybrid candidates require one QueryPlan intent")
+        if has_structured_clause != (self.parser_fixture_profile is not None):
+            raise ValueError("structured/hybrid candidates require a parser fixture profile")
+        if (self.expected_route == "unsupported") != (
+            self.expected_refusal_code is not None
+        ):
+            raise ValueError("unsupported candidates alone require a refusal code")
+        if self.uses_fixture_entities and not has_structured_clause:
+            raise ValueError("fixture entities belong only to structured clauses")
+        return self
 
 
 class UnsupportedGold(StrictFrozenSchema):
@@ -370,6 +422,7 @@ class EvaluationQuestion(StrictFrozenSchema):
     review_status: ReviewStatus
     approval: HumanApproval | None = None
     gold: QuestionGold | None = None
+    candidate_metadata: CandidateQuestionMetadata | None = None
     authoring_notes: str | None = Field(default=None, max_length=4000)
     record_sha256: Sha256
 
@@ -399,6 +452,7 @@ def build_evaluation_question(
     review_status: ReviewStatus,
     approval: HumanApproval | None = None,
     gold: QuestionGold | None = None,
+    candidate_metadata: CandidateQuestionMetadata | None = None,
     authoring_notes: str | None = None,
 ) -> EvaluationQuestion:
     """Build a canonical self-checksummed question without approving anything implicitly."""
@@ -412,6 +466,7 @@ def build_evaluation_question(
         "review_status": review_status,
         "approval": approval,
         "gold": gold,
+        "candidate_metadata": candidate_metadata,
         "authoring_notes": authoring_notes,
     }
     return EvaluationQuestion.model_validate(

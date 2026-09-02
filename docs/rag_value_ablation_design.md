@@ -12,6 +12,11 @@ the first contract-only implementation tranche was added under
 author gold or oracle evidence, construct a provider, execute a model/retriever/database, or report
 a real or synthetic result.
 
+A separately approved question-authoring tranche now adds 64 candidate questions (16 per family)
+and blank Gold/Oracle worksheets. All 64 remain `pending`; the authoring audit records zero Gold
+and zero Oracle annotations. Grammar acceptance and route classification are software checks only,
+not expert approval.
+
 The companion [`rag_value_ablation_repo_mapping.md`](rag_value_ablation_repo_mapping.md) records
 the source-level audit and exact reuse decisions.
 
@@ -622,7 +627,11 @@ Later approved phases should materialize the required tree:
 
 ```text
 benchmark/rag_value_ablation/
+├── QUESTION_AUTHORING.md
+├── candidate_question_audit.json
 ├── experiment_manifest.json
+├── oracle_annotation_schema.json
+├── oracle_annotations_template.jsonl
 ├── question_schema.json
 ├── questions_template.jsonl
 ├── systems/
@@ -667,11 +676,12 @@ The first implementation tranche was explicitly approved on 2026-09-02. It now p
 - create-once deterministic machine outputs, plot-ready CSV generation, and revalidation; and
 - isolated unit/golden/import-boundary tests.
 
-The remaining question-authoring tranche still requires separate work:
-
-1. create 60-80 pending question templates with no real gold; and
-2. obtain human wording review and real gold/oracle annotation without deriving labels from a
-   model or current retriever.
+The question-authoring tranche supplies 64 pending candidates, with 16 in each family. It records
+wording provenance, expected routes, expected `QueryPlan` intents, semantic-boundary codes, and a
+deterministic duplicate/parser audit. Thirty-two structured clauses (16 structured and 16 hybrid)
+are accepted by the current controlled-English parser against synthetic resolver fixtures. The
+remaining work is human wording review and real Gold/Oracle annotation without deriving labels
+from a model or current retriever.
 
 No provider, database, model, or result execution is part of Phase 1.
 
@@ -728,11 +738,25 @@ The implemented first-tranche tests prove:
 - reporting is deterministic, create-once, and derived only from revalidated machine files; and
 - no production source/default/migration is changed.
 
+The question-authoring tests additionally prove:
+
+- the candidate set contains exactly 64 questions and exactly 16 per family;
+- all rows remain pending with null approval and Gold fields;
+- normalized question text and evaluation focus are unique;
+- all 64 questions reach their declared structured, literature, hybrid, or unsupported route;
+- all 32 parser-applicable structured clauses yield the declared `QueryPlan` intent with no
+  unresolved conditions or unconsumed semantic spans;
+- family-specific semantic-boundary allowlists reject scope drift; and
+- Oracle rows remain pending and contain no selected facts, chunks, releases, attestation, or
+  approval.
+
 No new dependency is required for these contracts, calculations, CSV/JSON generation, or tests.
 
 ## 17. Current boundary
 
-The contract/metric/review/reporting tranche is implemented. Question drafting, the Phase 2 fake
-execution harness, local real-data retrieval, real LLM calls, human labels, and benchmark outputs
-remain unstarted. Proceed to any of those only after their corresponding explicit approval and
-inputs are available.
+The contract/metric/review/reporting tranche and pending question-authoring tranche are
+implemented. Human wording approval, real Gold/Oracle labels, the Phase 2 fake execution harness,
+local real-data retrieval, real LLM calls, human answer review, and benchmark results remain
+unstarted. Fixture entities must be replaced with approved release values and re-parsed before a
+candidate can be approved. Proceed to later phases only after their corresponding explicit
+approval and inputs are available.
