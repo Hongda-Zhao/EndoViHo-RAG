@@ -380,7 +380,7 @@ The experiment should live only under:
 ```text
 src/eve_relation_rag/experiments/rag_value_ablation/
 tests/experiments/
-benchmark/rag_value_ablation/        # templates/results only in later approved phases
+benchmark/rag_value_ablation/        # committed authoring templates; later sanitized results
 docs/rag_value_ablation*.md
 .artifacts/rag_value_ablation/       # ignored runtime scratch, never committed
 ```
@@ -413,6 +413,7 @@ namespace. The implemented source files are:
 src/eve_relation_rag/experiments/rag_value_ablation/
 ├── __init__.py
 ├── annotations.py       # approved-only question/gold/oracle loading and template export
+├── candidates.py        # 64 pending candidates plus route/parser/semantics audit
 ├── contracts.py         # manifests, questions, gold variants, evidence, answers, results
 ├── human_review.py      # blinded packets/import validation; no labels generated
 ├── metrics.py           # exact structured, grounding, refusal, retrieval, efficiency metrics
@@ -425,6 +426,7 @@ Implemented tests:
 
 ```text
 tests/experiments/test_rag_value_annotations.py
+tests/experiments/test_rag_value_candidates.py
 tests/experiments/test_rag_value_contracts.py
 tests/experiments/test_rag_value_human_review.py
 tests/experiments/test_rag_value_isolation.py
@@ -440,17 +442,25 @@ future run output is created:
 ```text
 benchmark/rag_value_ablation/question_schema.json
 benchmark/rag_value_ablation/questions_template.jsonl
+benchmark/rag_value_ablation/oracle_annotation_schema.json
+benchmark/rag_value_ablation/oracle_annotations_template.jsonl
+benchmark/rag_value_ablation/candidate_question_audit.json
 benchmark/rag_value_ablation/human_review_template.csv
 ```
 
-Every future template question must remain `review_status="pending"` with empty/unset real gold
-fields. Trusted-set admission requires 60-80 approved questions with 15-20 in each family. The
-committed tree contains the generated question schema, an empty JSONL annotation template, and a
-header-only review CSV. It contains no authored question or benchmark result
-because the question-authoring tranche was not requested. No `experiment_manifest.json`,
-per-question output, metric CSV, `summary.json`, `failures.jsonl`, or formal
-`docs/rag_value_ablation.md` is emitted in this tranche. It adds no dependency and changes no
-production source, default, migration, release, corpus, or embedding.
+The committed question worksheet contains 64 authored candidates, exactly 16 per family. Every row
+remains `review_status="pending"` with `approval=null` and `gold=null`; it is therefore also the
+blank Gold annotation template. The parallel Oracle worksheet contains 64 checksum-bound pending
+rows with no evidence or approval. The authoring-only audit confirms 64 expected routes, 32 of 32
+applicable parser acceptances, zero normalized duplicates, and zero Gold/Oracle annotations.
+
+The wording comes from the current README, data-semantics document, parser/router tests, scope
+policy, and supported `QueryPlan` forms. Synthetic resolver entities are visibly marked and must be
+replaced and revalidated against an approved release before human approval. Trusted-set admission
+still requires 60-80 human-approved questions with 15-20 in each family. No
+`experiment_manifest.json`, per-question output, metric CSV, `summary.json`, `failures.jsonl`, or
+formal `docs/rag_value_ablation.md` is emitted by this authoring tranche. It adds no dependency and
+changes no production source, default, migration, release, corpus, or embedding.
 
 ## 12. Phase 0 verification
 
@@ -481,7 +491,8 @@ runtime.
 
 ## 13. Current stop condition
 
-Phase 0 is complete, and the explicitly approved first Phase 1 tranche is implemented. The 60-80
-pending candidate questions, synthetic execution harness, real retrieval, real generation, human
-review data, and benchmark results remain outside this change and require their next explicit
-approval or human input.
+Phase 0 and the explicitly approved Phase 1 contract and question-authoring work are complete. The
+64 candidates remain unapproved and carry no Gold or Oracle labels. Human wording/gold approval,
+the synthetic execution harness, real retrieval, real generation, human answer-review data, and
+benchmark results remain outside this change and require their next explicit approval or human
+input.
