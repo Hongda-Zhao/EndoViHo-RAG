@@ -15,12 +15,6 @@ from typing import Literal, Self
 
 from pydantic import Field, model_validator
 
-from eve_relation_rag.experiments.rag_value_ablation.candidates import (
-    candidate_audit_bytes,
-    oracle_schema_bytes,
-    oracle_template_bytes,
-    questions_template_bytes,
-)
 from eve_relation_rag.experiments.rag_value_ablation.contracts import (
     EvaluationQuestion,
     ExecutionTrace,
@@ -402,13 +396,10 @@ def generate_markdown_report(output_directory: Path) -> bytes:
 
 def _all_output_files(run: BenchmarkRun) -> dict[str, bytes]:
     files: dict[str, bytes] = {
-        "candidate_question_audit.json": candidate_audit_bytes(),
         "experiment_manifest.json": _json_line(run.manifest),
-        "oracle_annotation_schema.json": oracle_schema_bytes(),
-        "oracle_annotations_template.jsonl": oracle_template_bytes(),
         "question_schema.json": canonical_json_bytes(EvaluationQuestion.model_json_schema())
         + b"\n",
-        "questions_template.jsonl": questions_template_bytes(),
+        "questions_template.jsonl": b"\n",
         "human_review_template.csv": _human_review_template(),
         "failures.jsonl": b"".join(
             _json_line(failure)
