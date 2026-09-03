@@ -25,11 +25,13 @@ inputs:
 2. **Keyword sufficiency:** S2 versus S0, and S2 versus S3, on literature and hybrid questions.
 3. **Semantic hybrid value:** S3 versus S2 with identical corpus, chunking, question, prompt, model,
    context limit, and output limit.
-4. **Structured protection:** S4/S5 versus S0-S3 on counts, record sets, accessions, coordinates,
-   locus identities, and release provenance.
+4. **Structured protection:** S4/S5 versus S0-S3 on exact association sets, represented source
+   species, assemblies, loci, relation classes, role-qualified viral lineages, identifiers,
+   coordinates, counts, and release provenance.
 5. **EndoViHo hybrid value:** S5 versus S3 on hybrid questions, holding the generation model fixed.
-6. **Grounding and refusal:** change in unsupported claims, required limitations, correct refusal,
-   false refusal, unsafe acceptance, and forbidden downstream execution.
+6. **Grounding and refusal:** change in unsupported claims, required safety limitations, correct
+   refusal, false refusal, unsafe category mapping, unsafe taxonomy/lineage expansion, and forbidden
+   downstream execution.
 7. **Generation ceiling:** S6 error with manually approved complete evidence. Residual S6 error is
    generation/interpretation error, not retrieval error.
 
@@ -143,22 +145,34 @@ Use a single strict `EvaluationQuestion` union with:
 - one family-specific gold object, required only when approved; and
 - a self/checksum binding to the containing annotation manifest.
 
-The 60-80 future templates should use stable family-prefixed IDs and contain 15-20 items in each
-family. Templates created by Codex remain `pending`; all real gold fields remain empty or null.
+The trusted manifest must contain 60-80 stable-ID questions with 15-20 items in each family. The
+current 64 Codex-authored templates remain `pending`; all real gold fields remain empty or null.
 Only a human may change `review_status` to `approved` and supply the required gold. The loader must
 select only approved questions and must fail if the selected set is empty.
 
-Structured and hybrid template wording should stay inside the current controlled-English grammar
-where the question is expected to reach structured retrieval. This reuses the existing planner
-rather than adding a second interpretation system
-([`planning/parser.py`](../src/eve_relation_rag/planning/parser.py#L605)). Literature templates may
-use the current routed literature prefixes; unsupported templates deliberately include requests
-that the existing scope policy refuses.
+The frozen scientific authoring set now contains exactly 64 natural templates: 16 structured, 16
+literature, 16 Hybrid, and 16 unsupported. Its 48 answerable questions ask only for associations
+among taxonomic scope, represented/source-reported species, assembly, locus or named region,
+`Transferred gene` versus `Integrated virus`, and a role-qualified viral lineage. They do not ask
+for methods, causal explanations, evidence rationales, or interpretation essays.
+
+Natural wording must not be rewritten into the current controlled-English `Show/List/Count`
+grammar merely to claim support. The earlier 64 grammar-shaped questions remain a separate,
+checksum-frozen system-regression resource. Scientific templates declare their missing typed
+capabilities and remain pending until deterministic planning/readiness and human review are
+complete.
+
+The current repository has no approved `Transferred gene`/`Integrated virus` relation contract.
+`Integration`, `Viral contig`, and `HCVR` are source fields and must not be mapped to those requested
+classes. Consequently, all 48 answerable templates have primary status
+`requires_relation_contract`; none is `supported_now`.
 
 ### 5.2 Structured gold
 
 The structured gold variant supports nullable, question-dependent fields:
 
+- an exact canonical association set whose tuple preserves represented source species, assembly,
+  locus, approved relation class, and role/snapshot/scope-qualified viral lineage;
 - exact integer count and metric/deduplication key;
 - exact canonical record set;
 - assembly accession.version set;
@@ -168,7 +182,11 @@ The structured gold variant supports nullable, question-dependent fields:
   "0-based-half-open")`;
 - detection-call key set/count;
 - exact release key and release manifest identity; and
-- required deterministic limitation codes.
+- required deterministic limitation codes and forbidden claims.
+
+For source-lineage scopes, “species within” means only source species represented through public
+membership in the exact selected release. It is not a complete biological descendant inventory.
+An assembly-source taxon is not an ancient or modern host assertion.
 
 Approved structured gold must be independently derived and reviewed from the approved release. It
 must not be copied from a model answer. A benchmark loader may verify the gold against an already
@@ -178,6 +196,8 @@ approved immutable release, but it may not turn the current query result into a 
 
 The literature variant records:
 
+- a canonical `source_reported_association_set` preserving source wording and provenance for host
+  taxon/species, named assembly/region, reported relation class, and viral-lineage role/scope;
 - required document keys;
 - required chunk keys grouped into evidence units;
 - acceptable alternative chunks per evidence unit;
@@ -186,6 +206,11 @@ The literature variant records:
 - required limitations; and
 - forbidden claims.
 
+Literature gold contains no structured `exact_*` association projection. A literature-only system
+must not consult DatasetRelease membership, inject an internal locus key, or inherit a structured
+relation class. Missing source fields remain missing rather than being filled from structured
+truth.
+
 Evidence groups should reuse the prior ablation semantics: one required chunk and its manually
 approved substitutes satisfy one evidence need, without double-counting alternatives
 ([`experiments/embedding_ablation/contracts.py`](../src/eve_relation_rag/experiments/embedding_ablation/contracts.py#L46)).
@@ -193,14 +218,19 @@ Lexical similarity, retriever rank, or model selection never creates an acceptab
 
 ### 5.4 Hybrid gold
 
-The hybrid variant contains both structured and literature gold plus:
+The hybrid variant contains the unchanged structured `exact_association_set`, the independent
+`source_reported_association_set`, and a separately reviewed `cross_source_association_set`, plus:
 
-- required relationships between exact structured facts and literature evidence;
-- required caveats, such as locus count not being integration-event count; and
+- required relationships between exact structured facts and source-reported literature evidence;
+- explicit structured-only, literature-only, both, unmatched, and ambiguous states;
+- required safety limitations, such as source taxa not being ancient/modern host claims and locus
+  count not being integration-event count; and
 - forbidden transitions from assembly source taxonomy to ancient host, modern infection,
   prevalence, absence, co-divergence, or independent integration.
 
 The structured portion remains a typed object; it is not embedded as prose in the annotation.
+Literature wording and labels cannot overwrite it, and cross-source identity cannot be inferred
+from lexical similarity.
 
 ### 5.5 Unsupported gold
 
@@ -279,6 +309,11 @@ schema, and answer schema. Its instruction includes, verbatim in substance:
 - do not use external knowledge;
 - do not invent accessions, locus keys, coordinates, counts, releases, papers, or citations;
 - preserve structured values exactly and do not modify the supplied structured object;
+- preserve assembly-source taxonomy and every viral-lineage role, snapshot, and
+  exact-versus-descendant scope;
+- do not convert `Integration`, `Viral contig`, `HCVR`, or a literature label into
+  `Transferred gene` or `Integrated virus` unless the provided evidence contains an approved
+  relation-class assertion;
 - cite every literature-derived factual claim;
 - state when evidence is insufficient; and
 - do not infer modern infection, prevalence, biological absence, co-divergence, or independent
@@ -428,6 +463,9 @@ failure counts are reported beside every denominator.
 - **Numeric exact match:** `1` only when the typed predicted integer equals gold exactly.
 - **Exact record-set accuracy:** `1` only when canonical predicted and gold sets are identical; no
   partial set receives exact-match credit. Also report missing and extra record counts.
+- **Exact association-set accuracy:** apply the same all-or-nothing comparison to the complete
+  source-species/assembly/locus/relation-class/role-qualified-lineage tuples; additionally report
+  missing, extra, class-corrupted, role-corrupted, and scope-corrupted tuple counts.
 - **Coordinate exact match:** exact equality of the complete typed coordinate tuple; report missing,
   changed, and invented tuples.
 - **Identifier preservation:** fraction of required identifiers reproduced byte-for-byte with
@@ -469,6 +507,11 @@ different interpretation.
 
 Document correctness, passage correctness, and support are distinct review fields; a correct paper
 with the wrong passage is not a supporting citation.
+
+The answerable association questions do not ask reviewers for a methods or limitations essay.
+`required_limitations` remains a safety rubric: it tests whether the answer preserves necessary
+scope statements and avoids turning release representation into biological completeness or source
+labels into approved relation classes.
 
 ### 9.4 Refusal
 
@@ -641,9 +684,10 @@ benchmark/rag_value_ablation/
 
 The authoring layer is separate from those trusted/result artifacts. It now preserves the frozen
 route-oriented software fixtures under `benchmark/system_regression/` and stores 64 natural,
-pending scientific templates plus an empty checksum-bound entity-binding worksheet under
-`benchmark/rag_value_ablation/`. Those placeholder templates are not `EvaluationQuestion`
-records and cannot enter execution or scoring.
+pending association templates plus an empty checksum-bound entity-binding worksheet under
+`benchmark/rag_value_ablation/`. All answerable rows require a future approved relation contract;
+the placeholder templates are not `EvaluationQuestion` records and cannot enter execution or
+scoring.
 
 Add plot-ready derived CSV files, generated from the same revalidated per-question records:
 
@@ -678,16 +722,26 @@ The first implementation tranche was explicitly approved on 2026-09-02. It now p
 
 A separately approved scientific-question redesign now provides exactly 64 pending authoring-only
 templates: 16 structured, 16 literature, 16 Hybrid, and 16 unsupported, organized primarily by
-scientific task. It also preserves the earlier 64 route-oriented questions as system-regression
-fixtures and supplies an empty checksum-bound entity-binding worksheet. It does not change the
-trusted `EvaluationQuestion` admission rules.
+four association tasks. Structured templates require `exact_association_set`; literature templates
+require `source_reported_association_set` without structured `exact_*` fields; Hybrid templates
+retain both plus `cross_source_association_set`. Every answerable template also retains
+`required_limitations` and `forbidden_claims`. The earlier 64 route-oriented questions remain
+system-regression fixtures, and the entity-binding worksheet remains empty and checksum-bound.
+This does not change trusted `EvaluationQuestion` admission rules.
+
+The authoring vocabulary names `Transferred gene` and `Integrated virus`, but the repository has
+not approved those relation classes or a mapping from `Integration`, `Viral contig`, or `HCVR`.
+The currently inspected candidate cohort also lacks relation-class and viral-lineage diversity.
+These are explicit readiness blockers, not labels to infer during question construction.
 
 The remaining question work is human-dependent:
 
-1. bind placeholders to approved, release-scoped objects;
-2. instantiate self-contained question text and complete parser/readiness checks;
-3. obtain independent scientific wording review; and
-4. author and separately approve real Gold and Oracle evidence without deriving labels from a
+1. approve a versioned relation-class contract and independently reviewed assertions/mapping;
+2. bind placeholders to approved release/corpus-scoped objects, including lineage role and scope;
+3. instantiate self-contained question text and complete parser, diversity, pagination, and
+   capacity checks;
+4. obtain independent scientific wording review; and
+5. author and separately approve real Gold and Oracle evidence without deriving labels from a
    model or current retriever.
 
 No provider, database, model, or result execution is part of Phase 1.
@@ -750,7 +804,8 @@ No new dependency is required for these contracts, calculations, CSV/JSON genera
 ## 17. Current boundary
 
 The contract/metric/review/reporting tranche and pending scientific-question authoring tranche are
-implemented. Entity binding, question instantiation/approval, Gold and Oracle authoring, the Phase 2
-fake execution harness, local real-data retrieval, real LLM calls, human labels, and benchmark
-outputs remain unstarted. Proceed to any of those only after their corresponding explicit approval
-and inputs are available.
+implemented. The relation-class contract/assertions, association-set Gold projection, entity
+binding, question instantiation/approval, Gold and Oracle authoring, the Phase 2 fake execution
+harness, local real-data retrieval, real LLM calls, human labels, and benchmark outputs remain
+unstarted. Proceed to any of those only after their corresponding explicit approval and inputs are
+available.

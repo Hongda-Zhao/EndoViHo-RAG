@@ -2,284 +2,270 @@
 
 ## Scope and result
 
-This is a static, read-only audit of the current router, controlled-English parser, QueryPlan
-union, structured compiler/repository/results, literature invocation, Hybrid orchestration, and
-ContextPack. No model, retriever, database, release, corpus, embedding, or provider was executed.
+This is a static audit of the 64 pending association templates against the current router,
+controlled-English parser, QueryPlan union, structured result graph, literature path, Hybrid
+orchestration, and production `ContextPack`. No model, retriever, database, release, corpus,
+embedding provider, or LLM was executed.
 
-None of the 48 answerable natural-language templates is executable end-to-end exactly as written.
-This does not mean that all backend operations are absent:
+The 48 answerable templates all have status `requires_relation_contract`. Their common target is a
+typed association tuple:
 
-- 10 structured templates need only a natural structured-planning entry before reaching an
-  existing single QueryPlan operation;
-- 3 structured templates require deterministic composition of multiple existing operations;
-- 2 structured templates require a new `list_viral_lineages` intent;
-- 1 structured template has an existing backend projection but is not self-contained;
-- all 16 literature templates can use the existing retrieval request, but all need a natural
-  literature routing boundary, two also need a typed safe methods/limitations context, and one of
-  those two additionally needs an explicit Unicode input decision;
-- all 16 Hybrid templates require natural typed decomposition, and some additionally require a new
-  intent, a composite plan, or new public evidence projection;
-- all 16 unsupported templates must remain refused by design.
+```text
+source taxonomic unit
+  -> represented source species
+  -> assembly
+  -> locus or source-reported region
+  -> Transferred gene | Integrated virus
+  -> viral lineage (role + snapshot + exact/descendant scope)
+```
 
-The current local data state is a separate blocker. `docs/data_semantics.md` states that the pilot
-has no public locus memberships, flank assessments, or inclusion decisions and that there is no
-public EVE release. The repository also does not provide an approved real CorpusRelease, entity
-bindings, Gold, or Oracle evidence. Therefore no trusted scientific result can be produced even
-where a backend query shape already exists.
+The current repository has useful partial projections, but it has no approved `Transferred gene`
+or `Integrated virus` relation contract. Therefore none of the 48 may be marked `supported_now`,
+even where `list_loci`, `list_assemblies`, `list_source_taxa`, or `locus_detail` can supply the other
+fields. The other 16 questions are `unsupported_by_design`.
 
-## Status and dependency legend
+All 64 records remain `pending`, with no Gold, Oracle evidence, result, or approval.
 
-Statuses:
+## Three truth domains
 
-| Code | Template status | Meaning |
+The family output boundary is strict:
+
+| Family | Association output | Additional reviewed fields |
 |---|---|---|
-| NS | `requires_natural_structured_planning` | Backend operation exists; natural structured wording is not parsed |
-| NL | `requires_natural_literature_routing` | Retriever accepts text; router rejects the natural form |
-| NI | `requires_new_intent` | Required typed structured result is absent |
-| CP | `requires_composite_plan` | Multiple operations/results must be coordinated and validated |
-| NH | `requires_natural_hybrid_decomposition` | Natural question must become typed structured and literature needs |
-| FO | `future_only` | A prior authoring or data condition prevents execution |
-| UB | `unsupported_by_design` | Request must be refused before prohibited downstream work |
+| Structured | `exact_association_set` plus applicable `exact_*` projections | `required_limitations`, `forbidden_claims` |
+| Literature | `source_reported_association_set`; never an `exact_*` structured set | `required_documents`, `required_evidence_groups`, `required_limitations`, `forbidden_claims` |
+| Hybrid | both source-specific sets plus `cross_source_association_set`; applicable `exact_*` fields describe only its structured side | document/evidence and safety fields |
 
-Data and readiness dependencies:
+A literature-only question may use only what the permitted CorpusRelease explicitly reports. It
+must not access a DatasetRelease to restrict species or assemblies, resolve an internal locus key,
+or import a structured relation label. Hybrid may align the two sets, but it must preserve
+structured-only, literature-only, both, ambiguous, and unmatched outcomes rather than forcing a
+match.
 
-| Code | Dependency |
-|---|---|
-| B | Human-approved placeholder binding with stable key, display name, release, role, snapshot, and scope |
-| R | Exact published, gate-authorized DatasetRelease and manifest |
-| T | Release-bound source taxonomy assignments and any required complete lineage closure |
-| V | Role-qualified viral-lineage assertions, snapshots, and any required closure |
-| M | Public locus membership in the selected DatasetRelease |
-| D | Public detail projection: placement, calls, assertions, and membership-selected evidence |
-| F | Approved flank assessments and inclusion-decision provenance when the question needs an endogeneity or inclusion rationale |
-| C | Approved CorpusRelease, relevant document/chunk bytes, and later human Gold |
-| H | Approved DatasetRelease–CorpusRelease binding and curated structured anchors |
-| X | Exhaustive cursor traversal, deduplication, and capacity preflight |
+## Non-negotiable semantic boundaries
 
-Every set-valued structured question needs `X`: a single page is limited to at most 100 records and
-cannot be scored as the complete set until pagination reaches the end. Hybrid retrieval also has a
-64-anchor cap and an eight-chunk ContextPack cap; broad entity bindings must be preflighted and must
-fail closed rather than truncate silently.
+### Relation class
 
-## Current parser and orchestration boundaries
+The current source assertions are `hcvr`, `viral_major_taxon`, and `vr_type`. They do not define the
+requested relation ontology:
 
-The structured router recognizes only questions beginning with `Show`, `List`, or `Count`. The
-controlled-English parser has six intents:
+- `VR Type = Integration` must not be mapped to `Integrated virus`;
+- `VR Type = Viral contig` must not be mapped to `Transferred gene`; and
+- `HCVR`, `source_high`, and `source_low` must not be mapped to either class.
 
-- `assembly_detail`;
-- `locus_detail`;
-- `list_loci`;
-- `list_assemblies`;
-- `list_source_taxa`;
-- `aggregate`.
+Phase 1 needs a strict, versioned relation contract and separately approved assertions or mapping
+policy. The contract must record provenance, distinguish structured assertions from source-reported
+literature wording, permit explicit unknown/unmapped values, and reject silent coercion.
 
-It can already combine one source-lineage filter and one role-qualified viral-lineage filter with
-AND, and the compiler applies both over release membership. It cannot emit
-`list_viral_lineages`, a profile bundle, or more than one aggregate result per QueryPlan.
+### Source taxonomy
 
-The literature router recognizes only three fixed `Explain the literature ...` prefixes. The
-retrieval contract itself accepts a general question string, so these 16 questions do not need a
-new retrieval algorithm merely to enter the literature route.
+`LocusSummary.source_taxon` and `AssemblySummary.source_taxon` are explicitly
+`assembly_source_taxonomy`. The structured questions therefore say “represented source species” or
+“assembly-source taxonomic units.” This is the set represented by public membership in the exact
+selected release, not every biological descendant of a taxonomic unit and not an ancient or modern
+host claim.
 
-The Hybrid router recognizes only one controlled structured sentence followed by one fixed
-literature suffix. `RagQueryApplication` executes one structured request, produces one
-`QuerySuccess`, resolves anchors once, and builds a ContextPack containing one QueryPlan and one
-StructuredResult. The production ContextPack cannot directly carry these natural Hybrid templates,
-even when a single structured operation would suffice: its validator requires the original Hybrid
-question to equal the structured question followed by one fixed mechanical suffix. It also uses the
-printable-ASCII routed-question contract. Preserve ContextPack unchanged as provenance for existing
-mechanical production routes; natural scientific execution needs the experiment-specific
-`EvaluationEvidencePack` already specified by the RAG-value design. Composite profiles additionally
-need an immutable multi-plan/multi-result envelope. Unvalidated text concatenation is not acceptable.
+Literature questions retain the host wording used by the permitted sources. Those source-reported
+associations do not assert DatasetRelease membership. Hybrid keeps literature wording separate
+from the release-bound assembly-source projection.
 
-The current routed request contract also permits printable ASCII only. The exact requested wording
-uses an en dash in `REL-L-04`, `REL-H-02`, `REL-H-03`, and `UNSUP-05`, so those records
-currently fail request validation before route selection. The templates preserve the requested
-scientific wording and record this as a future input-contract decision.
+### Viral lineage
 
-## Required future capability shapes
+Every viral lineage must retain its role (`study_viral_lineage`, `formal_viral_taxonomy`, or an
+approved `extended_viral_lineage`), snapshot and authority, and exact-versus-descendant semantics.
+Names from different roles must not be merged. `LocusSummary.viral_lineages` already carries
+role-qualified `LineageRef` values, so a future exhaustive relation projection should reuse those
+values instead of inventing a separate unqualified lineage list.
 
-These are capability requirements, not implemented intents or approved questions:
+### Current candidate diversity
 
-- `list_viral_lineages`: return a release-pinned, role-qualified viral-lineage set under an exact
-  structured scope, with explicit exact-versus-descendant semantics and exhaustive pagination.
-- `host_eve_profile`: compose matching loci, assemblies, viral lineages, and exact aggregate counts
-  for one bound host species or lineage.
-- `viral_lineage_distribution`: compose matching source taxa, assemblies, loci, and exact aggregate
-  counts for one role-qualified viral lineage. “Distribution” remains limited to records in the
-  selected release.
-- `host_virus_relationship`: apply one source-lineage filter and one viral-lineage filter together,
-  then expose matching loci, assemblies, public assertions, and exact counts without treating the
-  relationship as modern infection or co-divergence.
-- natural Hybrid decomposition: map one unchanged researcher question to typed structured needs and
-  typed literature-evidence needs, without requiring a mechanical suffix and without falling back
-  after a structured refusal.
+The currently inspected candidate cohort contains only the source label `Integration` and the
+study-defined viral lineage `Orthopolintovirales`. It therefore has no relation-class or viral-
+lineage diversity with which to measure the requested discrimination. It is also candidate-only,
+not a public benchmark release. A trusted run needs an approved release and corpus whose human-
+reviewed questions actually exercise both relation classes and multiple role-qualified viral
+lineages; otherwise the affected metrics are ineligible, not zero.
 
-The named profile capabilities may be deterministic compositions rather than new single SQL
-queries. Either design still needs strict result typing, checksum binding, capacity checks, and a
-validated multi-result envelope.
+## Existing seams and missing capabilities
+
+The controlled-English planner currently emits exactly six intents: `assembly_detail`,
+`locus_detail`, `list_loci`, `list_assemblies`, `list_source_taxa`, and one `aggregate`. Existing
+contracts can be reused as follows:
+
+- `LocusSummary` supplies release-bound source species, assembly, locus, placement, and
+  role-qualified viral lineages;
+- `LocusDetailData.public_assertions` can expose the source `vr_type`, but only as a source
+  assertion and never as either requested relation class;
+- `list_loci`, `list_assemblies`, and `list_source_taxa` provide useful filtered, paginated
+  projections; and
+- `QuerySuccess` and `StructuredResult` remain immutable release-bound truth objects for S4/S5.
+
+The production router accepts the mechanical structured grammar, three fixed literature prefixes,
+and one controlled structured sentence plus a fixed Hybrid suffix. The exact 48 natural answerable
+templates are therefore not executable unchanged through the current route. This is recorded as a
+secondary natural planning/routing/decomposition gap; it does not justify changing their wording
+or broadening the production router.
+
+The minimum missing experiment capabilities are:
+
+1. `relation_contract` and `relation_class_assertion`;
+2. a canonical `association_projection` over the complete tuple;
+3. `source_taxonomy_projection` with release-represented-species semantics;
+4. complete cursor traversal and deterministic deduplication for set-valued relations;
+5. natural structured planning into existing operations or a validated composite plan;
+6. literature association extraction and entity normalization that preserve source wording;
+7. natural literature routing without hidden structured dependencies;
+8. natural Hybrid decomposition and immutable multi-result packaging; and
+9. cross-source alignment with explicit provenance and unmatched outcomes.
+
+The current production `ContextPack` must remain unchanged. It is useful as provenance for the
+existing mechanical S3/S5 path, but it accepts only current literature/Hybrid shapes, one
+`QueryPlan` and one `StructuredResult`, and the fixed Hybrid suffix. The association templates need
+the experiment-only evidence envelope and, for composite structured needs, an immutable multi-plan/
+multi-result envelope. This is an adapter around existing contracts, not a parallel production RAG
+architecture.
+
+Every complete set also needs exhaustive pagination. A first page, the 64-anchor ceiling, or the
+eight-chunk production context limit must never be presented as a complete association universe.
 
 ## Structured templates: every-question mapping
 
-All structured rows require B and R. All are rejected by the natural entry as written.
+All rows require approved entity bindings, an approved DatasetRelease, the relation contract,
+release-represented source scope, role/snapshot/scope preservation, and natural planning. Existing
+operations below are reusable seams, not proof that the complete question is currently supported.
 
-| ID | Status | Existing or required typed operations | Parser/semantic issue | Additional data |
-|---|---|---|---|---|
-| HOST-S-01 | NS | Existing `list_loci(source_lineage=species, exact)` | Natural `What` form is outside grammar | T/M/X |
-| HOST-S-02 | NS | Existing `list_assemblies(source_lineage, descendants)` | Natural `Which` form is outside grammar | T/M/X |
-| HOST-S-03 | NI | New `list_viral_lineages(source_lineage)`; exhaustive loci-plus-dedup is only a composite alternative | No result intent for viral-lineage set | T/V/M/X |
-| HOST-S-04 | CP | `host_eve_profile`: loci, assemblies, viral lineages, and counts | Natural profile intent and multi-result envelope absent | T/V/M/X |
-| VIRUS-S-01 | NS | Existing `list_source_taxa(viral_lineage)` | Natural `In which` form is outside grammar | T/V/M/X |
-| VIRUS-S-02 | NS | Existing `list_assemblies(viral_lineage)` | Natural `Which` form is outside grammar | T/V/M/X |
-| VIRUS-S-03 | CP | Three existing aggregates: distinct source taxa, assemblies, and loci | One QueryPlan carries exactly one metric | T/V/M |
-| VIRUS-S-04 | NS | Existing `list_loci(viral_lineage)` | Natural `Which` form is outside grammar; “affinity” needs role/scope binding | T/V/M/X |
-| REL-S-01 | NS | Existing `list_assemblies(source_lineage AND viral_lineage)` | Natural relationship form is outside grammar | T/V/M/X |
-| REL-S-02 | NS | Existing `list_loci(source_lineage AND viral_lineage)` | Natural relationship form is outside grammar | T/V/M/X |
-| REL-S-03 | CP | Two existing aggregates: distinct loci and assemblies under both filters | One QueryPlan carries exactly one metric | T/V/M |
-| REL-S-04 | FO | Existing filtered `list_loci` projection contains locus, coordinate, and source taxon | “this association” is not self-contained and no conversation memory is allowed | T/V/M/D/X |
-| RECORD-S-01 | NS | Existing `list_loci(assembly)` | Natural `What` form is outside grammar | M/X |
-| RECORD-S-02 | NS | Existing `locus_detail` contains placement, calls, and public assertions | Extra natural detail phrase does not match `Show locus <key>` | M/D |
-| RECORD-S-03 | NI | New `list_viral_lineages(assembly)`; exhaustive loci-plus-dedup is only a composite alternative | No result intent for viral-lineage set | V/M/X |
-| RECORD-S-04 | NS | Existing `locus_detail.public_assertions[].supporting_evidence` | Natural `Which` form is outside grammar | M/D; Gold universe must be limited to membership-selected assertion evidence |
-
-`RECORD-S-04` is answerable from the current public result only if “linked evidence” means the
-supporting evidence selected by public assertion membership. A broader set of every EvidenceItem
-would require another intent and an explicitly approved public projection.
+| ID | Requested exact projection | Reusable structured seam | Remaining question-specific gap |
+|---|---|---|---|
+| HOST-S-01 | represented source species by class and viral lineage | exhaustive `list_loci(source_lineage)` exposes each direct source taxon | species-level association projection and class/lineage grouping |
+| HOST-S-02 | species -> assemblies by class and viral lineage | `list_assemblies`; filtered loci | class/lineage columns and represented-species join |
+| HOST-S-03 | species -> viral lineages by class | exhaustive `list_loci` exposes `viral_lineages` | relation-class column and deterministic grouping/deduplication |
+| HOST-S-04 | complete species/assembly/locus/class/lineage tuples | `list_loci` plus `list_assemblies` | composite result envelope and complete association projection |
+| VIRUS-S-01 | assembly-source taxonomic units by class | `list_source_taxa(viral_lineage)` | relation-class split and exact role/scope binding |
+| VIRUS-S-02 | represented source species by class | `list_source_taxa` and filtered loci | species projection and relation-class split |
+| VIRUS-S-03 | species -> assemblies by class | `list_assemblies(viral_lineage)` | represented-species join and relation-class split |
+| VIRUS-S-04 | species/assembly/loci by class | exhaustive `list_loci(viral_lineage)` | relation-class projection and complete pagination |
+| REL-S-01 | source species for one source-lineage x viral-lineage scope by class | exhaustive `list_loci(source_lineage AND viral_lineage)` can derive represented species | typed combined association projection |
+| REL-S-02 | species -> assemblies within the combined scope by class | `list_assemblies(source_lineage AND viral_lineage)` | relation-class split and species-preserving output |
+| REL-S-03 | species/assembly/loci within the combined scope by class | `list_loci(source_lineage AND viral_lineage)` | relation-class projection and complete pagination |
+| REL-S-04 | full tuples compared across two viral lineages | one filtered locus/assembly plan per lineage | validated multi-plan comparison envelope |
+| RECORD-S-01 | assembly loci by class and lineage | `list_loci(assembly)` | relation-class projection and exhaustive grouping |
+| RECORD-S-02 | one locus's source species/assembly/class/lineage | `locus_detail` plus immutable `LocusSummary` | approved relation-class assertion distinct from source `vr_type` |
+| RECORD-S-03 | assembly loci for one role-qualified viral lineage by class | `list_loci(assembly AND viral_lineage)` | relation-class split |
+| RECORD-S-04 | three locus association tuples | one `locus_detail` per locus | validated multi-result envelope and relation-class assertions |
 
 ## Literature templates: every-question mapping
 
-All 16 rows have status NL and require B/C except `RECORD-L-02` and `RECORD-L-04`, which have no
-entity slot and require C. The existing router rejects every natural `How`, `What`, or `Why` form.
+All rows require an approved CorpusRelease, natural literature routing, manually approved document
+and evidence groups, source-reported relation-class annotation, entity normalization, limitations,
+and forbidden claims. No row may emit an `exact_*` structured projection or depend on release
+membership.
 
-| ID | Required literature evidence | Additional limitation or risk |
+| ID | Requested source-reported association | Main retrieval/annotation requirement |
 |---|---|---|
-| HOST-L-01 | Candidate-identification methods | Current blanket policy interprets `identify EVE candidates` as prohibited new-EVE detection |
-| HOST-L-02 | Endogeneity evidence | A source-high label alone must not be treated as proof of endogeneity |
-| HOST-L-03 | Interpretation limitations | Human Gold must specify required limitation concepts and passages |
-| HOST-L-04 | Viral-origin classification methods | Gold must distinguish formal, study, and extended lineage roles |
-| VIRUS-L-01 | Viral-lineage assignment evidence | Viral role and exact/descendant semantics must come from binding |
-| VIRUS-L-02 | False-positive protein-similarity controls | Method claims require exact supporting passages |
-| VIRUS-L-03 | Taxonomic and naming uncertainty | Snapshot/version and role semantics are material |
-| VIRUS-L-04 | Recorded-distribution limitations | Must not imply prevalence, global distribution, or host range |
-| REL-L-01 | Detection methods for candidate regions | Association does not make method evidence locus-specific by itself |
-| REL-L-02 | Endogeneity evidence | Literature-level evidence may not prove every individual locus |
-| REL-L-03 | Alternative explanations and uncertainty | Human reviewers must define required limitations and forbidden claims |
-| REL-L-04 | Why association does not prove modern infection or co-divergence | Blanket infection/co-divergence rules reject this legitimate limitation question; Unicode input also fails |
-| RECORD-L-01 | Detection criteria | Internal locus hash may not occur in document text; no structured anchor is allowed in S2/S3 |
-| RECORD-L-02 | Host-genomic flank evaluation methods | Current release has no flank assessments, although literature may discuss methods |
-| RECORD-L-03 | Assembly/contig limitations | Internal locus hash may not be discoverable in a literature-only condition |
-| RECORD-L-04 | Integrated-region versus viral-contig evidence | Must distinguish general study method from locus-specific proof |
-
-For `RECORD-L-01` and `RECORD-L-03`, using a structured locus-to-document map would change a
-literature-only condition into Hybrid retrieval. The approved corpus must either contain a
-retrievable display identifier, or the expected retrieval difficulty must be retained and reported.
+| HOST-L-01 | host species by class and viral lineage within the named lineage | explicit source statements; normalize without converting to assembly-source truth |
+| HOST-L-02 | host species -> named assemblies by class and lineage | assembly discoverability plus source passage provenance |
+| HOST-L-03 | host species -> viral lineages by class | role-qualified lineage normalization without cross-role merging |
+| HOST-L-04 | complete reported host/assembly-or-region/class/lineage tuples | preserve missing fields and named regions exactly as reported |
+| VIRUS-L-01 | reported host taxonomic units for one lineage by class | source host wording and exact lineage role/scope binding |
+| VIRUS-L-02 | reported host species for one lineage by class | species normalization inside the corpus only |
+| VIRUS-L-03 | reported host species -> assemblies for one lineage by class | assembly identifiers must be present or manually normalized from the source |
+| VIRUS-L-04 | named loci or regions for one lineage by class | named regions remain literature entities, not structured locus keys |
+| REL-L-01 | species for one host-lineage x viral-lineage relation by class | both lineage bindings plus source-statement evidence |
+| REL-L-02 | species -> assemblies for the paired lineage scope by class | assembly discoverability and explicit association passages |
+| REL-L-03 | named loci/regions for the paired lineage scope by class | no inferred structured-locus equivalence |
+| REL-L-04 | compare reported tuples across two viral lineages | two role-qualified lineage scopes and source-specific tuple comparison |
+| RECORD-L-01 | named regions in one assembly by class and lineage | assembly and region discoverability; no internal locus injection |
+| RECORD-L-02 | host species and lineages for named regions in one assembly by class | assembly-bound literature search; no prebound structured locus |
+| RECORD-L-03 | named regions for one literature host species by class/assembly/lineage | source-host normalization and explicit reported associations |
+| RECORD-L-04 | regions in one assembly for one lineage by class | assembly/lineage discoverability and source passage provenance |
 
 ## Hybrid templates: every-question mapping
 
-Every Hybrid row has primary status NH and requires B/R/C/H. Secondary structured gaps are shown
-explicitly; primary status does not imply those gaps are solved.
+All rows require an approved DatasetRelease/CorpusRelease pair, the structured relation contract,
+natural decomposition, curated anchors where available, and deterministic cross-source alignment.
+The structured set remains immutable; a literature label never overwrites it.
 
-| ID | Structured need plus literature need | Secondary gap and data |
+| ID | Structured seam | Cross-source requirement beyond the common contract |
 |---|---|---|
-| HOST-H-01 | `list_loci(species)` + endogeneity evidence | T/M/F/X; per-locus flank evidence is not currently public |
-| HOST-H-02 | `list_viral_lineages(host)` + assignment methods | New intent; T/V/M/X |
-| HOST-H-03 | `list_assemblies(host)` + assembly limitations | T/M/X |
-| HOST-H-04 | `host_eve_profile` + interpretation evidence | Composite/multi-result envelope; T/V/M/X |
-| VIRUS-H-01 | `list_source_taxa(viral lineage)` + assignment evidence | T/V/M/X |
-| VIRUS-H-02 | `list_assemblies(viral lineage)` + endogeneity evidence | T/V/M/F/X; evidence applicability must be human-reviewed |
-| VIRUS-H-03 | `viral_lineage_distribution` + limitations | Composite/multi-result envelope; T/V/M/X |
-| VIRUS-H-04 | `list_loci(extended lineage)` + extended-label evidence | V/M/X; binding must select extended role |
-| REL-H-01 | `list_assemblies(source AND viral)` + detection methods | T/V/M/X; blanket EVE-detection rule rejects this legitimate methods context |
-| REL-H-02 | `aggregate(loci, source AND viral)` + independent-event literature limitation | T/V/M; blanket independent-event rule rejects this legitimate limitation context; Unicode fails; future Gold needs required documents and evidence groups as well as the limitation |
-| REL-H-03 | exhaustive `list_loci(source AND viral)` plus `locus_detail` per locus, or a new bulk assertion projection, + assignment evidence | T/V/M/D/X; `list_loci` alone exposes lineage summaries, not the required public-assertion set; a multi-result envelope is needed; Unicode input fails |
-| REL-H-04 | minimum `list_loci(source AND viral)` + literature and limits; full `host_virus_relationship` profile if the reviewed output requires assemblies, assertions, or counts | T/V/M/X; add a composite plan for the full profile |
-| RECORD-H-01 | `locus_detail` + endogeneity evidence | M/D/F; current public result has no flank-assessment detail |
-| RECORD-H-02 | `assembly_eve_profile` + identification methods | Composite plus `list_viral_lineages`; M/V/X |
-| RECORD-H-03 | `locus_detail` + inclusion rationale + lineage evidence | New public inclusion/flank provenance; M/D/F |
-| RECORD-H-04 | `locus_detail` + literature limitations | M/D |
-
-Natural Hybrid decomposition must produce typed structured needs and typed literature evidence needs.
-It must not ask users to append `. and explain the literature`, and it must not silently fall back
-to literature-only retrieval after structured refusal.
+| HOST-H-01 | source-taxon/filtered-locus projection | align represented source species by class and lineage with source-reported host species |
+| HOST-H-02 | `list_assemblies(source_lineage)` | align species/assembly/class/lineage tuples without requiring literature release membership |
+| HOST-H-03 | exhaustive filtered `list_loci` | align role-qualified lineage sets per represented species and class |
+| HOST-H-04 | composite loci plus assemblies | classify complete tuples as structured-only, literature-only, both, or unmatched |
+| VIRUS-H-01 | `list_source_taxa(viral_lineage)` | align assembly-source taxa with literature host wording for the bound lineage |
+| VIRUS-H-02 | source-taxon/filtered-locus projection | align represented source species while preserving source-specific identities |
+| VIRUS-H-03 | `list_assemblies(viral_lineage)` | align species/assembly/class tuples and keep absent literature identifiers explicit |
+| VIRUS-H-04 | exhaustive `list_loci(viral_lineage)` | match only manually/curated-identifiable regions; retain unmatched loci |
+| REL-H-01 | combined source-lineage/viral-lineage projection | align represented species with literature-reported species by class |
+| REL-H-02 | `list_assemblies` under both lineage filters | align species/assembly/class relations without a broad fallback |
+| REL-H-03 | exhaustive `list_loci` under both filters | align named literature regions only through approved identities/anchors |
+| REL-H-04 | separate composite plans for two viral lineages | compare full cross-source tuples without treating cross-source occurrence as exact identity |
+| RECORD-H-01 | `locus_detail` | approved locus-to-literature anchor and field-wise source-preserving alignment |
+| RECORD-H-02 | exhaustive `list_loci(assembly)` | complete locus/class/lineage alignment with capacity preflight |
+| RECORD-H-03 | exhaustive `list_loci(assembly)` | retain structured-only, literature-only, both, ambiguous, and unmatched tuples |
+| RECORD-H-04 | one complete assembly projection per assembly | validated multi-result comparison plus cross-source presence state |
 
 ## Unsupported templates: every-question mapping
 
-The boundary names below are capability-analysis suggestions, not Gold labels or approvals. Every
-row remains pending, and human review must later define the exact refusal category, required
-explanation, forbidden claims, and prohibited stages.
+Boundary labels below are analysis suggestions, not Gold labels or approvals. Human review must
+later define the exact refusal category, required explanation, forbidden claims, and prohibited
+downstream stages. A future natural router must preserve refusal before any prohibited action.
 
-| ID | Boundary being tested | Current deterministic protection | Future hardening |
-|---|---|---|---|
-| UNSUP-01 | Prevalence not established | Explicit `prevalence` scope-policy match | Preserve refusal before retrieval |
-| UNSUP-02 | Biological absence not established | Rejected only as unknown natural syntax; `lacks` is not an explicit match | Add explicit absence boundary test |
-| UNSUP-03 | Modern infection not established | Explicit infection match | Preserve refusal before retrieval |
-| UNSUP-04 | Independent events not established | Explicit independent-integration-events match | Preserve refusal before retrieval |
-| UNSUP-05 | Co-divergence not established | Unicode request validation blocks first; scope policy would match normalized ASCII wording | Define Unicode policy and preserve co-divergence refusal |
-| UNSUP-06 | Exact integration date unavailable | Rejected only as unknown natural syntax | Add explicit dating boundary test |
-| UNSUP-07 | Transcription not present in release | Rejected only as unknown natural syntax | Add explicit expression/activity boundary test |
-| UNSUP-08 | Adaptive function unsupported | Rejected only as unknown natural syntax | Add explicit function boundary test |
-| UNSUP-09 | Susceptibility/modern infection unsupported | Explicit infection match | Preserve refusal before retrieval |
-| UNSUP-10 | Screened-negative does not establish absence | Explicit screened-negative and no-EVE matches | Preserve refusal before retrieval |
-| UNSUP-11 | External HMMER/BLAST/new discovery | Explicit HMMER, BLAST, and new-EVE matches | Preserve refusal before any tool call |
-| UNSUP-12 | External phylogenetic analysis | Explicit phylogenetic match | Preserve refusal before any tool call |
-| UNSUP-13 | Live web outside approved corpus | Rejected only as unknown natural syntax; the current regex does not match `search the live web` word order | Add this exact live-web variant to the explicit boundary tests |
-| UNSUP-14 | Global biological distribution from pilot release | Rejected only as unknown natural syntax | Add global-distribution/scope boundary test |
-| UNSUP-15 | Arbitrary SQL | Explicit arbitrary-SQL match | Preserve fixed compiler boundary |
-| UNSUP-16 | Certain ancestral host identity | Rejected only as unknown natural syntax | Add ancestral-host-certainty boundary test |
+| ID | Boundary being tested | Required behavior |
+|---|---|---|
+| UNSUP-01 | prevalence is not established by record counts | refuse prevalence ranking; no broad query |
+| UNSUP-02 | absence from a release/corpus is not biological absence | refuse definite-absence claim |
+| UNSUP-03 | an EVE association does not establish modern infection | refuse infection inference |
+| UNSUP-04 | loci are not independently established integration events | refuse one-locus/one-event conversion |
+| UNSUP-05 | matching records do not establish host-virus co-divergence | refuse co-divergence inference |
+| UNSUP-06 | requested relation classes are unapproved | refuse classification until an approved relation contract exists |
+| UNSUP-07 | unsafe `Integration`/`Viral contig` mapping | refuse both mappings and return no derived association set |
+| UNSUP-08 | unsafe `HCVR` mapping | refuse confidence-to-relation conversion |
+| UNSUP-09 | viral-lineage role conflation | refuse merging study, formal, and extended roles |
+| UNSUP-10 | name similarity is not a lineage assertion | refuse lexical lineage assignment |
+| UNSUP-11 | one represented species cannot be extrapolated to every descendant | refuse biological descendant expansion |
+| UNSUP-12 | unapproved/unversioned release and corpus mixing | refuse cross-release merge |
+| UNSUP-13 | a first/truncated page is not a complete set | refuse completeness claim; do not silently truncate |
+| UNSUP-14 | live web lies outside the approved corpus | refuse before network or retrieval construction |
+| UNSUP-15 | BLAST/HMMER and release mutation are outside scope | refuse before tool execution and publication/mutation |
+| UNSUP-16 | arbitrary SQL bypasses the fixed QueryPlan/compiler boundary | refuse before database execution |
 
-The explicit gaps for `UNSUP-02`, `UNSUP-06`, `UNSUP-07`, `UNSUP-08`, `UNSUP-13`, `UNSUP-14`,
-and `UNSUP-16` matter before any broader natural-language router is introduced. Today they are
-safe because unknown syntax fails closed; a future natural router must not accidentally accept
-them.
+The current fail-closed router already rejects many of these strings as unknown syntax, and has
+explicit patterns for several biological/operational hazards. Unknown-syntax rejection is not a
+durable semantic classifier. Phase 1 should add explicit boundary tests before any broader natural
+router is admitted.
 
-## Four current policy conflicts
+## Data and approval blockers
 
-These answerable methods or limitation questions contain words that the current blanket scope
-policy treats as forbidden:
+Before any answerable template can enter a trusted run, all of the following are required:
 
-- `HOST-L-01`: `identify EVE candidates`;
-- `REL-H-01`: EVE loci that were `detected`;
-- `REL-L-04`: explains why modern infection/co-divergence is not demonstrated;
-- `REL-H-02`: explains why locus count is not an independent-event count.
+1. an exact approved DatasetRelease for structured/Hybrid questions and an exact approved
+   CorpusRelease for literature/Hybrid questions;
+2. a versioned `Transferred gene`/`Integrated virus` contract plus independently reviewed class
+   assertions or mapping policy;
+3. enough approved category and viral-lineage diversity to make the intended comparison eligible;
+4. human-selected bindings with stable keys, display names, release/snapshot identity, lineage
+   role, and exact/descendant scope;
+5. complete pagination, anchor, and context-capacity preflight;
+6. deterministic instantiation with no placeholders;
+7. independent wording review;
+8. human-authored family-specific Gold, including required limitations and forbidden claims;
+9. separately manually approved Oracle evidence; and
+10. the existing approved-only trusted question-manifest admission gate.
 
-A future solution needs a typed `method_explanation` or `interpretation_limitation` context with
-paired safety tests. Simply deleting forbidden patterns would weaken the refusal boundary.
+## Proposed Phase 1 additions
 
-## Release/data blockers
+This analysis proposes experiment-only contracts and tests, not production activation:
 
-Before any real scientific question can become trusted, all of the following are required:
-
-1. an exact published DatasetRelease with public locus memberships and a trusted receipt;
-2. an exact approved CorpusRelease and a release–corpus binding;
-3. human-selected entity bindings with stable key, display name, release manifest, lineage role,
-   snapshot, and exact/descendant policy;
-4. capacity validation for complete structured sets, anchor counts, and context size;
-5. fully instantiated, self-contained question text with no placeholders;
-6. independent human wording review;
-7. separately authored human Gold and manually approved Oracle evidence;
-8. the existing trusted question-manifest admission gate.
-
-Current public structured results also lack flank-assessment details and inclusion-decision
-rationale. `source_high`, an Integration label, coordinates, or a viral-lineage assertion must not
-be promoted into proof of endogeneity.
-
-## Proposed future implementation order
-
-This analysis recommends the following order; none of it is implemented here:
-
-1. add strict typed classification for natural structured and literature questions;
-2. add paired tests for safe methods/limitations contexts and every unsupported boundary;
-3. decide and test the Unicode question-input policy;
-4. implement `list_viral_lineages` with release-pinned role and closure semantics;
-5. define deterministic `host_eve_profile`, `viral_lineage_distribution`, and
-   `host_virus_relationship` compositions over the exact operation shapes above;
-6. implement exhaustive-pagination coordination and deterministic composite plans;
-7. define an immutable multi-plan/multi-result structured envelope without changing production
-   ContextPack behavior;
-8. add an approved public projection for inclusion and flank provenance if the release supplies it;
-9. implement natural Hybrid decomposition into typed structured and literature needs;
-10. only then bind approved entities and run readiness checks against approved local artifacts;
-11. execute later benchmark phases only after their separate approvals and required human labels.
+1. add the relation ontology/assertion contract with explicit unknown/unmapped outcomes;
+2. add the canonical association tuple and family-separated Gold sets;
+3. add a release-represented source-species projection using existing immutable structured values;
+4. add exhaustive pagination and deterministic association deduplication;
+5. add typed natural structured and literature routing adapters;
+6. add literature association extraction/normalization annotations without structured leakage;
+7. add an immutable composite structured envelope where multiple existing plans are required;
+8. add cross-source identity/alignment records with explicit unmatched and ambiguous states;
+9. add natural Hybrid decomposition into structured and literature needs; and
+10. add paired positive/negative tests for all 16 refusal boundaries.
 
 Production defaults, parser, QueryPlan union, SQL compiler, database schema, releases, corpora,
-providers, embeddings, S0–S6 definitions, and ContextPack were not changed by this redesign.
+providers, embeddings, S0-S6 definitions, and `ContextPack` remain unchanged.

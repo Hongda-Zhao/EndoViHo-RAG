@@ -47,10 +47,10 @@ def test_scientific_templates_have_exact_family_and_task_balance() -> None:
         "unsupported": 16,
     }
     assert Counter(template.scientific_task for template in templates) == {
-        "host_eve_profile": 12,
-        "viral_lineage_distribution": 12,
-        "host_virus_relationship": 12,
-        "assembly_locus_evidence": 12,
+        "source_taxon_association": 12,
+        "viral_lineage_association": 12,
+        "source_viral_lineage_association": 12,
+        "assembly_locus_association": 12,
         "unsupported_scientific_or_operational_boundary": 16,
     }
     assert len({template.template_id for template in templates}) == 64
@@ -63,12 +63,7 @@ def test_scientific_templates_are_pending_authoring_records_only() -> None:
     assert all(template.gold is None for template in templates)
     assert all(template.capability_status != "supported_now" for template in templates)
     assert Counter(template.capability_status for template in templates) == {
-        "requires_natural_structured_planning": 10,
-        "requires_natural_literature_routing": 16,
-        "requires_new_intent": 2,
-        "requires_composite_plan": 3,
-        "requires_natural_hybrid_decomposition": 16,
-        "future_only": 1,
+        "requires_relation_contract": 48,
         "unsupported_by_design": 16,
     }
     schema_properties = ScientificQuestionTemplate.model_json_schema()["properties"]
@@ -90,6 +85,161 @@ def test_placeholders_and_natural_question_wording_are_strict() -> None:
         assert observed == template.entity_slots
         assert fake_locus not in template.question_text_template
         assert ". and explain the literature" not in template.question_text_template.casefold()
+
+
+def test_answerable_questions_are_relation_only_and_name_both_requested_classes() -> None:
+    answerable = tuple(
+        template
+        for template in build_scientific_question_templates()
+        if template.family != "unsupported"
+    )
+    prohibited = re.compile(
+        r"(?:\bhow\b|\bwhy\b|\bmethods?\b|\bevidence\s+supports?\b|\blimitations?\b|"
+        r"\buncertaint(?:y|ies)\b|\binterpret(?:ation|ed|ing)\b)",
+        re.IGNORECASE,
+    )
+
+    assert len(answerable) == 48
+    for template in answerable:
+        assert prohibited.search(template.question_text_template) is None
+        assert "Transferred gene" in template.question_text_template
+        assert "Integrated virus" in template.question_text_template
+        normalized = template.question_text_template.casefold()
+        assert any(
+            marker in normalized
+            for marker in (
+                "viral lineage",
+                "viral-lineage",
+                "{viral_lineage_",
+                "{extended_lineage_",
+            )
+        )
+        if template.family in {"structured", "hybrid"}:
+            assert not any(
+                marker in normalized
+                for marker in ("host species", "host-species", "host taxonomic")
+            )
+
+
+def test_answerable_relation_classes_remain_explicitly_unapproved_and_unmapped() -> None:
+    answerable = tuple(
+        template
+        for template in build_scientific_question_templates()
+        if template.family != "unsupported"
+    )
+    required_capabilities = {
+        "association_projection",
+        "relation_class_assertion",
+        "lineage_role_and_scope_preservation",
+        "relation_contract",
+    }
+
+    for template in answerable:
+        assert required_capabilities.issubset(template.required_capabilities)
+        assert template.capability_status == "requires_relation_contract"
+        assert "has not approved Transferred gene or Integrated virus" in template.authoring_notes
+        assert "Integration, Viral contig, or HCVR" in template.authoring_notes
+        assert "viral-lineage binding's role" in template.authoring_notes
+        assert "exact-versus-descendant semantics" in template.authoring_notes
+        assert "forbidden_claims" in template.expected_output_types
+        assert "required_limitations" in template.expected_output_types
+        if template.family == "structured":
+            assert "release_represented_source_scope" in template.required_capabilities
+            assert "corpus_source_reported_scope" not in template.required_capabilities
+            assert "represented source species and assemblies" in template.authoring_notes
+            assert "not a complete biological descendant set" in template.authoring_notes
+            assert (
+                "assembly-source taxon is not an ancient or modern host"
+                in template.authoring_notes
+            )
+        elif template.family == "literature":
+            assert "corpus_source_reported_scope" in template.required_capabilities
+            assert "release_represented_source_scope" not in template.required_capabilities
+            assert "permitted-corpus source-reported host wording" in template.authoring_notes
+        else:
+            assert {
+                "corpus_source_reported_scope",
+                "release_represented_source_scope",
+            }.issubset(template.required_capabilities)
+            assert (
+                "assembly-source taxon is not an ancient or modern host"
+                in template.authoring_notes
+            )
+            assert "must not overwrite structured values" in template.authoring_notes
+
+
+def test_literature_and_hybrid_questions_keep_relation_gold_fields() -> None:
+    templates = build_scientific_question_templates()
+    existing_structured_primitives = {
+        "list_assemblies",
+        "list_loci",
+        "list_source_taxa",
+        "locus_detail",
+    }
+
+    for template in templates:
+        if template.family in {"structured", "hybrid"}:
+            assert existing_structured_primitives.intersection(template.required_capabilities)
+        if template.family == "structured":
+            assert "exact_association_set" in template.expected_output_types
+            assert "source_reported_association_set" not in template.expected_output_types
+            assert "cross_source_association_set" not in template.expected_output_types
+        if template.family in {"literature", "hybrid"}:
+            assert "required_documents" in template.expected_output_types
+            assert "required_evidence_groups" in template.expected_output_types
+            assert "literature_association_extraction" in template.required_capabilities
+            assert "literature_entity_normalization" in template.required_capabilities
+            assert "source_reported_association_set" in template.expected_output_types
+        if template.family == "literature":
+            assert not existing_structured_primitives.intersection(
+                template.required_capabilities
+            )
+            assert not any(
+                output.startswith("exact_") for output in template.expected_output_types
+            )
+            assert "cross_source_association_set" not in template.expected_output_types
+            normalized = template.question_text_template.casefold()
+            assert not any(
+                marker in normalized
+                for marker in (
+                    "both sources",
+                    "cross-source",
+                    "datasetrelease",
+                    "exact",
+                    "literature-only",
+                    "selected release",
+                    "structured-only",
+                )
+            )
+        if template.family == "hybrid":
+            assert "exact_association_set" in template.expected_output_types
+            assert "cross_source_association_set" in template.expected_output_types
+            assert "cross_source_association_alignment" in template.required_capabilities
+
+
+def test_unsupported_questions_cover_relation_and_operational_boundaries() -> None:
+    unsupported_text = "\n".join(
+        template.question_text_template
+        for template in build_scientific_question_templates()
+        if template.family == "unsupported"
+    )
+
+    for required_term in (
+        "neither relation class has been approved",
+        "HCVR",
+        "Integration",
+        "Viral contig",
+        "study-defined, formal, and extended viral-lineage roles",
+        "name similarity alone",
+        "every species within {HOST_LINEAGE_A}",
+        "unapproved or unversioned releases and corpora",
+        "first page or a truncated result",
+        "live web",
+        "BLAST",
+        "HMMER",
+        "arbitrary SQL",
+    ):
+        assert required_term in unsupported_text
 
 
 def test_committed_scientific_authoring_artifacts_are_canonical() -> None:
@@ -126,7 +276,9 @@ def test_rehashed_template_cannot_change_preregistered_content_or_metadata() -> 
     original = build_scientific_question_templates()[0]
 
     changed_text = original.model_dump(mode="python")
-    changed_text["question_text_template"] = "What other records are present?"
+    changed_text["question_text_template"] = (
+        "Which other viral lineages have Transferred gene or Integrated virus records?"
+    )
     changed_text["entity_slots"] = ()
     del changed_text["record_sha256"]
     changed_text["record_sha256"] = canonical_json_sha256(changed_text)
@@ -150,15 +302,6 @@ def test_rehashed_binding_cannot_change_slot_entity_type_mapping() -> None:
 
     with pytest.raises(ValidationError, match="slot and required entity type"):
         type(original).model_validate(changed)
-
-
-def test_hybrid_limit_question_requires_literature_gold_fields() -> None:
-    template = next(
-        item for item in build_scientific_question_templates() if item.template_id == "REL-H-02"
-    )
-
-    assert "required_documents" in template.expected_output_types
-    assert "required_evidence_groups" in template.expected_output_types
 
 
 def test_natural_templates_are_not_silently_claimed_by_current_routes() -> None:
@@ -218,8 +361,10 @@ def test_human_readable_docs_cover_every_exact_question_and_capability_row() -> 
     ).read_text(encoding="utf-8")
 
     for template in build_scientific_question_templates():
-        assert f"`{template.template_id}` — {template.question_text_template}" in redesign
-        assert f"| {template.template_id} |" in capability_gap
+        assert redesign.count(
+            f"- `{template.template_id}` — {template.question_text_template}"
+        ) == 1
+        assert capability_gap.count(f"| {template.template_id} |") == 1
 
 
 def test_template_generation_does_not_mutate_production_sources() -> None:
