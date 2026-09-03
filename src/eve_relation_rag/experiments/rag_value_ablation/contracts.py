@@ -328,6 +328,13 @@ type RefusalCategory = Literal[
     "modern_infection_not_established",
     "external_computation_requested",
     "instruction_override_attempt",
+    "live_web_search_requested",
+    "external_knowledge_requested",
+    "arbitrary_sql_requested",
+    "multilingual_output_requested",
+    "conversation_memory_requested",
+    "host_lineage_comparison_unsupported",
+    "codivergence_not_established",
 ]
 
 
