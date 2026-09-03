@@ -12,11 +12,6 @@ the first contract-only implementation tranche was added under
 author gold or oracle evidence, construct a provider, execute a model/retriever/database, or report
 a real or synthetic result.
 
-A separately approved question-authoring tranche now adds 64 candidate questions (16 per family)
-and blank Gold/Oracle worksheets. All 64 remain `pending`; the authoring audit records zero Gold
-and zero Oracle annotations. Grammar acceptance and route classification are software checks only,
-not expert approval.
-
 The companion [`rag_value_ablation_repo_mapping.md`](rag_value_ablation_repo_mapping.md) records
 the source-level audit and exact reuse decisions.
 
@@ -266,9 +261,12 @@ The model-visible serialization must omit `system_key`, condition names, gold an
 labels, retrieval metrics, and oracle status. The same serializer and field order are used in all
 LLM conditions; absent evidence is represented canonically by empty collections/nulls.
 
-Production `ContextPack` may be retained as a checksum-bound provenance object for S3/S5 where its
-eight-chunk constraints match the answer path. It is not the common provider input because its
-contract deliberately fixes only literature/hybrid production routes
+Production `ContextPack` may be retained as a checksum-bound provenance object for an ASCII S3
+request or an existing mechanical S5 route where its eight-chunk and fixed-suffix constraints match
+the answer path. It cannot directly represent the new natural Hybrid templates, even when they need
+only one structured result, because its validator binds the original question to the controlled
+structured question plus a fixed mechanical suffix. It is not the common provider input because
+its contract deliberately fixes only literature/hybrid production routes
 ([`hybrid/contracts.py`](../src/eve_relation_rag/hybrid/contracts.py#L294)).
 
 ### 6.2 Common prompt policy
@@ -627,11 +625,7 @@ Later approved phases should materialize the required tree:
 
 ```text
 benchmark/rag_value_ablation/
-├── QUESTION_AUTHORING.md
-├── candidate_question_audit.json
 ├── experiment_manifest.json
-├── oracle_annotation_schema.json
-├── oracle_annotations_template.jsonl
 ├── question_schema.json
 ├── questions_template.jsonl
 ├── systems/
@@ -644,6 +638,12 @@ benchmark/rag_value_ablation/
 ├── summary.json
 └── failures.jsonl
 ```
+
+The authoring layer is separate from those trusted/result artifacts. It now preserves the frozen
+route-oriented software fixtures under `benchmark/system_regression/` and stores 64 natural,
+pending scientific templates plus an empty checksum-bound entity-binding worksheet under
+`benchmark/rag_value_ablation/`. Those placeholder templates are not `EvaluationQuestion`
+records and cannot enter execution or scoring.
 
 Add plot-ready derived CSV files, generated from the same revalidated per-question records:
 
@@ -676,12 +676,19 @@ The first implementation tranche was explicitly approved on 2026-09-02. It now p
 - create-once deterministic machine outputs, plot-ready CSV generation, and revalidation; and
 - isolated unit/golden/import-boundary tests.
 
-The question-authoring tranche supplies 64 pending candidates, with 16 in each family. It records
-wording provenance, expected routes, expected `QueryPlan` intents, semantic-boundary codes, and a
-deterministic duplicate/parser audit. Thirty-two structured clauses (16 structured and 16 hybrid)
-are accepted by the current controlled-English parser against synthetic resolver fixtures. The
-remaining work is human wording review and real Gold/Oracle annotation without deriving labels
-from a model or current retriever.
+A separately approved scientific-question redesign now provides exactly 64 pending authoring-only
+templates: 16 structured, 16 literature, 16 Hybrid, and 16 unsupported, organized primarily by
+scientific task. It also preserves the earlier 64 route-oriented questions as system-regression
+fixtures and supplies an empty checksum-bound entity-binding worksheet. It does not change the
+trusted `EvaluationQuestion` admission rules.
+
+The remaining question work is human-dependent:
+
+1. bind placeholders to approved, release-scoped objects;
+2. instantiate self-contained question text and complete parser/readiness checks;
+3. obtain independent scientific wording review; and
+4. author and separately approve real Gold and Oracle evidence without deriving labels from a
+   model or current retriever.
 
 No provider, database, model, or result execution is part of Phase 1.
 
@@ -738,25 +745,12 @@ The implemented first-tranche tests prove:
 - reporting is deterministic, create-once, and derived only from revalidated machine files; and
 - no production source/default/migration is changed.
 
-The question-authoring tests additionally prove:
-
-- the candidate set contains exactly 64 questions and exactly 16 per family;
-- all rows remain pending with null approval and Gold fields;
-- normalized question text and evaluation focus are unique;
-- all 64 questions reach their declared structured, literature, hybrid, or unsupported route;
-- all 32 parser-applicable structured clauses yield the declared `QueryPlan` intent with no
-  unresolved conditions or unconsumed semantic spans;
-- family-specific semantic-boundary allowlists reject scope drift; and
-- Oracle rows remain pending and contain no selected facts, chunks, releases, attestation, or
-  approval.
-
 No new dependency is required for these contracts, calculations, CSV/JSON generation, or tests.
 
 ## 17. Current boundary
 
-The contract/metric/review/reporting tranche and pending question-authoring tranche are
-implemented. Human wording approval, real Gold/Oracle labels, the Phase 2 fake execution harness,
-local real-data retrieval, real LLM calls, human answer review, and benchmark results remain
-unstarted. Fixture entities must be replaced with approved release values and re-parsed before a
-candidate can be approved. Proceed to later phases only after their corresponding explicit
-approval and inputs are available.
+The contract/metric/review/reporting tranche and pending scientific-question authoring tranche are
+implemented. Entity binding, question instantiation/approval, Gold and Oracle authoring, the Phase 2
+fake execution harness, local real-data retrieval, real LLM calls, human labels, and benchmark
+outputs remain unstarted. Proceed to any of those only after their corresponding explicit approval
+and inputs are available.

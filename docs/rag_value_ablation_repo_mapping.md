@@ -87,8 +87,11 @@ Plans are strict, frozen, server-authored objects bound to the exact release and
 explicit `show`, `list`, and `count` grammars and rejects negation, OR, and range comparators rather
 than broadening a query ([`planning/parser.py`](../src/eve_relation_rag/planning/parser.py#L80)).
 
-Implication for the benchmark: structured and hybrid question templates should be written inside
-this existing grammar. The benchmark must not add an LLM planner or a free-form SQL escape hatch.
+Implication for the benchmark: keep grammar-shaped questions as system-regression fixtures, but do
+not rewrite the scientific benchmark into `Show/List/Count` syntax. Natural scientific templates
+must instead record their parser, intent, composition, and data gaps until a separately reviewed
+typed planning boundary exists. The benchmark must not add a free-form SQL escape hatch or let an
+LLM author executable SQL or trusted QueryPlans.
 
 ### 3.2 Retrieval and exact results
 
@@ -253,9 +256,13 @@ Phase 4 needs an explicitly approved experiment adapter/prompt manifest that pre
 local artifact and transport attestations and returns token/latency telemetry. It must not modify or
 subclass around the checks of the production provider.
 
-**ContextPack verdict:** preserve it unchanged. S3/S5 may retain the validated production
-`ContextPack` as provenance, but all LLM conditions need a separate strict experiment evidence
-envelope and a common experiment draft/output contract.
+**ContextPack verdict:** preserve it unchanged. An ASCII S3 request or an existing mechanical S5
+route may retain a validated production `ContextPack` as provenance. The exact natural Hybrid
+templates cannot use it directly, even with one structured result, because its validation binds the
+original question to a controlled structured question plus one fixed suffix. All LLM conditions
+therefore need a separate strict experiment evidence envelope and a common experiment draft/output
+contract; composite scientific questions additionally need a validated multi-plan/multi-result
+envelope.
 
 ## 7. Existing experiment infrastructure
 
@@ -380,8 +387,10 @@ The experiment should live only under:
 ```text
 src/eve_relation_rag/experiments/rag_value_ablation/
 tests/experiments/
-benchmark/rag_value_ablation/        # committed authoring templates; later sanitized results
+benchmark/rag_value_ablation/        # templates/results only in later approved phases
+benchmark/system_regression/         # frozen mechanical software fixtures only
 docs/rag_value_ablation*.md
+docs/scientific_question*.md
 .artifacts/rag_value_ablation/       # ignored runtime scratch, never committed
 ```
 
@@ -413,12 +422,13 @@ namespace. The implemented source files are:
 src/eve_relation_rag/experiments/rag_value_ablation/
 ├── __init__.py
 ├── annotations.py       # approved-only question/gold/oracle loading and template export
-├── candidates.py        # 64 pending candidates plus route/parser/semantics audit
 ├── contracts.py         # manifests, questions, gold variants, evidence, answers, results
 ├── human_review.py      # blinded packets/import validation; no labels generated
 ├── metrics.py           # exact structured, grounding, refusal, retrieval, efficiency metrics
 ├── prompting.py         # one frozen prompt/output policy shared by all LLM conditions
 ├── reporting.py         # deterministic machine/CSV/Markdown materialization and reload checks
+├── scientific_questions.py # pending natural templates and empty binding worksheet
+├── system_regression.py # frozen legacy-question loader plus pure route/parser audit
 └── systems.py           # frozen S0-S6 definitions and applicability/call policies
 ```
 
@@ -426,7 +436,6 @@ Implemented tests:
 
 ```text
 tests/experiments/test_rag_value_annotations.py
-tests/experiments/test_rag_value_candidates.py
 tests/experiments/test_rag_value_contracts.py
 tests/experiments/test_rag_value_human_review.py
 tests/experiments/test_rag_value_isolation.py
@@ -434,6 +443,8 @@ tests/experiments/test_rag_value_metrics.py
 tests/experiments/test_rag_value_prompting.py
 tests/experiments/test_rag_value_reporting.py
 tests/experiments/test_rag_value_systems.py
+tests/experiments/test_scientific_question_templates.py
+tests/experiments/test_rag_value_system_regression.py
 ```
 
 The reporter deterministically materializes the following non-result templates when an authorized
@@ -442,25 +453,29 @@ future run output is created:
 ```text
 benchmark/rag_value_ablation/question_schema.json
 benchmark/rag_value_ablation/questions_template.jsonl
-benchmark/rag_value_ablation/oracle_annotation_schema.json
-benchmark/rag_value_ablation/oracle_annotations_template.jsonl
-benchmark/rag_value_ablation/candidate_question_audit.json
 benchmark/rag_value_ablation/human_review_template.csv
 ```
 
-The committed question worksheet contains 64 authored candidates, exactly 16 per family. Every row
-remains `review_status="pending"` with `approval=null` and `gold=null`; it is therefore also the
-blank Gold annotation template. The parallel Oracle worksheet contains 64 checksum-bound pending
-rows with no evidence or approval. The authoring-only audit confirms 64 expected routes, 32 of 32
-applicable parser acceptances, zero normalized duplicates, and zero Gold/Oracle annotations.
+Every future template question must remain `review_status="pending"` with empty/unset real gold
+fields. Trusted-set admission requires 60-80 approved questions with 15-20 in each family. The
+committed tree contains the generated question schema, an empty JSONL annotation template, and a
+header-only review CSV.
 
-The wording comes from the current README, data-semantics document, parser/router tests, scope
-policy, and supported `QueryPlan` forms. Synthetic resolver entities are visibly marked and must be
-replaced and revalidated against an approved release before human approval. Trusted-set admission
-still requires 60-80 human-approved questions with 15-20 in each family. No
+A later, separately approved authoring tranche now also contains:
+
+```text
+benchmark/system_regression/rag_value_route_questions_v1.jsonl
+benchmark/rag_value_ablation/scientific_questions_template.jsonl
+benchmark/rag_value_ablation/scientific_entity_bindings_template.json
+```
+
+The first file preserves the original 64 route-oriented pending questions as software fixtures.
+The second contains exactly 64 natural scientific templates, all pending and placeholder-based;
+the third is an empty checksum-bound binding worksheet. None is approved Gold, Oracle evidence, a
+benchmark result, or directly admissible to the trusted question loader. No
 `experiment_manifest.json`, per-question output, metric CSV, `summary.json`, `failures.jsonl`, or
-formal `docs/rag_value_ablation.md` is emitted by this authoring tranche. It adds no dependency and
-changes no production source, default, migration, release, corpus, or embedding.
+formal `docs/rag_value_ablation.md` is emitted in this tranche. It adds no dependency and changes
+no production source, default, migration, release, corpus, or embedding.
 
 ## 12. Phase 0 verification
 
@@ -491,8 +506,8 @@ runtime.
 
 ## 13. Current stop condition
 
-Phase 0 and the explicitly approved Phase 1 contract and question-authoring work are complete. The
-64 candidates remain unapproved and carry no Gold or Oracle labels. Human wording/gold approval,
-the synthetic execution harness, real retrieval, real generation, human answer-review data, and
-benchmark results remain outside this change and require their next explicit approval or human
-input.
+Phase 0, the explicitly approved first Phase 1 tranche, and the pending scientific-question
+authoring redesign are complete. Entity binding, instantiated/approved questions, real Gold and
+Oracle evidence, the synthetic execution harness, real retrieval, real generation, human review
+data, and benchmark results remain outside this change and require their next explicit approval or
+human input.

@@ -46,10 +46,7 @@ def test_test_only_outputs_are_complete_create_once_and_deterministic(tmp_path: 
     assert load_benchmark_run(first) == run
     assert _tree_bytes(first) == _tree_bytes(second)
     assert {
-        "candidate_question_audit.json",
         "experiment_manifest.json",
-        "oracle_annotation_schema.json",
-        "oracle_annotations_template.jsonl",
         "question_schema.json",
         "questions_template.jsonl",
         "human_review_template.csv",
@@ -66,10 +63,7 @@ def test_test_only_outputs_are_complete_create_once_and_deterministic(tmp_path: 
         "summary.json",
         "failures.jsonl",
     } <= set(_tree_bytes(first))
-    assert len((first / "questions_template.jsonl").read_text().splitlines()) == 64
-    assert len(
-        (first / "oracle_annotations_template.jsonl").read_text().splitlines()
-    ) == 64
+    assert (first / "questions_template.jsonl").read_bytes() == b"\n"
     assert (first / "human_review_template.csv").read_text().startswith(
         "packet_sha256,reviewer_key,reviewed_at,blind_answer_id"
     )
@@ -77,9 +71,6 @@ def test_test_only_outputs_are_complete_create_once_and_deterministic(tmp_path: 
     assert len(tuple((first / "per_question").rglob("*.json"))) == 7
     committed_templates = Path(__file__).parents[2] / "benchmark" / "rag_value_ablation"
     for name in (
-        "candidate_question_audit.json",
-        "oracle_annotation_schema.json",
-        "oracle_annotations_template.jsonl",
         "question_schema.json",
         "questions_template.jsonl",
         "human_review_template.csv",
