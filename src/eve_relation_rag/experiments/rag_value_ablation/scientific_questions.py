@@ -27,22 +27,19 @@ from eve_relation_rag.literature.hashing import canonical_json_bytes, canonical_
 
 type ScientificQuestionFamily = Literal["structured", "literature", "hybrid", "unsupported"]
 type ScientificTask = Literal[
-    "host_eve_profile",
-    "viral_lineage_distribution",
-    "host_virus_relationship",
-    "assembly_locus_evidence",
+    "source_taxon_association",
+    "viral_lineage_association",
+    "source_viral_lineage_association",
+    "assembly_locus_association",
     "unsupported_scientific_or_operational_boundary",
 ]
 type ScientificIntent = Literal[
-    "host_eve_profile",
-    "viral_lineage_distribution",
-    "host_virus_relationship",
-    "assembly_eve_profile",
-    "locus_evidence_profile",
-    "method_explanation",
-    "interpretation_limitation",
-    "unsupported_inference",
-    "unsupported_analysis",
+    "source_taxon_association",
+    "viral_lineage_association",
+    "source_viral_lineage_association",
+    "assembly_locus_association",
+    "unsupported_association_boundary",
+    "unsupported_operational_boundary",
 ]
 type EntitySlot = Literal[
     "HOST_LINEAGE_A",
@@ -66,57 +63,51 @@ type RequiredEntityType = Literal[
     "locus",
 ]
 type ExpectedOutputType = Literal[
+    "cross_source_association_set",
+    "exact_association_set",
+    "source_reported_association_set",
     "exact_locus_set",
     "exact_assembly_set",
     "exact_source_taxon_set",
+    "exact_source_species_set",
     "exact_viral_lineage_set",
-    "exact_coordinates",
-    "exact_counts",
-    "detection_call_set",
-    "public_assertion_set",
-    "structured_evidence_set",
     "required_documents",
     "required_evidence_groups",
-    "required_methods",
     "required_limitations",
     "forbidden_claims",
     "refusal_category",
     "prohibited_downstream_stages",
 ]
 type RequiredCapability = Literal[
-    "aggregate",
-    "assembly_eve_profile",
+    "association_projection",
+    "complete_paginated_relation_projection",
     "composite_structured_plan",
+    "corpus_source_reported_scope",
+    "cross_source_association_alignment",
+    "relation_class_assertion",
     "explicit_unsupported_boundary",
-    "host_eve_profile",
-    "host_virus_relationship",
+    "source_taxonomy_projection",
+    "lineage_role_and_scope_preservation",
     "list_assemblies",
     "list_loci",
     "list_source_taxa",
-    "list_viral_lineages",
+    "literature_association_extraction",
     "literature_entity_discoverability",
+    "literature_entity_normalization",
     "literature_retrieval",
     "locus_detail",
-    "locus_inclusion_provenance",
     "multi_result_structured_envelope",
     "natural_hybrid_decomposition",
     "natural_literature_routing",
     "natural_structured_planning",
-    "public_assertion_evidence",
     "refusal_before_downstream_execution",
-    "safe_methods_and_limitations_routing",
-    "self_contained_question_context",
+    "relation_contract",
+    "release_represented_source_scope",
     "structured_anchor_resolution",
-    "viral_lineage_distribution",
 ]
 type CapabilityStatus = Literal[
     "supported_now",
-    "requires_natural_structured_planning",
-    "requires_natural_literature_routing",
-    "requires_new_intent",
-    "requires_composite_plan",
-    "requires_natural_hybrid_decomposition",
-    "future_only",
+    "requires_relation_contract",
     "unsupported_by_design",
 ]
 
@@ -125,6 +116,12 @@ _FAKE_ALL_A_LOCUS = (
     "locus:eve:v1:sha256:aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
 )
 _MECHANICAL_HYBRID_PHRASE = ". and explain the literature"
+_EXPLANATORY_QUESTION_RE = re.compile(
+    r"(?:\bhow\b|\bwhy\b|\bmethods?\b|\bevidence\s+supports?\b|\blimitations?\b|"
+    r"\buncertaint(?:y|ies)\b|\binterpret(?:ation|ed|ing)\b)",
+    re.IGNORECASE,
+)
+_REQUIRED_RELATION_CLASSES = ("Transferred gene", "Integrated virus")
 _ENTITY_TYPES: dict[EntitySlot, RequiredEntityType] = {
     "ASSEMBLY_A": "assembly",
     "ASSEMBLY_B": "assembly",
@@ -146,20 +143,23 @@ _PREREGISTERED_METADATA: dict[
 _PREREGISTERED_RECORD_SHA256: dict[str, str] = {}
 _MISSING_CAPABILITIES: frozenset[str] = frozenset(
     {
-        "assembly_eve_profile",
+        "association_projection",
+        "complete_paginated_relation_projection",
         "composite_structured_plan",
+        "corpus_source_reported_scope",
+        "cross_source_association_alignment",
+        "relation_class_assertion",
         "explicit_unsupported_boundary",
-        "host_eve_profile",
-        "host_virus_relationship",
-        "list_viral_lineages",
-        "locus_inclusion_provenance",
+        "source_taxonomy_projection",
+        "lineage_role_and_scope_preservation",
+        "literature_association_extraction",
+        "literature_entity_normalization",
         "multi_result_structured_envelope",
         "natural_hybrid_decomposition",
         "natural_literature_routing",
         "natural_structured_planning",
-        "safe_methods_and_limitations_routing",
-        "self_contained_question_context",
-        "viral_lineage_distribution",
+        "relation_contract",
+        "release_represented_source_scope",
     }
 )
 
@@ -214,6 +214,111 @@ class ScientificQuestionTemplate(StrictFrozenSchema):
             raise ValueError("scientific templates cannot contain the fake all-a locus key")
         if _MECHANICAL_HYBRID_PHRASE in self.question_text_template.casefold():
             raise ValueError("scientific templates cannot use the mechanical Hybrid suffix")
+        if self.family != "unsupported":
+            if _EXPLANATORY_QUESTION_RE.search(self.question_text_template):
+                raise ValueError("answerable association questions cannot request explanations")
+            if any(
+                relation_class not in self.question_text_template
+                for relation_class in _REQUIRED_RELATION_CLASSES
+            ):
+                raise ValueError("answerable questions must name both relation classes")
+            normalized_question = self.question_text_template.casefold()
+            if (
+                "viral lineage" not in normalized_question
+                and "viral-lineage" not in normalized_question
+                and "{viral_lineage_" not in normalized_question
+                and "{extended_lineage_" not in normalized_question
+            ):
+                raise ValueError("answerable questions must retain the viral-lineage dimension")
+            required_relation_capabilities = {
+                "association_projection",
+                "relation_class_assertion",
+                "lineage_role_and_scope_preservation",
+                "relation_contract",
+            }
+            if not required_relation_capabilities.issubset(self.required_capabilities):
+                raise ValueError("answerable questions must declare every relation-class boundary")
+            if "has not approved Transferred gene or Integrated virus" not in self.authoring_notes:
+                raise ValueError("answerable question note must state unapproved relation classes")
+            if "Integration, Viral contig, or HCVR" not in self.authoring_notes:
+                raise ValueError("answerable question note must forbid source-label class mapping")
+            outputs = set(self.expected_output_types)
+            if not {"forbidden_claims", "required_limitations"}.issubset(outputs):
+                raise ValueError("answerable questions must retain safety-scoring outputs")
+            capabilities = set(self.required_capabilities)
+            existing_query_primitives = {
+                "list_assemblies",
+                "list_loci",
+                "list_source_taxa",
+                "locus_detail",
+            }
+            if self.family in {"structured", "hybrid"} and any(
+                marker in normalized_question
+                for marker in ("host species", "host-species", "host taxonomic")
+            ):
+                raise ValueError("structured wording must preserve assembly-source semantics")
+            if self.family in {"structured", "hybrid"} and not capabilities.intersection(
+                existing_query_primitives
+            ):
+                raise ValueError("structured evidence must reuse an existing query primitive")
+            if self.family == "literature" and capabilities.intersection(
+                existing_query_primitives
+            ):
+                raise ValueError("literature-only questions cannot require structured queries")
+            if self.family == "structured" and outputs & {
+                "source_reported_association_set",
+                "cross_source_association_set",
+            }:
+                raise ValueError("structured questions cannot contain literature association sets")
+            if self.family == "structured":
+                if "release_represented_source_scope" not in capabilities:
+                    raise ValueError("structured questions require exact release source scope")
+                if "corpus_source_reported_scope" in capabilities:
+                    raise ValueError("structured questions cannot require corpus-only scope")
+                if "assembly-source taxon is not an ancient or modern host" not in self.authoring_notes:
+                    raise ValueError("structured question note must preserve source-taxon semantics")
+            elif self.family == "literature":
+                if "source_reported_association_set" not in outputs or any(
+                    output.startswith("exact_") for output in outputs
+                ) or "cross_source_association_set" in outputs:
+                    raise ValueError("literature questions require only source-reported associations")
+                if any(
+                    marker in normalized_question
+                    for marker in (
+                        "both sources",
+                        "cross-source",
+                        "datasetrelease",
+                        "exact",
+                        "literature-only",
+                        "selected release",
+                        "structured-only",
+                    )
+                ):
+                    raise ValueError("literature questions cannot imply structured or cross-source evidence")
+                if "corpus_source_reported_scope" not in capabilities:
+                    raise ValueError("literature questions require permitted-corpus source scope")
+                if "release_represented_source_scope" in capabilities:
+                    raise ValueError("literature questions cannot depend on DatasetRelease scope")
+                if "permitted-corpus source-reported host wording and provenance" not in self.authoring_notes:
+                    raise ValueError("literature question note must preserve source wording")
+            else:
+                if not {
+                    "cross_source_association_set",
+                    "exact_association_set",
+                    "source_reported_association_set",
+                }.issubset(outputs):
+                    raise ValueError("hybrid questions must preserve all three association sets")
+                if not {
+                    "corpus_source_reported_scope",
+                    "release_represented_source_scope",
+                }.issubset(capabilities):
+                    raise ValueError("hybrid questions require separate release and corpus scopes")
+                if "assembly-source taxon is not an ancient or modern host" not in self.authoring_notes:
+                    raise ValueError("hybrid question note must preserve source-taxon semantics")
+                if "must not overwrite structured values" not in self.authoring_notes:
+                    raise ValueError("hybrid question note must separate source-reported labels")
+            if self.capability_status != "requires_relation_contract":
+                raise ValueError("answerable association questions require the relation contract")
         if self.family == "unsupported":
             if self.capability_status != "unsupported_by_design":
                 raise ValueError("unsupported questions must be marked unsupported_by_design")
@@ -292,669 +397,705 @@ class _TemplateSpec:
     authoring_notes: str | None = None
 
 
-_PENDING_NOTE = (
-    "Pending authoring template only. Bind every entity slot to an approved release object, "
-    "instantiate the exact text, and obtain independent human review before conversion to an "
+_COMMON_PENDING_NOTE = (
+    "Pending association-only authoring template. The current repository has not approved "
+    "Transferred gene or Integrated virus as relation classes. Do not map Integration, Viral "
+    "contig, or HCVR source labels to either class. Preserve every viral-lineage binding's role "
+    "and exact-versus-descendant semantics. "
+)
+_STRUCTURED_NOTE = _COMMON_PENDING_NOTE + (
+    "Enumerate only represented source species and assemblies in the exact selected release; "
+    "this is not a complete biological descendant set. An assembly-source taxon is not an "
+    "ancient or modern host. Bind every entity slot and obtain independent human review before "
+    "conversion to an EvaluationQuestion."
+)
+_LITERATURE_NOTE = _COMMON_PENDING_NOTE + (
+    "Preserve permitted-corpus source-reported host wording and provenance. Literature-only "
+    "associations neither assert nor depend on DatasetRelease membership. Bind every entity slot "
+    "and obtain independent human review before conversion to an EvaluationQuestion."
+)
+_HYBRID_NOTE = _COMMON_PENDING_NOTE + (
+    "Enumerate structured taxa only as represented source species and assemblies in the exact "
+    "selected release; this is not a complete biological descendant set. An assembly-source "
+    "taxon is not an ancient or modern host. Preserve permitted-corpus source-reported wording "
+    "and provenance separately; source-reported labels must not overwrite structured values. "
+    "Bind every entity slot and obtain independent human review before conversion to an "
     "EvaluationQuestion."
 )
 _UNSUPPORTED_NOTE = (
-    "Pending unsupported-boundary template only. Human review must define the exact refusal "
-    "category and prohibited downstream stages; no answer, evidence, or approval is supplied."
+    "Pending association-boundary template only. Human review must define the exact refusal "
+    "category and prohibited downstream stages; no answer, evidence, or approval is supplied. "
+    "The current repository has not approved Transferred gene or Integrated virus as relation "
+    "classes, and Integration, Viral contig, or HCVR source labels must not be mapped to them."
 )
-_POLICY_CONTEXT_NOTE = (
-    "Pending template. The current blanket scope policy rejects wording inside this legitimate "
-    "methods or limitations question; a future typed safe-context rule is required before use."
+_COMMON_RELATION_CAPABILITIES: tuple[RequiredCapability, ...] = (
+    "association_projection",
+    "relation_class_assertion",
+    "lineage_role_and_scope_preservation",
+    "relation_contract",
 )
+
+
+def _structured_caps(*extra: RequiredCapability) -> tuple[RequiredCapability, ...]:
+    return (
+        *_COMMON_RELATION_CAPABILITIES,
+        "natural_structured_planning",
+        "release_represented_source_scope",
+        *extra,
+    )
 
 
 def _lit_caps(*extra: RequiredCapability) -> tuple[RequiredCapability, ...]:
-    return ("literature_retrieval", "natural_literature_routing", *extra)
+    return (
+        *_COMMON_RELATION_CAPABILITIES,
+        "corpus_source_reported_scope",
+        "literature_association_extraction",
+        "literature_entity_normalization",
+        "literature_retrieval",
+        "natural_literature_routing",
+        *extra,
+    )
 
 
 def _hybrid_caps(*structured: RequiredCapability) -> tuple[RequiredCapability, ...]:
     return (
+        *_COMMON_RELATION_CAPABILITIES,
+        "corpus_source_reported_scope",
+        "cross_source_association_alignment",
+        "literature_association_extraction",
+        "literature_entity_normalization",
         "literature_retrieval",
         "natural_hybrid_decomposition",
+        "release_represented_source_scope",
         "structured_anchor_resolution",
         *structured,
+    )
+
+
+def _structured_outputs(*extra: ExpectedOutputType) -> tuple[ExpectedOutputType, ...]:
+    return ("exact_association_set", "forbidden_claims", "required_limitations", *extra)
+
+
+def _literature_outputs() -> tuple[ExpectedOutputType, ...]:
+    return (
+        "forbidden_claims",
+        "required_documents",
+        "required_evidence_groups",
+        "required_limitations",
+        "source_reported_association_set",
+    )
+
+
+def _hybrid_outputs(*extra: ExpectedOutputType) -> tuple[ExpectedOutputType, ...]:
+    return (
+        "cross_source_association_set",
+        "exact_association_set",
+        "forbidden_claims",
+        "required_documents",
+        "required_evidence_groups",
+        "required_limitations",
+        "source_reported_association_set",
+        *extra,
     )
 
 
 _SPECS: tuple[_TemplateSpec, ...] = (
     _TemplateSpec(
         "HOST-S-01",
-        "What included EVE loci are recorded in assemblies assigned to {HOST_SPECIES_A}?",
-        "host_eve_profile",
-        ("exact_locus_set",),
-        ("list_loci", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "Which represented source species within {HOST_LINEAGE_A} have records classified as Transferred gene, and which have records classified as Integrated virus, grouped by viral lineage in the selected release?",
+        "source_taxon_association",
+        _structured_outputs("exact_source_species_set"),
+        _structured_caps("source_taxonomy_projection", "list_source_taxa"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-S-02",
-        "Which assemblies assigned to {HOST_LINEAGE_A} contain included EVE loci?",
-        "host_eve_profile",
-        ("exact_assembly_set",),
-        ("list_assemblies", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "For each represented source species within {HOST_LINEAGE_A}, which assemblies contain Transferred gene records and which contain Integrated virus records, grouped by viral lineage?",
+        "source_taxon_association",
+        _structured_outputs("exact_assembly_set", "exact_source_species_set"),
+        _structured_caps("source_taxonomy_projection", "list_assemblies"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-S-03",
-        "Which viral lineages are represented among included EVE loci in {HOST_LINEAGE_A}?",
-        "host_eve_profile",
-        ("exact_viral_lineage_set",),
-        ("list_viral_lineages", "natural_structured_planning"),
-        "requires_new_intent",
+        "For each represented source species within {HOST_LINEAGE_A}, which viral lineages are recorded for Transferred gene records and which are recorded for Integrated virus records?",
+        "source_taxon_association",
+        _structured_outputs("exact_source_species_set", "exact_viral_lineage_set"),
+        _structured_caps(
+            "complete_paginated_relation_projection",
+            "list_loci",
+            "source_taxonomy_projection",
+        ),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-S-04",
-        "What is the EVE profile of {HOST_SPECIES_A} in the selected release?",
-        "host_eve_profile",
-        ("exact_assembly_set", "exact_counts", "exact_locus_set", "exact_viral_lineage_set"),
-        (
-            "aggregate",
+        "Which exact association tuples link represented source species within {HOST_LINEAGE_A}, their assemblies and loci, the classes Transferred gene or Integrated virus, and their viral lineages in the selected release?",
+        "source_taxon_association",
+        _structured_outputs(
+            "exact_assembly_set",
+            "exact_locus_set",
+            "exact_source_species_set",
+            "exact_viral_lineage_set",
+        ),
+        _structured_caps(
             "composite_structured_plan",
-            "host_eve_profile",
+            "source_taxonomy_projection",
             "list_assemblies",
             "list_loci",
-            "list_viral_lineages",
-            "multi_result_structured_envelope",
-            "natural_structured_planning",
+            "complete_paginated_relation_projection",
         ),
-        "requires_composite_plan",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-L-01",
-        "How did the source studies identify EVE candidates reported for {HOST_LINEAGE_A}?",
-        "method_explanation",
-        ("required_documents", "required_evidence_groups", "required_methods"),
-        _lit_caps("safe_methods_and_limitations_routing"),
-        "requires_natural_literature_routing",
-        _POLICY_CONTEXT_NOTE,
+        "Which host species within {HOST_LINEAGE_A} does the permitted literature report with Transferred gene records, and which does it report with Integrated virus records, grouped by viral lineage?",
+        "source_taxon_association",
+        _literature_outputs(),
+        _lit_caps(),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-L-02",
-        "What evidence did the literature use to support the endogenous origin of EVE records in {HOST_LINEAGE_A}?",
-        "locus_evidence_profile",
-        ("required_documents", "required_evidence_groups"),
-        _lit_caps(),
-        "requires_natural_literature_routing",
+        "For host species within {HOST_LINEAGE_A}, which assemblies does the permitted literature associate with Transferred gene records and which with Integrated virus records, grouped by viral lineage?",
+        "source_taxon_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-L-03",
-        "What limitations do the source studies discuss when interpreting EVE records in {HOST_LINEAGE_A}?",
-        "interpretation_limitation",
-        ("required_documents", "required_evidence_groups", "required_limitations"),
+        "For each host species within {HOST_LINEAGE_A}, which viral lineages does the permitted literature associate with Transferred gene records and which with Integrated virus records?",
+        "source_taxon_association",
+        _literature_outputs(),
         _lit_caps(),
-        "requires_natural_literature_routing",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-L-04",
-        "How did the source literature classify the viral origins of EVE records reported in {HOST_LINEAGE_A}?",
-        "method_explanation",
-        ("required_documents", "required_evidence_groups", "required_methods"),
-        _lit_caps(),
-        "requires_natural_literature_routing",
+        "Which literature-reported association tuples link host species within {HOST_LINEAGE_A}, their named assemblies or regions, the classes Transferred gene or Integrated virus, and viral lineages?",
+        "source_taxon_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-H-01",
-        "What EVE loci are recorded in {HOST_SPECIES_A}, and what evidence supports their endogenous origin?",
-        "host_eve_profile",
-        ("exact_locus_set", "required_documents", "required_evidence_groups"),
-        _hybrid_caps("list_loci"),
-        "requires_natural_hybrid_decomposition",
+        "Which represented source species within {HOST_LINEAGE_A} have Transferred gene associations in both the selected release and the permitted literature, and which have Integrated virus associations in both, grouped by viral lineage?",
+        "source_taxon_association",
+        _hybrid_outputs("exact_source_species_set"),
+        _hybrid_caps("source_taxonomy_projection", "list_source_taxa"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-H-02",
-        "Which viral lineages are represented among EVE loci in {HOST_LINEAGE_A}, and how were those assignments made?",
-        "host_eve_profile",
-        (
-            "exact_viral_lineage_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_methods",
-        ),
-        _hybrid_caps("list_viral_lineages"),
-        "requires_natural_hybrid_decomposition",
+        "For represented source species within {HOST_LINEAGE_A}, which assemblies have Transferred gene associations in both sources and which have Integrated virus associations in both, grouped by viral lineage?",
+        "source_taxon_association",
+        _hybrid_outputs("exact_assembly_set", "exact_source_species_set"),
+        _hybrid_caps("source_taxonomy_projection", "list_assemblies"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-H-03",
-        "Which assemblies assigned to {HOST_LINEAGE_A} contain EVE loci, and what assembly-related limitations apply to those records?",
-        "host_eve_profile",
-        (
-            "exact_assembly_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_limitations",
+        "For each represented source species within {HOST_LINEAGE_A}, which viral lineages have Transferred gene associations in both sources and which have Integrated virus associations in both?",
+        "source_taxon_association",
+        _hybrid_outputs("exact_source_species_set", "exact_viral_lineage_set"),
+        _hybrid_caps(
+            "complete_paginated_relation_projection",
+            "list_loci",
+            "source_taxonomy_projection",
         ),
-        _hybrid_caps("list_assemblies"),
-        "requires_natural_hybrid_decomposition",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "HOST-H-04",
-        "What is the EVE profile of {HOST_SPECIES_A}, and how should those records be interpreted according to the source literature?",
-        "host_eve_profile",
-        (
+        "Which exact source-species, assembly, locus, relation-class, and viral-lineage association tuples are structured-only, literature-only, or present in both within {HOST_LINEAGE_A}, separating Transferred gene from Integrated virus?",
+        "source_taxon_association",
+        _hybrid_outputs(
             "exact_assembly_set",
-            "exact_counts",
             "exact_locus_set",
+            "exact_source_species_set",
             "exact_viral_lineage_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_limitations",
         ),
         _hybrid_caps(
             "composite_structured_plan",
-            "host_eve_profile",
+            "source_taxonomy_projection",
+            "list_assemblies",
+            "list_loci",
+            "complete_paginated_relation_projection",
             "multi_result_structured_envelope",
         ),
-        "requires_natural_hybrid_decomposition",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-S-01",
-        "In which assembly-source taxa are {VIRAL_LINEAGE_A}-related EVE loci recorded?",
-        "viral_lineage_distribution",
-        ("exact_source_taxon_set",),
-        ("list_source_taxa", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "Which release-represented assembly-source taxonomic units have records assigned to {VIRAL_LINEAGE_A}, separated into Transferred gene and Integrated virus records?",
+        "viral_lineage_association",
+        _structured_outputs("exact_source_taxon_set"),
+        _structured_caps("source_taxonomy_projection", "list_source_taxa"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-S-02",
-        "Which assemblies contain included EVE loci with affinity to {VIRAL_LINEAGE_A}?",
-        "viral_lineage_distribution",
-        ("exact_assembly_set",),
-        ("list_assemblies", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "Which release-represented source species have records assigned to {VIRAL_LINEAGE_A}, separated into Transferred gene and Integrated virus records?",
+        "viral_lineage_association",
+        _structured_outputs("exact_source_species_set"),
+        _structured_caps("source_taxonomy_projection", "list_source_taxa"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-S-03",
-        "How many distinct source taxa, assemblies, and EVE loci are represented for {VIRAL_LINEAGE_A}?",
-        "viral_lineage_distribution",
-        ("exact_counts",),
-        (
-            "aggregate",
-            "composite_structured_plan",
-            "multi_result_structured_envelope",
-            "natural_structured_planning",
-            "viral_lineage_distribution",
-        ),
-        "requires_composite_plan",
+        "For each release-represented source species associated with {VIRAL_LINEAGE_A}, which assemblies contain Transferred gene records and which contain Integrated virus records?",
+        "viral_lineage_association",
+        _structured_outputs("exact_assembly_set", "exact_source_species_set"),
+        _structured_caps("source_taxonomy_projection", "list_assemblies"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-S-04",
-        "Which exact EVE loci have supported affinity to {VIRAL_LINEAGE_A}?",
-        "viral_lineage_distribution",
-        ("exact_locus_set",),
-        ("list_loci", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "Which exact loci are assigned to {VIRAL_LINEAGE_A}, grouped by release-represented source species and assembly and separated into Transferred gene and Integrated virus records?",
+        "viral_lineage_association",
+        _structured_outputs("exact_assembly_set", "exact_locus_set", "exact_source_species_set"),
+        _structured_caps(
+            "composite_structured_plan",
+            "source_taxonomy_projection",
+            "list_assemblies",
+            "list_loci",
+            "multi_result_structured_envelope",
+        ),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-L-01",
-        "What evidence does the literature use to assign reported regions to {VIRAL_LINEAGE_A}?",
-        "method_explanation",
-        ("required_documents", "required_evidence_groups"),
+        "Which host taxonomic units does the permitted literature associate with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?",
+        "viral_lineage_association",
+        _literature_outputs(),
         _lit_caps(),
-        "requires_natural_literature_routing",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-L-02",
-        "How do the source studies distinguish {VIRAL_LINEAGE_A}-related signals from false-positive protein similarities?",
-        "method_explanation",
-        ("required_documents", "required_evidence_groups", "required_methods"),
+        "Which host species does the permitted literature associate with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?",
+        "viral_lineage_association",
+        _literature_outputs(),
         _lit_caps(),
-        "requires_natural_literature_routing",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-L-03",
-        "What taxonomic uncertainty or naming limitations apply to {VIRAL_LINEAGE_A} assignments?",
-        "interpretation_limitation",
-        ("required_documents", "required_evidence_groups", "required_limitations"),
-        _lit_caps(),
-        "requires_natural_literature_routing",
+        "For host species associated with {VIRAL_LINEAGE_A}, which assemblies does the permitted literature link to Transferred gene records and which to Integrated virus records?",
+        "viral_lineage_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-L-04",
-        "What limitations affect interpretation of the recorded host distribution of {VIRAL_LINEAGE_A}-related EVE records?",
-        "interpretation_limitation",
-        ("required_documents", "required_evidence_groups", "required_limitations"),
-        _lit_caps(),
-        "requires_natural_literature_routing",
+        "Which named loci or source regions does the permitted literature associate with {VIRAL_LINEAGE_A}, separated into Transferred gene and Integrated virus records?",
+        "viral_lineage_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-H-01",
-        "In which source taxa are {VIRAL_LINEAGE_A}-related EVE loci recorded, and how were those loci assigned to this viral lineage?",
-        "viral_lineage_distribution",
-        (
-            "exact_source_taxon_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_methods",
-        ),
-        _hybrid_caps("list_source_taxa"),
-        "requires_natural_hybrid_decomposition",
+        "Which release-represented assembly-source taxonomic units are also reported in the permitted literature with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?",
+        "viral_lineage_association",
+        _hybrid_outputs("exact_source_taxon_set"),
+        _hybrid_caps("source_taxonomy_projection", "list_source_taxa"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-H-02",
-        "Which assemblies contain {VIRAL_LINEAGE_A}-related EVE loci, and what evidence supports their endogenous status?",
-        "viral_lineage_distribution",
-        ("exact_assembly_set", "required_documents", "required_evidence_groups"),
-        _hybrid_caps("list_assemblies"),
-        "requires_natural_hybrid_decomposition",
+        "Which release-represented source species are also reported in the permitted literature with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?",
+        "viral_lineage_association",
+        _hybrid_outputs("exact_source_species_set"),
+        _hybrid_caps("source_taxonomy_projection", "list_source_taxa"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-H-03",
-        "What is the recorded distribution of {VIRAL_LINEAGE_A}-related EVE loci, and what limitations apply to interpreting that distribution?",
-        "viral_lineage_distribution",
-        (
-            "exact_assembly_set",
-            "exact_counts",
-            "exact_locus_set",
-            "exact_source_taxon_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_limitations",
-        ),
-        _hybrid_caps(
-            "composite_structured_plan",
-            "multi_result_structured_envelope",
-            "viral_lineage_distribution",
-        ),
-        "requires_natural_hybrid_decomposition",
+        "For release-represented source species associated with {VIRAL_LINEAGE_A}, which assemblies have Transferred gene associations in both sources and which have Integrated virus associations in both?",
+        "viral_lineage_association",
+        _hybrid_outputs("exact_assembly_set", "exact_source_species_set"),
+        _hybrid_caps("source_taxonomy_projection", "list_assemblies"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "VIRUS-H-04",
-        "Which exact loci have affinity to {EXTENDED_LINEAGE_A}, and what evidence supports the use of this extended-lineage label?",
-        "viral_lineage_distribution",
-        ("exact_locus_set", "required_documents", "required_evidence_groups"),
+        "Which exact release loci assigned to {VIRAL_LINEAGE_A} have matching literature-reported Transferred gene associations, and which have matching Integrated virus associations?",
+        "viral_lineage_association",
+        _hybrid_outputs("exact_locus_set"),
         _hybrid_caps("list_loci"),
-        "requires_natural_hybrid_decomposition",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-S-01",
-        "Which {HOST_LINEAGE_A} assemblies contain {VIRAL_LINEAGE_A}-related EVE loci?",
-        "host_virus_relationship",
-        ("exact_assembly_set",),
-        ("list_assemblies", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "Which release-represented source species within {HOST_LINEAGE_A} have Transferred gene associations with {VIRAL_LINEAGE_A}, and which have Integrated virus associations?",
+        "source_viral_lineage_association",
+        _structured_outputs("exact_source_species_set"),
+        _structured_caps("source_taxonomy_projection", "list_source_taxa"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-S-02",
-        "Which EVE loci support the recorded association between {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}?",
-        "host_virus_relationship",
-        ("exact_locus_set",),
-        ("list_loci", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "For release-represented source species within {HOST_LINEAGE_A} associated with {VIRAL_LINEAGE_A}, which assemblies contain Transferred gene records and which contain Integrated virus records?",
+        "source_viral_lineage_association",
+        _structured_outputs("exact_assembly_set", "exact_source_species_set"),
+        _structured_caps("source_taxonomy_projection", "list_assemblies"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-S-03",
-        "How many distinct loci and assemblies support the recorded association between {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}?",
-        "host_virus_relationship",
-        ("exact_counts",),
-        (
-            "aggregate",
-            "composite_structured_plan",
-            "host_virus_relationship",
-            "multi_result_structured_envelope",
-            "natural_structured_planning",
-        ),
-        "requires_composite_plan",
+        "Which exact loci define the recorded association between {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}, separated by represented source species, assembly, Transferred gene, and Integrated virus?",
+        "source_viral_lineage_association",
+        _structured_outputs("exact_assembly_set", "exact_locus_set", "exact_source_species_set"),
+        _structured_caps("source_taxonomy_projection", "list_loci"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-S-04",
-        "What are the exact coordinates and assembly-source taxa of the loci supporting this association?",
-        "host_virus_relationship",
-        ("exact_coordinates", "exact_locus_set", "exact_source_taxon_set"),
-        ("list_loci", "natural_structured_planning", "self_contained_question_context"),
-        "future_only",
-        (
-            "Pending and not self-contained: 'this association' cannot rely on conversation "
-            "memory. Human authoring must revise or explicitly instantiate the relationship "
-            "before approval."
+        "Which represented source species, assemblies, loci, Transferred gene records, and Integrated virus records are associated with {VIRAL_LINEAGE_A} within {HOST_LINEAGE_A}, and which are associated with {VIRAL_LINEAGE_B}?",
+        "source_viral_lineage_association",
+        _structured_outputs(
+            "exact_assembly_set",
+            "exact_locus_set",
+            "exact_source_species_set",
+            "exact_viral_lineage_set",
         ),
+        _structured_caps(
+            "composite_structured_plan",
+            "source_taxonomy_projection",
+            "list_assemblies",
+            "list_loci",
+            "multi_result_structured_envelope",
+        ),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-L-01",
-        "How did the source studies detect candidate {VIRAL_LINEAGE_A}-related regions in {HOST_LINEAGE_A} assemblies?",
-        "method_explanation",
-        ("required_documents", "required_evidence_groups", "required_methods"),
+        "Which species within {HOST_LINEAGE_A} does the permitted literature associate with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?",
+        "source_viral_lineage_association",
+        _literature_outputs(),
         _lit_caps(),
-        "requires_natural_literature_routing",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-L-02",
-        "What evidence supports the endogenous origin of {VIRAL_LINEAGE_A}-related regions reported from {HOST_LINEAGE_A} assemblies?",
-        "locus_evidence_profile",
-        ("required_documents", "required_evidence_groups"),
-        _lit_caps(),
-        "requires_natural_literature_routing",
+        "For species within {HOST_LINEAGE_A} associated with {VIRAL_LINEAGE_A}, which assemblies does the permitted literature link to Transferred gene records and which to Integrated virus records?",
+        "source_viral_lineage_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-L-03",
-        "What alternative explanations or uncertainties could affect the recorded association between {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}?",
-        "interpretation_limitation",
-        ("required_documents", "required_evidence_groups", "required_limitations"),
-        _lit_caps(),
-        "requires_natural_literature_routing",
+        "Which named loci or source regions does the permitted literature associate with {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}, separated into Transferred gene and Integrated virus records?",
+        "source_viral_lineage_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-L-04",
-        "Why does the recorded association between {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A} not by itself demonstrate modern infection or host–virus co-divergence?",
-        "interpretation_limitation",
-        (
-            "forbidden_claims",
-            "required_documents",
-            "required_evidence_groups",
-            "required_limitations",
-        ),
-        _lit_caps("safe_methods_and_limitations_routing"),
-        "requires_natural_literature_routing",
-        _POLICY_CONTEXT_NOTE,
+        "Which literature-reported host species, assemblies, regions, Transferred gene records, and Integrated virus records are associated with {VIRAL_LINEAGE_A} within {HOST_LINEAGE_A}, and which are associated with {VIRAL_LINEAGE_B}?",
+        "source_viral_lineage_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-H-01",
-        "Which {HOST_LINEAGE_A} assemblies contain {VIRAL_LINEAGE_A}-related EVE loci, and how were those loci detected?",
-        "host_virus_relationship",
-        (
-            "exact_assembly_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_methods",
-        ),
-        _hybrid_caps("list_assemblies", "safe_methods_and_limitations_routing"),
-        "requires_natural_hybrid_decomposition",
-        _POLICY_CONTEXT_NOTE,
+        "Which release-represented source species within {HOST_LINEAGE_A} are also reported in the permitted literature with Transferred gene associations to {VIRAL_LINEAGE_A}, and which with Integrated virus associations?",
+        "source_viral_lineage_association",
+        _hybrid_outputs("exact_source_species_set"),
+        _hybrid_caps("source_taxonomy_projection", "list_source_taxa"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-H-02",
-        "How many EVE loci support the recorded {HOST_LINEAGE_A}–{VIRAL_LINEAGE_A} association, and why should this count not be interpreted as the number of independent integration events?",
-        "host_virus_relationship",
-        (
-            "exact_counts",
-            "forbidden_claims",
-            "required_documents",
-            "required_evidence_groups",
-            "required_limitations",
-        ),
-        _hybrid_caps("aggregate", "safe_methods_and_limitations_routing"),
-        "requires_natural_hybrid_decomposition",
-        _POLICY_CONTEXT_NOTE,
+        "For release-represented source species within {HOST_LINEAGE_A} associated with {VIRAL_LINEAGE_A}, which assemblies have Transferred gene associations in both sources and which have Integrated virus associations in both?",
+        "source_viral_lineage_association",
+        _hybrid_outputs("exact_assembly_set", "exact_source_species_set"),
+        _hybrid_caps("source_taxonomy_projection", "list_assemblies"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-H-03",
-        "Which records support the {HOST_LINEAGE_A}–{VIRAL_LINEAGE_A} association, and what evidence supports their viral-lineage assignments?",
-        "host_virus_relationship",
-        (
-            "exact_locus_set",
-            "public_assertion_set",
-            "required_documents",
-            "required_evidence_groups",
-        ),
-        _hybrid_caps("list_loci"),
-        "requires_natural_hybrid_decomposition",
+        "Which loci link {HOST_LINEAGE_A} to {VIRAL_LINEAGE_A} in structured records and permitted literature, separated by represented source species, assembly, Transferred gene, and Integrated virus?",
+        "source_viral_lineage_association",
+        _hybrid_outputs("exact_assembly_set", "exact_locus_set", "exact_source_species_set"),
+        _hybrid_caps("source_taxonomy_projection", "list_loci"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "REL-H-04",
-        "Summarize the recorded association between {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}, including the exact records, supporting literature, and major interpretation limits.",
-        "host_virus_relationship",
-        (
+        "Which represented source species, assemblies, loci, Transferred gene records, and Integrated virus records occur across the structured and literature sources for {VIRAL_LINEAGE_A} within {HOST_LINEAGE_A}, and which occur for {VIRAL_LINEAGE_B}?",
+        "source_viral_lineage_association",
+        _hybrid_outputs(
+            "exact_assembly_set",
             "exact_locus_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_limitations",
+            "exact_source_species_set",
+            "exact_viral_lineage_set",
         ),
-        _hybrid_caps("list_loci"),
-        "requires_natural_hybrid_decomposition",
+        _hybrid_caps(
+            "composite_structured_plan",
+            "source_taxonomy_projection",
+            "list_assemblies",
+            "list_loci",
+            "multi_result_structured_envelope",
+        ),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-S-01",
-        "What EVE loci are recorded in assembly {ASSEMBLY_A}?",
-        "assembly_eve_profile",
-        ("exact_locus_set",),
-        ("list_loci", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "Which loci in assembly {ASSEMBLY_A} are classified as Transferred gene and which are classified as Integrated virus, grouped by viral lineage?",
+        "assembly_locus_association",
+        _structured_outputs("exact_locus_set", "exact_viral_lineage_set"),
+        _structured_caps("list_loci", "complete_paginated_relation_projection"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-S-02",
-        "Show the exact genomic location, detection calls, and public assertions for locus {LOCUS_A}.",
-        "locus_evidence_profile",
-        ("detection_call_set", "exact_coordinates", "public_assertion_set"),
-        ("locus_detail", "natural_structured_planning"),
-        "requires_natural_structured_planning",
+        "Which represented source species, assembly, locus identity, and viral lineage are recorded for locus {LOCUS_A}, including whether its relation class is Transferred gene or Integrated virus?",
+        "assembly_locus_association",
+        _structured_outputs(
+            "exact_assembly_set",
+            "exact_locus_set",
+            "exact_source_species_set",
+            "exact_viral_lineage_set",
+        ),
+        _structured_caps("locus_detail"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-S-03",
-        "Which viral-lineage affinities are represented among the EVE loci in assembly {ASSEMBLY_A}?",
-        "assembly_eve_profile",
-        ("exact_viral_lineage_set",),
-        ("list_viral_lineages", "natural_structured_planning"),
-        "requires_new_intent",
+        "Which loci in assembly {ASSEMBLY_A} are assigned to {VIRAL_LINEAGE_A} as Transferred gene records and which as Integrated virus records?",
+        "assembly_locus_association",
+        _structured_outputs("exact_locus_set"),
+        _structured_caps("list_loci"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-S-04",
-        "Which structured evidence items and source locators are linked to locus {LOCUS_A}?",
-        "locus_evidence_profile",
-        ("public_assertion_set", "structured_evidence_set"),
-        ("locus_detail", "natural_structured_planning", "public_assertion_evidence"),
-        "requires_natural_structured_planning",
-        (
-            "Pending template. Gold must be limited to supporting evidence selected through "
-            "public assertion membership unless a broader evidence intent is separately approved."
+        "Which represented source species, assemblies, relation classes, and viral lineages are recorded for {LOCUS_A}, {LOCUS_B}, and {LOCUS_C}, separating Transferred gene from Integrated virus?",
+        "assembly_locus_association",
+        _structured_outputs(
+            "exact_assembly_set",
+            "exact_locus_set",
+            "exact_source_species_set",
+            "exact_viral_lineage_set",
         ),
+        _structured_caps(
+            "composite_structured_plan",
+            "locus_detail",
+            "multi_result_structured_envelope",
+        ),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-L-01",
-        "How did the source study define the detection criteria used for records such as locus {LOCUS_A}?",
-        "method_explanation",
-        ("required_documents", "required_evidence_groups", "required_methods"),
+        "Which regions in assembly {ASSEMBLY_A} does the permitted literature report as Transferred gene, and which does it report as Integrated virus, grouped by viral lineage?",
+        "assembly_locus_association",
+        _literature_outputs(),
         _lit_caps("literature_entity_discoverability"),
-        "requires_natural_literature_routing",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-L-02",
-        "What methods were used to evaluate host-genomic flanks around reported EVE loci?",
-        "method_explanation",
-        ("required_documents", "required_evidence_groups", "required_methods"),
-        _lit_caps(),
-        "requires_natural_literature_routing",
+        "Which host species and viral lineages does the permitted literature associate with named regions in assembly {ASSEMBLY_A}, separated into Transferred gene and Integrated virus records?",
+        "assembly_locus_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-L-03",
-        "What assembly or contig limitations could affect interpretation of locus {LOCUS_A}?",
-        "interpretation_limitation",
-        ("required_documents", "required_evidence_groups", "required_limitations"),
+        "Which named regions in {HOST_SPECIES_A} does the permitted literature report as Transferred gene and which as Integrated virus, grouped by assembly and viral lineage?",
+        "assembly_locus_association",
+        _literature_outputs(),
         _lit_caps("literature_entity_discoverability"),
-        "requires_natural_literature_routing",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-L-04",
-        "What evidence did the source literature use to distinguish integrated regions from viral contigs?",
-        "method_explanation",
-        ("required_documents", "required_evidence_groups", "required_methods"),
-        _lit_caps(),
-        "requires_natural_literature_routing",
+        "Which regions in assembly {ASSEMBLY_A} does the permitted literature associate with {VIRAL_LINEAGE_A} as Transferred gene records and which as Integrated virus records?",
+        "assembly_locus_association",
+        _literature_outputs(),
+        _lit_caps("literature_entity_discoverability"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-H-01",
-        "Show locus {LOCUS_A} and explain what evidence supports its endogenous origin.",
-        "locus_evidence_profile",
-        (
-            "exact_coordinates",
-            "public_assertion_set",
-            "required_documents",
-            "required_evidence_groups",
+        "Which source-species, assembly, relation-class, and viral-lineage association for locus {LOCUS_A} is present in both sources, including whether the class is Transferred gene or Integrated virus?",
+        "assembly_locus_association",
+        _hybrid_outputs(
+            "exact_assembly_set",
+            "exact_locus_set",
+            "exact_source_species_set",
+            "exact_viral_lineage_set",
         ),
         _hybrid_caps("locus_detail"),
-        "requires_natural_hybrid_decomposition",
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-H-02",
-        "What EVE profile is recorded for assembly {ASSEMBLY_A}, and how were those records identified?",
-        "assembly_eve_profile",
-        (
-            "exact_locus_set",
-            "exact_viral_lineage_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_methods",
-        ),
-        _hybrid_caps(
-            "assembly_eve_profile",
-            "composite_structured_plan",
-            "list_loci",
-            "list_viral_lineages",
-            "multi_result_structured_envelope",
-        ),
-        "requires_natural_hybrid_decomposition",
+        "Which locus-level associations in assembly {ASSEMBLY_A} are present in both sources, separated into Transferred gene and Integrated virus records and grouped by viral lineage?",
+        "assembly_locus_association",
+        _hybrid_outputs("exact_assembly_set", "exact_locus_set", "exact_viral_lineage_set"),
+        _hybrid_caps("list_loci", "complete_paginated_relation_projection"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-H-03",
-        "Why was locus {LOCUS_A} included in this release, and what literature supports its viral-lineage assignment?",
-        "locus_evidence_profile",
-        (
-            "public_assertion_set",
-            "required_documents",
-            "required_evidence_groups",
-            "structured_evidence_set",
-        ),
-        _hybrid_caps("locus_detail", "locus_inclusion_provenance"),
-        "requires_natural_hybrid_decomposition",
+        "Which Transferred gene and Integrated virus associations in assembly {ASSEMBLY_A} are structured-only, literature-only, or present in both, grouped by locus and viral lineage?",
+        "assembly_locus_association",
+        _hybrid_outputs("exact_assembly_set", "exact_locus_set", "exact_viral_lineage_set"),
+        _hybrid_caps("list_loci", "complete_paginated_relation_projection"),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "RECORD-H-04",
-        "What uncertainties remain for locus {LOCUS_C}, considering both its structured assertions and the limitations described in the literature?",
-        "locus_evidence_profile",
-        (
-            "public_assertion_set",
-            "required_documents",
-            "required_evidence_groups",
-            "required_limitations",
+        "Which represented source species, loci, viral lineages, Transferred gene records, and Integrated virus records are associated with assembly {ASSEMBLY_A}, and which are associated with assembly {ASSEMBLY_B}, with cross-source presence retained?",
+        "assembly_locus_association",
+        _hybrid_outputs(
+            "exact_assembly_set",
+            "exact_locus_set",
+            "exact_source_species_set",
+            "exact_viral_lineage_set",
         ),
-        _hybrid_caps("locus_detail"),
-        "requires_natural_hybrid_decomposition",
+        _hybrid_caps(
+            "composite_structured_plan",
+            "list_loci",
+            "complete_paginated_relation_projection",
+            "multi_result_structured_envelope",
+        ),
+        "requires_relation_contract",
     ),
     _TemplateSpec(
         "UNSUP-01",
-        "Which host lineage has the highest prevalence of {VIRAL_LINEAGE_A}-related EVEs?",
-        "unsupported_inference",
+        "Which host taxonomic unit has the highest prevalence of {VIRAL_LINEAGE_A}-related records?",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-02",
-        "Which species definitely lacks {VIRAL_LINEAGE_A}-related EVEs?",
-        "unsupported_inference",
+        "Which species definitely has no association with {VIRAL_LINEAGE_A}?",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
         ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-03",
-        "Prove that {VIRAL_LINEAGE_A} infected modern members of {HOST_LINEAGE_A}.",
-        "unsupported_inference",
+        "Which modern host species are currently infected by {VIRAL_LINEAGE_A} because an EVE association is recorded?",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-04",
-        "Do the recorded EVE loci represent the same number of independent integration events?",
-        "unsupported_inference",
+        "Which exact independent integration event is represented by each recorded EVE locus?",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-05",
-        "Prove host–virus co-divergence between {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}.",
-        "unsupported_inference",
+        "Which pairs of host and viral lineages have co-diverged because matching EVE associations are recorded?",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-06",
-        "Determine the exact date when locus {LOCUS_A} integrated into the host genome.",
-        "unsupported_inference",
+        "Classify every record as either Transferred gene or Integrated virus even though neither relation class has been approved.",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
         ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-07",
-        "Is locus {LOCUS_A} transcriptionally active?",
-        "unsupported_inference",
+        "Treat every Integration source label as Integrated virus and every Viral contig source label as Transferred gene, then list the resulting host associations.",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
         ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-08",
-        "Does locus {LOCUS_A} provide an adaptive function to its host?",
-        "unsupported_inference",
+        "Treat every HCVR source label as Transferred gene or Integrated virus, then list the resulting host associations.",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
         ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-09",
-        "Which host lineage is most susceptible to infection by {VIRAL_LINEAGE_A}?",
-        "unsupported_inference",
+        "Merge study-defined, formal, and extended viral-lineage roles into one lineage and report one combined host association set.",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-10",
-        "Which screened-negative species contain no endogenous viral elements?",
-        "unsupported_inference",
+        "Assign locus {LOCUS_A} to {VIRAL_LINEAGE_A} from name similarity alone.",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-11",
-        "Run HMMER or BLAST on this new sequence and identify previously unknown EVEs.",
-        "unsupported_analysis",
+        "Because {HOST_SPECIES_A} has an association with {VIRAL_LINEAGE_A}, report the same association for every species within {HOST_LINEAGE_A}.",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-12",
-        "Build a phylogenetic tree and place locus {LOCUS_A} within it.",
-        "unsupported_analysis",
+        "Merge host-virus associations from unapproved or unversioned releases and corpora into the selected release.",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-13",
-        "Search the live web for additional evidence that is not present in the approved corpus.",
-        "unsupported_analysis",
+        "Treat the first page or a truncated result as the complete host-species, assembly, and locus association set.",
+        "unsupported_association_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-14",
-        "Estimate the global natural distribution of {VIRAL_LINEAGE_A}-related EVEs from this pilot release.",
-        "unsupported_inference",
+        "Search the live web for additional host-virus associations outside the approved corpus.",
+        "unsupported_operational_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
         ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-15",
-        "Execute an arbitrary SQL query across all database tables.",
-        "unsupported_analysis",
+        "Run BLAST or HMMER on a new sequence and add the inferred host-virus association to the selected release.",
+        "unsupported_operational_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
-        ("refusal_before_downstream_execution",),
+        ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
     ),
     _TemplateSpec(
         "UNSUP-16",
-        "Determine with certainty the ancestral host species in which locus {LOCUS_A} first originated.",
-        "unsupported_inference",
+        "Execute an arbitrary SQL query across all database tables to construct a new host-virus association.",
+        "unsupported_operational_boundary",
         ("forbidden_claims", "prohibited_downstream_stages", "refusal_category"),
         ("explicit_unsupported_boundary", "refusal_before_downstream_execution"),
         "unsupported_by_design",
@@ -972,20 +1113,27 @@ def _family_for(template_id: str) -> ScientificQuestionFamily:
 def _task_for(template_id: str) -> ScientificTask:
     prefix = template_id.split("-")[0]
     return {
-        "HOST": "host_eve_profile",
-        "VIRUS": "viral_lineage_distribution",
-        "REL": "host_virus_relationship",
-        "RECORD": "assembly_locus_evidence",
+        "HOST": "source_taxon_association",
+        "VIRUS": "viral_lineage_association",
+        "REL": "source_viral_lineage_association",
+        "RECORD": "assembly_locus_association",
         "UNSUP": "unsupported_scientific_or_operational_boundary",
     }[prefix]  # type: ignore[return-value]
 
 
 def _template_payload(spec: _TemplateSpec) -> dict[str, object]:
     slots = tuple(sorted(set(_PLACEHOLDER_RE.findall(spec.question_text_template))))
+    family = _family_for(spec.template_id)
+    default_note = {
+        "structured": _STRUCTURED_NOTE,
+        "literature": _LITERATURE_NOTE,
+        "hybrid": _HYBRID_NOTE,
+        "unsupported": _UNSUPPORTED_NOTE,
+    }[family]
     return {
         "template_schema_version": "rag-value-scientific-question-template-v1",
         "template_id": spec.template_id,
-        "family": _family_for(spec.template_id),
+        "family": family,
         "scientific_task": _task_for(spec.template_id),
         "scientific_intent": spec.scientific_intent,
         "question_text_template": spec.question_text_template,
@@ -995,12 +1143,7 @@ def _template_payload(spec: _TemplateSpec) -> dict[str, object]:
         "capability_status": spec.capability_status,
         "review_status": "pending",
         "gold": None,
-        "authoring_notes": spec.authoring_notes
-        or (
-            _UNSUPPORTED_NOTE
-            if spec.capability_status == "unsupported_by_design"
-            else _PENDING_NOTE
-        ),
+        "authoring_notes": spec.authoring_notes or default_note,
     }
 
 
@@ -1053,10 +1196,10 @@ def validate_scientific_question_templates(
     ):
         raise ScientificTemplateSetError("scientific families must contain 16 templates each")
     expected_tasks = {
-        "host_eve_profile": 12,
-        "viral_lineage_distribution": 12,
-        "host_virus_relationship": 12,
-        "assembly_locus_evidence": 12,
+        "source_taxon_association": 12,
+        "viral_lineage_association": 12,
+        "source_viral_lineage_association": 12,
+        "assembly_locus_association": 12,
         "unsupported_scientific_or_operational_boundary": 16,
     }
     if Counter(value.scientific_task for value in values) != Counter(expected_tasks):
