@@ -8,15 +8,22 @@ production capability gates and separately approved human annotations.
 from __future__ import annotations
 
 import hashlib
+import json
 import re
 from collections.abc import Sequence
-from typing import Annotated, Literal, Self
+from typing import Annotated, Literal, Self, cast
 
-from pydantic import AfterValidator, Field, field_validator, model_validator
+from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
 
 from eve_relation_rag.domain.keys import (
     is_versioned_assembly_accession,
     is_versioned_contig_accession,
+)
+from eve_relation_rag.experiments.rag_value_ablation.associations import (
+    CrossSourceAssociation,
+    ExactAssociation,
+    SourceReportedAssociation,
+    validate_canonical_association_set,
 )
 from eve_relation_rag.literature.contracts import (
     EMBEDDING_MODEL_KEY,
@@ -76,6 +83,7 @@ type DependencyKind = Literal[
     "llm_provider",
 ]
 type ExecutionStage = Literal[
+    "request_validation",
     "context_construction",
     "structured_planning",
     "release_binding",
@@ -97,6 +105,24 @@ _CITATION_ID_RE = re.compile(r"^[DR][1-9][0-9]*$")
 _RAW_SEGMENT_ID_RE = re.compile(r"^R[1-9][0-9]*$")
 _COMMIT_RE = re.compile(r"^[0-9a-f]{40}$")
 _REVISION_RE = re.compile(r"^[0-9a-f]{40,64}$")
+_SENSITIVE_FAILURE_PATTERNS = (
+    re.compile(
+        r"(?i)\b(?:postgres(?:ql)?|mysql|mariadb|mongodb(?:\+srv)?|redis|"
+        r"amqps?|cockroachdb)(?:\+[a-z0-9_.-]+)?://\S+"
+    ),
+    re.compile(r"(?i)\b[a-z][a-z0-9+.-]{1,31}://[^\s/@:]+:[^@\s/]+@"),
+    re.compile(r"(?i)\b(?:authorization|proxy-authorization)\s*[:=]"),
+    re.compile(r"(?i)\bbearer\s+[a-z0-9._~+/=-]{8,}"),
+    re.compile(
+        r"(?i)\b(?:api[_-]?key|access[_-]?token|refresh[_-]?token|password|"
+        r"passwd|pwd|secret|dsn|database[_-]?url|cursor[_-]?hmac[_-]?secret)"
+        r"\s*[:=]\s*\S+"
+    ),
+    re.compile(r"-----BEGIN (?:[A-Z0-9 ]+ )?PRIVATE KEY-----"),
+    re.compile(r"\beyJ[a-zA-Z0-9_-]{8,}\.[a-zA-Z0-9_-]{8,}\.[a-zA-Z0-9_-]{8,}\b"),
+    re.compile(r"\b(?:sk|rk)-(?:live-|test-|proj-)?[a-zA-Z0-9_-]{12,}\b"),
+    re.compile(r"\bAKIA[A-Z0-9]{16}\b"),
+)
 
 
 def _validate_assembly_accession(value: str) -> str:
@@ -164,9 +190,14 @@ class StructuredGold(StrictFrozenSchema):
     locus_keys: tuple[StableToken, ...] | None = None
     coordinates: tuple[CoordinateGold, ...] | None = None
     detection_call_keys: tuple[StableToken, ...] | None = None
+    exact_association_set: tuple[ExactAssociation, ...] | None = None
+    relation_contract_key: StableToken | None = None
+    relation_contract_sha256: Sha256 | None = None
+    relation_assertion_manifest_sha256: Sha256 | None = None
     release_key: StableToken
     release_manifest_sha256: Sha256
     required_limitation_codes: tuple[StableToken, ...] = ()
+    forbidden_claims: tuple[NonEmptyText, ...] = ()
 
     @field_validator(
         "record_keys",
@@ -175,6 +206,7 @@ class StructuredGold(StrictFrozenSchema):
         "locus_keys",
         "detection_call_keys",
         "required_limitation_codes",
+        "forbidden_claims",
     )
     @classmethod
     def canonical_tokens(cls, values: tuple[str, ...] | None) -> tuple[str, ...] | None:
@@ -182,6 +214,16 @@ class StructuredGold(StrictFrozenSchema):
             return None
         if values != tuple(sorted(values)) or len(values) != len(set(values)):
             raise ValueError("structured gold collections must be sorted and unique")
+        return values
+
+    @field_validator("exact_association_set")
+    @classmethod
+    def canonical_associations(
+        cls, values: tuple[ExactAssociation, ...] | None
+    ) -> tuple[ExactAssociation, ...] | None:
+        if values is None:
+            return None
+        validate_canonical_association_set(values, association_kind="exact")
         return values
 
     @field_validator("coordinates")
@@ -208,13 +250,54 @@ class StructuredGold(StrictFrozenSchema):
             or self.locus_keys is not None
             or self.coordinates is not None
             or self.detection_call_keys is not None
+            or self.exact_association_set is not None
         )
         if not substantive:
             raise ValueError("structured gold requires at least one exact scored value")
+        if (self.relation_contract_key is None) != (
+            self.relation_contract_sha256 is None
+        ):
+            raise ValueError("relation contract key and checksum must be supplied together")
+        if (
+            self.relation_assertion_manifest_sha256 is not None
+            and self.relation_contract_key is None
+        ):
+            raise ValueError("relation assertions require a relation contract identity")
+        if self.exact_association_set is not None and (
+            self.relation_contract_key is None
+            or self.relation_assertion_manifest_sha256 is None
+        ):
+            raise ValueError(
+                "exact associations require approved relation contract and assertion identities"
+            )
+        if any(
+            association.relation_assertion_manifest_sha256
+            != self.relation_assertion_manifest_sha256
+            for association in self.exact_association_set or ()
+        ):
+            raise ValueError(
+                "each exact association must bind the Gold assertion manifest"
+            )
         return self
 
     @property
     def required_identifiers(self) -> frozenset[str]:
+        coordinate_identifiers = tuple(
+            coordinate.sequence_accession_version for coordinate in self.coordinates or ()
+        )
+        association_identifiers = tuple(
+            identifier
+            for association in self.exact_association_set or ()
+            for identifier in (
+                association.source_species.term_key,
+                association.source_species.snapshot_key,
+                association.assembly_accession_version,
+                association.locus_key,
+                association.relation_assertion_key,
+                association.viral_lineage.term_key,
+                association.viral_lineage.snapshot_key,
+            )
+        )
         return frozenset(
             (
                 *(self.record_keys or ()),
@@ -222,6 +305,9 @@ class StructuredGold(StrictFrozenSchema):
                 *(self.sequence_accession_versions or ()),
                 *(self.locus_keys or ()),
                 *(self.detection_call_keys or ()),
+                *coordinate_identifiers,
+                *association_identifiers,
+                *((self.relation_contract_key,) if self.relation_contract_key else ()),
                 self.release_key,
             )
         )
@@ -263,6 +349,10 @@ class LiteratureGold(StrictFrozenSchema):
     required_concepts: tuple[NonEmptyText, ...] = Field(min_length=1)
     required_limitations: tuple[NonEmptyText, ...] = ()
     forbidden_claims: tuple[NonEmptyText, ...] = ()
+    source_reported_association_set: tuple[SourceReportedAssociation, ...] | None = None
+    relation_contract_key: StableToken | None = None
+    relation_contract_sha256: Sha256 | None = None
+    relation_assertion_manifest_sha256: Sha256 | None = None
 
     @field_validator(
         "required_document_keys",
@@ -285,6 +375,16 @@ class LiteratureGold(StrictFrozenSchema):
             raise ValueError("evidence groups must be sorted by unique group_id")
         return values
 
+    @field_validator("source_reported_association_set")
+    @classmethod
+    def canonical_associations(
+        cls, values: tuple[SourceReportedAssociation, ...] | None
+    ) -> tuple[SourceReportedAssociation, ...] | None:
+        if values is None:
+            return None
+        validate_canonical_association_set(values, association_kind="source_reported")
+        return values
+
     @model_validator(mode="after")
     def validate_group_membership(self) -> Self:
         seen: set[str] = set()
@@ -298,6 +398,40 @@ class LiteratureGold(StrictFrozenSchema):
         group_documents = {group.required_document_key for group in self.evidence_groups}
         if not group_documents <= set(self.required_document_keys):
             raise ValueError("evidence-group documents must be required documents")
+        if (self.relation_contract_key is None) != (
+            self.relation_contract_sha256 is None
+        ):
+            raise ValueError("relation contract key and checksum must be supplied together")
+        if (
+            self.relation_assertion_manifest_sha256 is not None
+            and self.relation_contract_key is None
+        ):
+            raise ValueError("relation assertions require a relation contract identity")
+        if (
+            self.source_reported_association_set is not None
+            and (
+                self.relation_contract_key is None
+                or self.relation_assertion_manifest_sha256 is None
+            )
+        ):
+            raise ValueError(
+                "source-reported associations require approved relation contract and assertion "
+                "identities"
+            )
+        if any(
+            association.relation_assertion_manifest_sha256
+            != self.relation_assertion_manifest_sha256
+            for association in self.source_reported_association_set or ()
+        ):
+            raise ValueError(
+                "each source-reported association must bind the Gold assertion manifest"
+            )
+        known_groups = {group.group_id for group in self.evidence_groups}
+        if any(
+            not set(association.evidence_group_ids) <= known_groups
+            for association in self.source_reported_association_set or ()
+        ):
+            raise ValueError("source-reported association names an unknown evidence group")
         return self
 
 
@@ -310,6 +444,7 @@ class HybridGold(StrictFrozenSchema):
     required_relationships: tuple[NonEmptyText, ...] = Field(min_length=1)
     required_limitations: tuple[NonEmptyText, ...] = ()
     forbidden_claims: tuple[NonEmptyText, ...] = ()
+    cross_source_association_set: tuple[CrossSourceAssociation, ...] | None = None
 
     @field_validator("required_relationships", "required_limitations", "forbidden_claims")
     @classmethod
@@ -317,6 +452,60 @@ class HybridGold(StrictFrozenSchema):
         if values != tuple(sorted(values)) or len(values) != len(set(values)):
             raise ValueError("hybrid gold collections must be sorted and unique")
         return values
+
+    @field_validator("cross_source_association_set")
+    @classmethod
+    def canonical_associations(
+        cls, values: tuple[CrossSourceAssociation, ...] | None
+    ) -> tuple[CrossSourceAssociation, ...] | None:
+        if values is None:
+            return None
+        validate_canonical_association_set(values, association_kind="cross_source")
+        return values
+
+    @model_validator(mode="after")
+    def validate_association_alignment(self) -> Self:
+        exact = self.structured.exact_association_set
+        reported = self.literature.source_reported_association_set
+        cross = self.cross_source_association_set
+        if any(value is not None for value in (exact, reported, cross)) and any(
+            value is None for value in (exact, reported, cross)
+        ):
+            raise ValueError("hybrid association gold requires all three association sets")
+        if cross is None:
+            return self
+        if (
+            self.structured.relation_contract_key
+            != self.literature.relation_contract_key
+            or self.structured.relation_contract_sha256
+            != self.literature.relation_contract_sha256
+            or self.structured.relation_assertion_manifest_sha256
+            != self.literature.relation_assertion_manifest_sha256
+        ):
+            raise ValueError(
+                "hybrid association gold must use one relation contract and assertion manifest"
+            )
+        projected_exact = tuple(
+            value.structured_association
+            for value in cross
+            if value.structured_association is not None
+        )
+        projected_reported = tuple(
+            value.source_reported_association
+            for value in cross
+            if value.source_reported_association is not None
+        )
+        if len(projected_exact) != len(set(projected_exact)) or set(projected_exact) != set(
+            exact or ()
+        ):
+            raise ValueError("cross-source alignment must cover each exact association once")
+        if len(projected_reported) != len(set(projected_reported)) or set(
+            projected_reported
+        ) != set(reported or ()):
+            raise ValueError(
+                "cross-source alignment must cover each source-reported association once"
+            )
+        return self
 
 
 type RefusalCategory = Literal[
@@ -1010,8 +1199,9 @@ def build_evidence_pack(
         "production_context_pack_sha256": production_context_pack_sha256,
         "oracle_entry_sha256": oracle_entry_sha256,
     }
+    json_payload = _json_normalized_payload(payload)
     return EvaluationEvidencePack.model_validate(
-        {**payload, "pack_sha256": canonical_json_sha256(payload)}
+        {**payload, "pack_sha256": canonical_json_sha256(json_payload)}
     )
 
 
@@ -1064,12 +1254,121 @@ class EvaluationClaim(StrictFrozenSchema):
         return self
 
 
+class AnswerStructuredFacts(StrictFrozenSchema):
+    """Typed structured values asserted by an LLM answer, never copied from evidence."""
+
+    exact_count: int | None = Field(default=None, ge=0)
+    metric_key: StableToken | None = None
+    record_keys: tuple[StableToken, ...] | None = None
+    assembly_accession_versions: tuple[AssemblyAccessionVersion, ...] | None = None
+    sequence_accession_versions: tuple[SequenceAccessionVersion, ...] | None = None
+    locus_keys: tuple[StableToken, ...] | None = None
+    coordinates: tuple[CoordinateGold, ...] | None = None
+    detection_call_keys: tuple[StableToken, ...] | None = None
+    exact_association_set: tuple[ExactAssociation, ...] | None = None
+    relation_contract_key: StableToken | None = None
+    relation_contract_sha256: Sha256 | None = None
+    relation_assertion_manifest_sha256: Sha256 | None = None
+    release_key: StableToken | None = None
+    release_manifest_sha256: Sha256 | None = None
+    limitation_codes: tuple[StableToken, ...] = ()
+
+    @field_validator(
+        "record_keys",
+        "assembly_accession_versions",
+        "sequence_accession_versions",
+        "locus_keys",
+        "detection_call_keys",
+        "limitation_codes",
+    )
+    @classmethod
+    def canonical_collections(
+        cls, values: tuple[str, ...] | None
+    ) -> tuple[str, ...] | None:
+        if values is None:
+            return None
+        if values != tuple(sorted(values)) or len(values) != len(set(values)):
+            raise ValueError("answer structured collections must be sorted and unique")
+        return values
+
+    @field_validator("coordinates")
+    @classmethod
+    def canonical_coordinates(
+        cls, values: tuple[CoordinateGold, ...] | None
+    ) -> tuple[CoordinateGold, ...] | None:
+        if values is None:
+            return None
+        keys = tuple(value.sort_key() for value in values)
+        if keys != tuple(sorted(keys)) or len(keys) != len(set(keys)):
+            raise ValueError("answer coordinates must be canonically ordered and unique")
+        return values
+
+    @field_validator("exact_association_set")
+    @classmethod
+    def canonical_associations(
+        cls, values: tuple[ExactAssociation, ...] | None
+    ) -> tuple[ExactAssociation, ...] | None:
+        if values is None:
+            return None
+        validate_canonical_association_set(values, association_kind="exact")
+        return values
+
+    @model_validator(mode="after")
+    def validate_pairs_and_content(self) -> Self:
+        if (self.exact_count is None) != (self.metric_key is None):
+            raise ValueError("answer exact_count and metric_key must be supplied together")
+        if (self.release_key is None) != (self.release_manifest_sha256 is None):
+            raise ValueError("answer release identity must be supplied together")
+        if (self.relation_contract_key is None) != (
+            self.relation_contract_sha256 is None
+        ):
+            raise ValueError("answer relation contract identity must be supplied together")
+        if (
+            self.relation_assertion_manifest_sha256 is not None
+            and self.relation_contract_key is None
+        ):
+            raise ValueError("answer relation assertions require a relation contract")
+        if self.exact_association_set is not None and (
+            self.relation_contract_key is None
+            or self.relation_assertion_manifest_sha256 is None
+        ):
+            raise ValueError(
+                "answer associations require relation contract and assertion identities"
+            )
+        if any(
+            association.relation_assertion_manifest_sha256
+            != self.relation_assertion_manifest_sha256
+            for association in self.exact_association_set or ()
+        ):
+            raise ValueError(
+                "each answer association must bind the answer assertion manifest"
+            )
+        substantive = (
+            self.exact_count is not None
+            or self.record_keys is not None
+            or self.assembly_accession_versions is not None
+            or self.sequence_accession_versions is not None
+            or self.locus_keys is not None
+            or self.coordinates is not None
+            or self.detection_call_keys is not None
+            or self.exact_association_set is not None
+            or self.relation_contract_key is not None
+            or self.relation_assertion_manifest_sha256 is not None
+            or self.release_key is not None
+            or bool(self.limitation_codes)
+        )
+        if not substantive:
+            raise ValueError("answer structured facts require at least one asserted value")
+        return self
+
+
 class EvaluationAnswer(StrictFrozenSchema):
     """Common model-visible output contract for S0/S1/S2/S3/S5/S6."""
 
     answer_text: NonEmptyText
     abstained: bool
     claims: tuple[EvaluationClaim, ...] = ()
+    structured_facts: AnswerStructuredFacts | None = None
     limitations: tuple[NonEmptyText, ...] = ()
     cited_chunk_ids: tuple[ChunkKey, ...] = ()
 
@@ -1086,10 +1385,21 @@ class EvaluationAnswer(StrictFrozenSchema):
         expected = tuple(f"C{index}" for index in range(1, len(self.claims) + 1))
         if claim_ids != expected:
             raise ValueError("claim IDs must be contiguous and ordered")
-        if self.abstained and (self.claims or self.cited_chunk_ids):
-            raise ValueError("abstained answer must not assert claims or citations")
+        if self.abstained and (
+            self.claims or self.structured_facts is not None or self.cited_chunk_ids
+        ):
+            raise ValueError(
+                "abstained answer must not assert claims, structured facts, or citations"
+            )
         if not self.abstained and not self.claims:
             raise ValueError("non-abstained answer requires at least one atomic claim")
+        has_structured_claim = any(
+            claim.claim_type == "structured_fact" for claim in self.claims
+        )
+        if has_structured_claim != (self.structured_facts is not None):
+            raise ValueError(
+                "structured_fact claims and the typed structured projection must correspond"
+            )
         return self
 
 
@@ -1164,8 +1474,8 @@ def prove_structured_result_preserved(
 ) -> StructuredPreservationProof:
     """Hash typed structured values before generation and after deterministic merge."""
 
-    input_sha256 = canonical_json_sha256(input_result)
-    output_sha256 = canonical_json_sha256(output_result)
+    input_sha256 = canonical_json_sha256(input_result.model_dump(mode="json"))
+    output_sha256 = canonical_json_sha256(output_result.model_dump(mode="json"))
     return StructuredPreservationProof(
         input_structured_result_sha256=input_sha256,
         output_structured_result_sha256=output_sha256,
@@ -1258,6 +1568,7 @@ class ExperimentManifest(StrictFrozenSchema):
     source_tree_clean: bool
     production_source_fingerprint_sha256: Sha256
     question_manifest_sha256: Sha256
+    synthetic_fixture_manifest_sha256: Sha256 | None = None
     oracle_manifest_sha256: Sha256 | None = None
     dataset_release_key: StableToken | None = None
     dataset_manifest_sha256: Sha256 | None = None
@@ -1320,6 +1631,11 @@ class ExperimentManifest(StrictFrozenSchema):
             raise ValueError("S1 raw-context budget differs from the common generation identity")
         if self.phase == "phase2_synthetic" and self.trust_status == "trusted":
             raise ValueError("synthetic Phase 2 runs can never be trusted")
+        if self.phase == "phase2_synthetic":
+            if self.synthetic_fixture_manifest_sha256 is None:
+                raise ValueError("synthetic Phase 2 requires a fixture manifest checksum")
+        elif self.synthetic_fixture_manifest_sha256 is not None:
+            raise ValueError("synthetic fixture identity belongs only to Phase 2")
         if self.phase == "phase2_synthetic" and (
             self.generation_identity is None
             or self.generation_identity.provider_kind != "deterministic_fake"
@@ -1359,6 +1675,7 @@ def build_experiment_manifest(**values: object) -> ExperimentManifest:
     payload = {
         "manifest_schema_version": "rag-value-experiment-v1",
         "oracle_manifest_sha256": None,
+        "synthetic_fixture_manifest_sha256": None,
         "dataset_release_key": None,
         "dataset_manifest_sha256": None,
         "corpus_release_key": None,
@@ -1388,6 +1705,8 @@ class FailureRecord(StrictFrozenSchema):
     def single_line_message(cls, value: str) -> str:
         if any(character in value for character in ("\n", "\r", "\x00")):
             raise ValueError("failure message must be one sanitized line")
+        if any(pattern.search(value) for pattern in _SENSITIVE_FAILURE_PATTERNS):
+            raise ValueError("failure message contains potentially sensitive material")
         return value
 
 
@@ -1416,6 +1735,30 @@ def _gold_sha256(approved: Sequence[EvaluationQuestion]) -> str | None:
 
 
 def _self_sha256(value: StrictFrozenSchema, field_name: str) -> str:
-    payload = value.model_dump(mode="python")
+    payload = value.model_dump(mode="json")
     del payload[field_name]
     return canonical_json_sha256(payload)
+
+
+def _json_normalized_payload(payload: dict[str, object]) -> dict[str, object]:
+    """Normalize experiment payloads without broadening production hashing semantics."""
+
+    normalized = json.loads(
+        json.dumps(
+            payload,
+            default=lambda value: (
+                value.model_dump(mode="json")
+                if isinstance(value, BaseModel)
+                else _raise_non_json_value(value)
+            ),
+            ensure_ascii=False,
+            allow_nan=False,
+        )
+    )
+    if not isinstance(normalized, dict):
+        raise TypeError("experiment payload must normalize to a JSON object")
+    return cast(dict[str, object], normalized)
+
+
+def _raise_non_json_value(value: object) -> object:
+    raise TypeError(f"unsupported experiment JSON value: {type(value).__name__}")

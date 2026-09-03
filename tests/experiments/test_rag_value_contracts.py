@@ -6,9 +6,11 @@ import pytest
 from pydantic import ValidationError
 
 from eve_relation_rag.experiments.rag_value_ablation.contracts import (
+    AnswerStructuredFacts,
     EvaluationAnswer,
     EvaluationClaim,
     EvidenceCitation,
+    FailureRecord,
     HumanApproval,
     MechanicalValidation,
     RawContextSegment,
@@ -99,6 +101,41 @@ def test_gold_contracts_reject_empty_structured_truth_and_weak_refusal_labels() 
         )
 
 
+def test_failure_record_accepts_stable_safe_message() -> None:
+    failure = FailureRecord(
+        system_key="S5",
+        question_id="structured-001",
+        stage="generation",
+        error_code="provider_timeout",
+        message="Generation provider timed out after the configured deadline.",
+    )
+
+    assert failure.message == "Generation provider timed out after the configured deadline."
+
+
+@pytest.mark.parametrize(
+    "message",
+    (
+        "postgresql+psycopg://eve:raw-password@db:5432/eve",
+        "https://service-user:raw-password@example.test/v1",
+        "Authorization: Bearer abcdefghijklmnopqrstuvwxyz",
+        "api_key=sk-live-abcdefghijklmnopqrstuvwxyz",
+        "refresh_token: eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiIxMjM0NTY3ODkwIn0.abcdefghijkl",
+        "-----BEGIN PRIVATE KEY-----",
+        "AWS access key AKIAIOSFODNN7EXAMPLE",
+    ),
+)
+def test_failure_record_rejects_potentially_sensitive_messages(message: str) -> None:
+    with pytest.raises(ValidationError, match="potentially sensitive"):
+        FailureRecord(
+            system_key="S5",
+            question_id="structured-001",
+            stage="generation",
+            error_code="provider_failure",
+            message=message,
+        )
+
+
 def test_common_answer_and_mechanical_validation_are_evidence_bound() -> None:
     evidence = _literature_evidence_pack()
     answer = EvaluationAnswer(
@@ -142,6 +179,53 @@ def test_common_answer_and_mechanical_validation_are_evidence_bound() -> None:
                 ),
             ),
         )
+
+
+def test_structured_claim_and_typed_projection_must_correspond() -> None:
+    structured_claim = EvaluationClaim(
+        claim_id="C1",
+        text="The exact count is one.",
+        claim_type="structured_fact",
+    )
+    facts = AnswerStructuredFacts(
+        exact_count=1,
+        metric_key="distinct_included_locus_count",
+    )
+
+    with pytest.raises(ValidationError, match="must correspond"):
+        EvaluationAnswer(
+            answer_text="The exact count is one.",
+            abstained=False,
+            claims=(structured_claim,),
+        )
+    with pytest.raises(ValidationError, match="must correspond"):
+        EvaluationAnswer(
+            answer_text="This is an interpretation.",
+            abstained=False,
+            claims=(
+                EvaluationClaim(
+                    claim_id="C1",
+                    text="This is an interpretation.",
+                    claim_type="interpretation",
+                ),
+            ),
+            structured_facts=facts,
+        )
+    with pytest.raises(ValidationError, match="abstained answer"):
+        EvaluationAnswer(
+            answer_text="Insufficient evidence.",
+            abstained=True,
+            structured_facts=facts,
+        )
+
+
+def test_answer_structured_projection_requires_canonical_complete_pairs() -> None:
+    with pytest.raises(ValidationError, match="supplied together"):
+        AnswerStructuredFacts(exact_count=1)
+    with pytest.raises(ValidationError, match="sorted and unique"):
+        AnswerStructuredFacts(record_keys=("record-b", "record-a"))
+    with pytest.raises(ValidationError, match="at least one asserted value"):
+        AnswerStructuredFacts()
 
 
 def test_evidence_pack_records_exact_model_visible_bytes_and_has_no_system_label() -> None:
@@ -207,6 +291,10 @@ def test_raw_context_supports_structured_and_document_claim_references() -> None
                 claim_type="literature_fact",
                 citation_ids=("R2",),
             ),
+        ),
+        structured_facts=AnswerStructuredFacts(
+            release_key="release:test:v0:20990101:001",
+            release_manifest_sha256="d" * 64,
         ),
         cited_chunk_ids=(),
     )

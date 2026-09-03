@@ -1,7 +1,10 @@
 from __future__ import annotations
 
 from eve_relation_rag.experiments.rag_value_ablation.contracts import (
+    AnswerStructuredFacts,
     CoordinateGold,
+    EvaluationAnswer,
+    EvaluationClaim,
     EvidenceGroup,
     LiteratureGold,
     StructuredGold,
@@ -16,6 +19,7 @@ from eve_relation_rag.experiments.rag_value_ablation.metrics import (
     score_grounding,
     score_retrieval,
     score_structured,
+    structured_prediction_from_answer,
     summarize_efficiency,
     summarize_refusal,
 )
@@ -83,11 +87,156 @@ def test_structured_metrics_preserve_exact_types_sets_coordinates_and_identifier
     assert metrics.missing_record_count == 2
     assert metrics.extra_record_count == 1
     assert metrics.missing_coordinate_count == metrics.extra_coordinate_count == 1
-    assert metrics.identifier_preservation.value == "0.500000000000"
+    assert metrics.identifier_preservation.value == "0.750000000000"
     assert metrics.all_identifiers_exact is False
     assert metrics.release_provenance_exact is True
     assert metrics.invented_identifier_count == 1
     assert metrics.required_limitation_coverage.value == "1.000000000000"
+
+
+def test_coordinate_accessions_are_scored_as_identifiers_without_sequence_set() -> None:
+    gold = StructuredGold(
+        coordinates=(
+            CoordinateGold(
+                sequence_accession_version="NC_000001.1",
+                start0=10,
+                end0=20,
+                strand="+",
+            ),
+        ),
+        release_key="release:test:v0:20990101:001",
+        release_manifest_sha256="d" * 64,
+    )
+    prediction = StructuredPrediction(
+        coordinates=(
+            CoordinateGold(
+                sequence_accession_version="NC_999999.1",
+                start0=10,
+                end0=20,
+                strand="+",
+            ),
+        ),
+        release_key=gold.release_key,
+        release_manifest_sha256=gold.release_manifest_sha256,
+    )
+
+    metrics = score_structured(gold, prediction)
+
+    assert gold.required_identifiers == frozenset(
+        {"NC_000001.1", "release:test:v0:20990101:001"}
+    )
+    assert prediction.identifiers == frozenset(
+        {"NC_999999.1", "release:test:v0:20990101:001"}
+    )
+    assert metrics.coordinate_set_exact is False
+    assert metrics.identifier_preservation.value == "0.500000000000"
+    assert metrics.all_identifiers_exact is False
+    assert metrics.invented_identifier_count == 1
+
+
+def test_generated_structured_projection_is_scored_instead_of_oracle_evidence() -> None:
+    gold = StructuredGold(
+        exact_count=1,
+        metric_key="distinct_included_locus_count",
+        release_key="release:test:v0:20990101:001",
+        release_manifest_sha256="d" * 64,
+    )
+    answer = EvaluationAnswer(
+        answer_text="The selected release contains two loci.",
+        abstained=False,
+        claims=(
+            EvaluationClaim(
+                claim_id="C1",
+                text="The selected release contains two loci.",
+                claim_type="structured_fact",
+            ),
+        ),
+        structured_facts=AnswerStructuredFacts(
+            exact_count=2,
+            metric_key="distinct_included_locus_count",
+            release_key="release:test:v0:20990102:001",
+            release_manifest_sha256="e" * 64,
+        ),
+    )
+
+    metrics = score_structured(gold, structured_prediction_from_answer(answer))
+
+    assert metrics.numeric_exact_match is False
+    assert metrics.metric_key_exact_match is True
+    assert metrics.release_provenance_exact is False
+
+
+def test_abstention_without_projection_loses_required_structured_gold() -> None:
+    gold = StructuredGold(
+        exact_count=1,
+        metric_key="distinct_included_locus_count",
+        record_keys=("record-001",),
+        release_key="release:test:v0:20990101:001",
+        release_manifest_sha256="d" * 64,
+    )
+    answer = EvaluationAnswer(
+        answer_text="Insufficient evidence.",
+        abstained=True,
+    )
+
+    prediction = structured_prediction_from_answer(answer)
+    metrics = score_structured(gold, prediction)
+
+    assert prediction == StructuredPrediction()
+    assert metrics.numeric_exact_match is False
+    assert metrics.record_set_exact is False
+    assert metrics.release_provenance_exact is False
+    assert metrics.all_identifiers_exact is False
+
+
+def test_answer_text_identifiers_are_observed_but_plain_decimals_are_not() -> None:
+    locus = "locus:eve:v1:sha256:" + "f" * 64
+    gold = StructuredGold(
+        exact_count=1,
+        metric_key="distinct_included_locus_count",
+        release_key="release:test:v0:20990101:001",
+        release_manifest_sha256="d" * 64,
+    )
+    answer = EvaluationAnswer(
+        answer_text=(
+            "The count is 2.5; assemblies GCA_000001.1 and GCF_999999.1 use "
+            "sequence NC_000001.1."
+        ),
+        abstained=False,
+        claims=(
+            EvaluationClaim(
+                claim_id="C1",
+                text=(
+                    f"{locus} belongs to release:test:v0:20990101:001; "
+                    "the ratio is 2.5."
+                ),
+                claim_type="structured_fact",
+            ),
+        ),
+        structured_facts=AnswerStructuredFacts(
+            exact_count=1,
+            metric_key="distinct_included_locus_count",
+            release_key=gold.release_key,
+            release_manifest_sha256=gold.release_manifest_sha256,
+        ),
+    )
+
+    prediction = structured_prediction_from_answer(answer)
+    metrics = score_structured(gold, prediction)
+
+    assert prediction.observed_identifier_tokens == tuple(
+        sorted(
+            (
+                "GCA_000001.1",
+                "GCF_999999.1",
+                "NC_000001.1",
+                locus,
+                "release:test:v0:20990101:001",
+            )
+        )
+    )
+    assert "2.5" not in prediction.identifiers
+    assert metrics.invented_identifier_count == 4
 
 
 def test_retrieval_metrics_use_expert_groups_and_do_not_double_count_alternatives() -> None:
@@ -177,6 +326,7 @@ def test_refusal_metrics_separate_unsupported_and_answerable_denominators() -> N
                 question_id="unsupported-1",
                 expected_refusal=True,
                 abstained=True,
+                refusal_origin="model_abstention",
                 refusal_appropriate=True,
                 unsafe_acceptance=False,
                 downstream_call_count_after_refusal=1,
@@ -185,6 +335,7 @@ def test_refusal_metrics_separate_unsupported_and_answerable_denominators() -> N
                 question_id="unsupported-2",
                 expected_refusal=True,
                 abstained=False,
+                refusal_origin="none",
                 refusal_appropriate=False,
                 unsafe_acceptance=True,
                 downstream_call_count_after_refusal=0,
@@ -193,6 +344,7 @@ def test_refusal_metrics_separate_unsupported_and_answerable_denominators() -> N
                 question_id="answerable-1",
                 expected_refusal=False,
                 abstained=True,
+                refusal_origin="model_abstention",
                 refusal_appropriate=False,
                 unsafe_acceptance=False,
                 downstream_call_count_after_refusal=0,

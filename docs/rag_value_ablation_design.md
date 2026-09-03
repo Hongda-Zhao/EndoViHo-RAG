@@ -1,16 +1,18 @@
-# RAG value ablation: Phase 0 experiment design
+# RAG value ablation: experiment design and Phase 1-3 status
 
 ## 1. Decision
 
-Build the RAG-value benchmark as an isolated evaluation package that composes the repository's
-existing structured and literature services. Do not add a production route, provider choice,
-database schema, release, corpus, embedding, or default.
+The RAG-value benchmark is implemented as an isolated evaluation package that composes the
+repository's existing structured and literature contracts. It adds no production route, provider
+choice, database schema, release, corpus, embedding, or default.
 
-Phase 0 deliberately stopped before implementation. Following explicit approval on 2026-09-02,
-the first contract-only implementation tranche was added under
-`eve_relation_rag.experiments.rag_value_ablation`. It does not approve a benchmark question,
-author gold or oracle evidence, construct a provider, execute a model/retriever/database, or report
-a real or synthetic result.
+Phase 1 now supplies the strict contracts, association projections and exact metrics. Phase 2 now
+supplies a deterministic fake-provider harness over five synthetic questions and all seven systems.
+It emits 35 per-question records only as `test_only`, makes 22 fake generation calls, and records 12
+answer-quality fair-comparison inputs. Phase 3 has advanced only to an offline, fail-closed readiness preflight; it
+has not constructed a real database/retriever/model dependency or executed real retrieval. Nothing
+implemented here approves a scientific question, authors real Gold or Oracle evidence, or produces
+a scientific benchmark conclusion.
 
 The companion [`rag_value_ablation_repo_mapping.md`](rag_value_ablation_repo_mapping.md) records
 the source-level audit and exact reuse decisions.
@@ -107,8 +109,11 @@ not dependencies of the runner.
 
 ## 4. Experiment identity
 
-The future `experiment_manifest.json` should be a strict, frozen, self-checksummed manifest. At
-minimum it records:
+`ExperimentManifest` is now a strict, frozen, self-checksummed contract. The Phase 2 builder binds
+the complete synthetic fixture identity in addition to the question, Oracle-like test evidence,
+source, generation, retrieval, raw-context, runtime, system, and output-policy identities below.
+Real phases must fill the applicable release/corpus approval fields rather than reuse synthetic
+identities. At minimum the manifest records:
 
 | Group | Required fields |
 |---|---|
@@ -148,7 +153,9 @@ Use a single strict `EvaluationQuestion` union with:
 The trusted manifest must contain 60-80 stable-ID questions with 15-20 items in each family. The
 current 64 Codex-authored templates remain `pending`; all real gold fields remain empty or null.
 Only a human may change `review_status` to `approved` and supply the required gold. The loader must
-select only approved questions and must fail if the selected set is empty.
+select only approved questions and must fail if the selected set is empty. Trusted-set admission
+also requires every structured Gold object, including the structured portion of Hybrid Gold, to
+match the outer question manifest's DatasetRelease key and manifest checksum exactly.
 
 The frozen scientific authoring set now contains exactly 64 natural templates: 16 structured, 16
 literature, 16 Hybrid, and 16 unsupported. Its 48 answerable questions ask only for associations
@@ -196,8 +203,10 @@ approved immutable release, but it may not turn the current query result into a 
 
 The literature variant records:
 
-- a canonical `source_reported_association_set` preserving source wording and provenance for host
-  taxon/species, named assembly/region, reported relation class, and viral-lineage role/scope;
+- a canonical `source_reported_association_set` preserving source wording and provenance for any
+  reported host taxon/species, named assembly/region, reported relation class, and viral-lineage
+  role/scope; fields absent from the source remain `null` rather than being completed from
+  structured truth;
 - required document keys;
 - required chunk keys grouped into evidence units;
 - acceptable alternative chunks per evidence unit;
@@ -264,9 +273,43 @@ S6 reads a separate `OracleEvidenceManifest`. Each entry binds:
 - human reviewer key, review time, and approval status; and
 - entry and manifest checksums.
 
-The loader fetches only those exact approved values. It must reject pending entries, missing chunks,
-release/corpus mismatch, or any oracle entry derived from a current system output. Codex may create
-the schema and empty template but must never generate a real oracle label.
+The loader fetches only those exact approved values. Trusted admission accepts only the exact
+manifest model types and canonically round-trips them through all nested and self-checksum
+validators, so a copied, subclassed, serialized-shape, or checksum-stale Pydantic object has no
+authority. It rejects pending entries, missing chunks, and release/corpus mismatches. The schema has
+no field for system-output provenance and requires a human source attestation; confirming that the
+attestation reflects a genuinely independent manual workflow remains an external review duty. The
+Oracle is a strict projection of that question's human Gold: structured questions require exactly equal
+structured facts and no chunks; literature questions require no structured facts and at least one
+approved required-or-alternative chunk from every evidence group; Hybrid questions require both;
+and unsupported questions require the approved `no_supporting_evidence` disposition with neither
+facts nor chunks. Arbitrary and excluded/misleading chunks are rejected even when the entry has a
+valid human-approval envelope. Codex may create the schema and empty template but must never
+generate a real oracle label.
+
+### 5.7 Implemented association boundary
+
+Phase 1 implements three experiment-only, immutable association records:
+
+- `ExactAssociation` binds assembly-source species, exact assembly accession.version, locus key,
+  approved relation class, relation-assertion key/hash/manifest, and role/snapshot/scope-qualified
+  viral lineage;
+- `SourceReportedAssociation` preserves literature wording and evidence-group provenance without
+  importing structured identities. Host taxon, species, named assembly/region, and viral lineage
+  are nullable when the source does not report them; at least one host/region descriptor is
+  required, and a normalized viral-lineage binding cannot exist without source lineage text; and
+- `CrossSourceAssociation` records a human-reviewed `both`, `structured_only`,
+  `literature_only`, `unmatched`, or `ambiguous` relationship between the two truth domains.
+
+Structured, literature, and Hybrid Gold carry these sets only with one exact relation-contract and
+assertion-manifest identity. Sets must be homogeneous, canonical, and unique; Hybrid alignment must
+cover each supplied record exactly once. The exact metric reports set equality, missing/extra
+records, and conservative class-, lineage-role-, and lineage-scope-corruption counts. It does not
+use fuzzy matching or lexical overlap.
+
+The committed relation-contract worksheet remains `pending`, supplies no definitions or source
+label mapping, and explicitly leaves `HCVR`, `Integration`, and `Viral contig` unmapped. The relation
+assertion JSONL is empty. These are annotation templates, not scientific assertions.
 
 ## 6. Common evidence and answer contracts
 
@@ -301,8 +344,8 @@ its contract deliberately fixes only literature/hybrid production routes
 
 ### 6.2 Common prompt policy
 
-The future prompt manifest must checksum the exact system instruction, request template, evidence
-schema, and answer schema. Its instruction includes, verbatim in substance:
+Phase 1 implements a checksum-bound common prompt policy over the exact system instruction, request
+template, evidence schema, and answer schema. Its instruction includes, verbatim in substance:
 
 - answer in English;
 - use only the provided evidence;
@@ -525,6 +568,12 @@ labels into approved relation classes.
 An abstention is a refusal only when its category/explanation satisfies the gold rubric. Empty or
 malformed output is a failure, not a correct refusal.
 
+Execution must never consult `expected_refusal` to decide whether a request proceeds. Each refusal
+records its origin as shared scope policy, system route policy, or model abstention. Answer-quality
+pairing requires an actual call to all six LLM conditions; refusal uses a separate matched
+end-to-end cohort with an observation for the identical question in every LLM-based system, so an
+appropriate early policy refusal remains measurable without pretending that generation occurred.
+
 ### 9.5 Efficiency
 
 Record stage and end-to-end latency in integer nanoseconds, then compute discrete nearest-rank p50
@@ -549,6 +598,24 @@ count, and trust status. Primary comparisons are paired per approved question:
 - S3 versus S5 on hybrid questions;
 - S0-S3/S6 versus S4/S5 for structured exactness; and
 - S6 versus the best non-oracle condition for retrieval-gap versus generation-gap attribution.
+
+The machine summary treats `comparison_eligible_question_ids` plus their complete six-system
+`comparison_inputs` as the sole answer-quality/efficiency LLM denominator. Both a completed answer
+and a generated, scored abstention are valid paired outcomes; dropping refusals would hide
+false-refusal errors. If an efficiency observation is missing for any LLM condition, that question
+is removed from the shared efficiency cohort for every LLM condition.
+
+Refusal has a distinct matched end-to-end denominator: a question is included only when all six
+LLM-based systems have a refusal observation, whether the outcome came from generation or a
+pre-generation policy boundary. This preserves valid early refusal behavior without inventing a
+`comparison_input` or provider call. S4 remains outside the matched LLM-system cohort but is present
+in the separately labelled per-system operational summaries.
+
+`summary.json` records exact refusal numerator/denominator/value/undefined-reason structures and
+nearest-rank efficiency summaries. `plot_refusal.csv` flattens correct-refusal, false-refusal,
+unsafe-acceptance, and downstream-after-refusal count/rate fields. The quality-latency CSV includes
+both shared answer-quality/efficiency and separately labelled observed p50/p95 latency, token
+totals, cost availability, and peak process/accelerator memory.
 
 Do not select a winner using Recall@10 alone. Do not claim statistical or biological significance
 from a small pilot. Phase 1 should encode thresholds only after they are explicitly preregistered;
@@ -614,9 +681,19 @@ binding ideas, not its schema unchanged.
 
 ### `test_only`
 
-Phase 2 deterministic fake providers and synthetic fixtures must be labeled `test_only` in every
-manifest, per-question file, CSV, summary, and report banner. They validate software only. They may
-not be merged with real systems or used in a scientific conclusion.
+Phase 2 deterministic fake providers and synthetic fixtures are labeled `test_only` in every
+manifest, per-question file, CSV, summary, and report banner; the fixture itself is additionally
+marked `synthetic_tests_only`. They validate software only. They may not be merged with real systems
+or used in a scientific conclusion.
+
+Serializable data do not grant publication authority. The only implemented RAG-value output issuer
+accepts an exact checksum-valid synthetic fixture and can issue only `test_only` authority. It
+revalidates and binds the complete run checksum and manifest checksum, fixed trust reasons, fake
+generation identity, exact fixture/result projection, comparison denominator, and canonical S0-S6
+definitions. The issued decision is an in-process
+identity: serialization, copying, or `dataclasses.replace` cannot transfer its authority. The writer
+round-trips the complete `BenchmarkRun`, rechecks the issued decision against that exact run, and
+requires an explicit test-output flag before atomically creating a new directory.
 
 ### `trusted`
 
@@ -624,6 +701,8 @@ A run is trusted only when all required questions/gold/oracle items are approved
 model artifacts are allowlisted and checksum-verified; release/corpus gates pass; exact prompt and
 runtime identities match; no forbidden fallback/call occurs; pre/post fingerprints match; and all
 required result files validate.
+
+No issuer for a real `trusted` RAG-value result is implemented in the current branch.
 
 Human-dependent metrics can be `pending_human_review` inside an otherwise machine-valid run; they
 must not be populated with zeroes or inferred labels.
@@ -635,8 +714,12 @@ call, incomplete output set, provider mismatch, production mutation, or unapprov
 the run failed. Record a sanitized `FailureRecord`; never substitute another system or omit the
 question.
 
-The prior ablation trust gate already makes fake providers test-only and rejects missing approved
-questions or source/corpus drift
+The current writer deliberately refuses to publish a `failed` run because no runtime authority for
+failed-result publication has been designed. This prevents a caller-authored failure manifest from
+smuggling unverified metrics into the output tree.
+
+The prior ablation trust gate supplied the pattern for making fake providers test-only and rejecting
+missing approved questions or source/corpus drift
 ([`experiments/embedding_ablation/trust.py`](../src/eve_relation_rag/experiments/embedding_ablation/trust.py#L135)).
 
 ## 13. Isolation implementation
@@ -649,11 +732,14 @@ eve_relation_rag.experiments.rag_value_ablation
 
 The production composition root does not import it. The experiment accepts explicit dependency
 objects and approved paths/hashes; it does not read production settings implicitly. Real database
-connections must verify `transaction_read_only=on`. S0 and S2 constructors receive capability-
-limited dependency sets so forbidden providers cannot even be constructed.
+connections must verify `transaction_read_only=on`. The frozen S0-S6 stage graph begins with
+`request_validation`. A refusal at that stage requires an empty constructed-dependency ledger and
+therefore happens before a loader, database, retriever, provider, or Oracle adapter can be
+constructed. Completed and retrieval-only traces must construct their exact declared dependency
+set, not merely a permitted subset.
 
-Use `.artifacts/rag_value_ablation/<experiment_key>/` for transient provider/runtime files and the
-future `benchmark/rag_value_ablation/` for canonical, sanitized outputs. Do not write model weights,
+Use `.artifacts/rag_value_ablation/<experiment_key>/` for transient provider/runtime files and
+`benchmark/rag_value_ablation/` for canonical, sanitized outputs. Do not write model weights,
 raw restricted documents, credentials, or production embeddings to the result directory. Never
 overwrite an existing experiment directory; use create-once atomic publication like the existing
 reporter ([`experiments/embedding_ablation/reporting.py`](../src/eve_relation_rag/experiments/embedding_ablation/reporting.py#L32)).
@@ -664,7 +750,7 @@ non-experiment Python modules, the app, migrations, `pyproject.toml`, and `uv.lo
 
 ## 14. Machine outputs and deterministic reporting
 
-Later approved phases should materialize the required tree:
+The reporter now materializes the required tree for an authority-bearing run:
 
 ```text
 benchmark/rag_value_ablation/
@@ -681,6 +767,11 @@ benchmark/rag_value_ablation/
 ├── summary.json
 └── failures.jsonl
 ```
+
+The tracked `questions_template.jsonl` is the empty Gold-bearing question-manifest worksheet, and
+`oracle_evidence_template.jsonl` is a separate empty S6 annotation worksheet. Neither contains a
+row, approval, or inferred label; the latter is authoring material and is not copied into a result
+directory.
 
 The authoring layer is separate from those trusted/result artifacts. It now preserves the frozen
 route-oriented software fixtures under `benchmark/system_regression/` and stores 64 natural,
@@ -700,22 +791,27 @@ plot_retrieval_quality.csv
 plot_quality_latency.csv
 ```
 
-`docs/rag_value_ablation.md` is generated only from a complete reloaded machine-result directory.
-It never calls a model, retriever, or database and never contains manually copied metrics. A
-test-only synthetic report stays under the experiment output with an unmistakable banner; it does
-not create the formal documentation result.
+`docs/rag_value_ablation.md` is reserved for a complete, reloaded, trusted and human-reviewed
+machine-result directory. It never calls a model, retriever, or database and never contains manually
+copied metrics. The Phase 2 harness instead writes `TEST_ONLY_REPORT.md` inside the caller-selected
+new output directory with an unmistakable banner; it never creates the formal documentation result.
+All result and plot CSVs are derived from revalidated per-question records. Output creation is
+atomic and create-once: an existing directory or report path is rejected rather than overwritten.
 
 ## 15. Phase plan and explicit gates
 
 ### Phase 1 - contracts and metrics
 
-The first implementation tranche was explicitly approved on 2026-09-02. It now provides:
+**Status: implemented for software validation.** It provides:
 
 - strict experiment, question, gold, oracle, evidence, answer, prompt, system, and result contracts;
+- strict exact, source-reported, and cross-source association records bound to approved
+  relation-assertion identities;
 - approved-only checksum-bound annotation and oracle loaders;
 - trusted-set admission requiring 60-80 approved questions and 15-20 per family;
-- the canonical S0-S6 dependency/stage graph and common-generation comparison checks;
-- exact structured, retrieval, grounding, refusal, efficiency, and agreement metrics;
+- the canonical S0-S6 dependency/stage graph, shared pre-dependency request validation, and
+  common-generation comparison checks;
+- exact association/structured, retrieval, grounding, refusal, efficiency, and agreement metrics;
 - deterministic system-blinded review packets, two-reviewer completeness, and human adjudication;
 - create-once deterministic machine outputs, plot-ready CSV generation, and revalidation; and
 - isolated unit/golden/import-boundary tests.
@@ -734,6 +830,10 @@ not approved those relation classes or a mapping from `Integration`, `Viral cont
 The currently inspected candidate cohort also lacks relation-class and viral-lineage diversity.
 These are explicit readiness blockers, not labels to infer during question construction.
 
+Phase 1 therefore adds only a checksum-bound pending relation-contract worksheet and an empty
+relation-assertion JSONL template. It does not fill a definition, mapping, class assertion, reviewer,
+or approval.
+
 The remaining question work is human-dependent:
 
 1. approve a versioned relation-class contract and independently reviewed assertions/mapping;
@@ -744,68 +844,153 @@ The remaining question work is human-dependent:
 5. author and separately approve real Gold and Oracle evidence without deriving labels from a
    model or current retriever.
 
-No provider, database, model, or result execution is part of Phase 1.
+No real provider, database, model, retriever, or scientific result execution is part of Phase 1.
 
 ### Phase 2 - synthetic harness
 
-Add deterministic fake provider/retriever/structured fixtures and run S0-S6 as `test_only`. Prove
-prompt parity, route/call isolation, immutable structured facts, metric arithmetic, failure capture,
-and report derivation.
+**Status: implemented and tested.** Five checksum-bound synthetic questions—one structured, one
+literature, one Hybrid, one evidence-insufficient unsupported request, and one external-tool policy
+request—are evaluated across S0-S6, producing 35 canonical
+per-question records. The run is irreversibly `test_only` and uses only in-memory fake generation,
+rank, structured-repository, raw-context, and Oracle-like test fixtures. Its Oracle-like fixture is
+deliberately not a real `OracleEvidenceEntry` and cannot be admitted as human-approved evidence.
+
+The matrix makes exactly 22 fake generation calls. The HMMER request is rejected by the frozen
+production scope policy for all seven systems at `request_validation`, with no dependency
+constructed and no generation call. The evidence-insufficient question is admitted without
+consulting its expected-refusal label: S0 and S6 abstain from their model-visible evidence, S1-S3
+produce measurable unsafe acceptances, and S4/S5 refuse under their structured route policy before
+constructing a dependency. S4 never calls a provider; S4 and S5 are explicitly `not_applicable` for
+the pure literature fixture.
+The paired fairness ledger contains exactly 12 records: the six LLM systems on each of the
+structured and Hybrid questions, all bound to the same question text/hash, generation identity,
+prompt-policy checksum, temperature zero, limits, and no-tool/no-web/no-memory settings. Every fake
+provider invocation receives and records one checksum-bound request containing the exact system
+instruction, canonical user payload bytes, full generation identity, temperature, and output
+limits. This exercises the common two-message policy rather than merely counting untransported
+system-prompt bytes.
+
+Refusal aggregation is intentionally separate from that answer-quality ledger. Its matched
+LLM-system cohort contains the structured, Hybrid, and two unsupported questions because all six
+LLM-based systems have an end-to-end refusal observation for each; an early S5 route refusal is not
+misreported as a model call. Per-system refusal tables also retain all available observations,
+including deterministic S4. The Phase 2 issuer requires an observation for every applicable result,
+enforces the fixed applicability matrix, and replays the shared scope and structured-route policies
+before accepting a recorded refusal origin; deleting a false refusal or relabeling model abstention
+as policy refusal therefore invalidates the run. The issuer also recomputes appropriate-refusal and
+unsafe-acceptance flags from fixture Gold plus the observed abstention, and requires the
+post-refusal call count to agree with the fail-closed trace, so rehashing a result cannot alter those
+synthetic metric numerators.
+
+The runner writes only to an explicit caller-supplied new directory. The writer revalidates the
+complete run and issuer-only run authority, emits the required machine/plot CSV tree plus a
+conspicuous `TEST_ONLY_REPORT.md`, and rejects overwrite. Synthetic structured results exercise the
+existing structured application/result contracts. S4 calls the production deterministic structured
+renderer. S5 calls the production immutable release-pair binding registry and structured target
+extractor, verifies the generated typed projection against the immutable `StructuredResult`, and
+persists a checksum-bound deterministic structured-first output. S0-S3 and S6 structured metrics
+come only from the model output projection; S6 is never scored from its input evidence.
+
+The aggregate fixture yields no structured anchor targets, so Phase 2 exercises production target
+extraction but intentionally performs no persisted anchor-store SQL resolution. It also does not
+construct the production `ContextPack`: the common S0-S6 envelope has a different, documented
+scope. The S5 final merge is an explicit experiment-only adapter because the common
+`EvaluationAnswer` is not the production `GenerationComposition`. Persisted-anchor resolution,
+production literature hydration, and production composition remain work for an approved real-data
+phase. The current values are software assertions, not scientific benchmark results.
 
 ### Phase 3 - real retrieval only
 
-Only with approved local releases/artifacts, run S1-S4 without a real LLM. Verify read-only
-fingerprints, S2 FTS parity, S3 current BGE parity, S1 context accounting, and structured exactness.
-The Phase 3 manifest carries no generation-provider identity: S1-S3 records use the explicit
-`retrieval_only` status, construct no LLM provider, and contain no generated-answer fields. S0,
-S5, and S6 remain `not_applicable`; S4 may complete deterministically.
+**Status: offline preflight only; real retrieval has not run.** The preflight consumes one explicit,
+self-checksummed evidence object covering questions/Gold/bindings, relation contract/assertions and
+diversity, database-role audit, DatasetRelease, CorpusRelease, S1 raw context, retrieval/BGE,
+anchors, and the release-pair binding. It reads no production setting or path, opens no database,
+loads no model, and constructs no retriever. It reports canonical S1-S5 blocker codes.
+
+The preflight report is diagnostic only. It cannot authorize or construct a database, retriever,
+model, or other runtime dependency even when every reported check is ready; a later execution gate
+must separately revalidate runtime capabilities. Candidate or merely validated releases never
+satisfy the diagnostic `published` requirement.
+
+The current local inputs fail readiness: all 64 scientific questions are `pending`; real Gold,
+Oracle evidence, relation assertions, and approved entity bindings are absent; the relation contract
+is unapproved; the structured release is candidate rather than published and its validation
+identity is stale, without owner approval or a separately verified strictly read-only database role;
+and the corpus is validated rather than published. Consequently S1-S5 real construction is blocked,
+and this phase has executed no real FTS, dense/summary retrieval, RRF, structured query, or raw-context
+export.
+
+After those blockers are independently resolved, the intended Phase 3 matrix remains: S1-S3 use
+`retrieval_only` with no LLM provider or answer payload, S4 may complete deterministically, and S0,
+S5, and S6 are `not_applicable`.
 
 ### Phase 4 - real LLM comparison
 
-Blocked until the user explicitly approves provider, exact model/revision/artifacts, common prompt,
-credentials and egress policy, maximum cost, release, corpus, and approved questions. Then run every
-LLM condition with the same generation identity.
+**Status: blocked and not started.** It requires every Phase 3 data/approval blocker to be cleared
+and explicit user approval of provider, exact model/revision/artifacts, common prompt, credentials
+and egress policy, maximum cost, release, corpus, and approved questions. Then every LLM condition
+must run with the same generation identity.
 
 ### Phase 5 - human review
 
-Export blinded packets, import two complete independent reviews and adjudication, validate every
-binding, and compute support/citation/refusal/agreement metrics. Never fabricate missing review
-data.
+**Status: not started.** Export blinded packets, import two complete independent reviews and
+adjudication, validate every binding, and compute support/citation/refusal/agreement metrics. Never
+fabricate missing review data.
 
 ### Phase 6 - final analysis
 
-Regenerate all tables/CSVs/report from machine results, perform paired error analysis, state one of
-the four permitted conclusions, and leave production unchanged.
+**Status: not started.** Regenerate all tables/CSVs/report from machine results, perform paired error
+analysis, state one of the four permitted conclusions, and leave production unchanged.
 The Phase 6 manifest retains the exact verified Phase 4 generation identity and requires complete
 human review; it does not invoke the provider again.
 
-## 16. Phase 1 acceptance tests
+## 16. Phase 1-3 software acceptance tests
 
-The implemented first-tranche tests prove:
+The implemented tests prove:
 
 - strict schemas reject extras, coercion, duplicate IDs, noncanonical order, and checksum drift;
 - pending templates cannot enter scoring and approved entries require human provenance;
 - family-specific gold cannot be mixed or left incomplete when approved;
-- oracle entries require separate human approval and cannot reference system output;
+- association records remain separated by truth domain, bind exact assertion provenance, require
+  canonical sets, and distinguish class, viral-lineage-role, and lineage-scope corruption;
+- the pending relation worksheet cannot prefill a mapping, class assertion, or approval;
+- oracle entries require separate human approval and source attestation, and trusted entrypoints
+  canonically revalidate exact model types plus nested/self checksums;
 - all six LLM system definitions share one generation identity and question checksum;
-- S0/S2/S4 forbidden dependencies are absent by construction;
+- every non-inapplicable trace begins at `request_validation`, and early refusal constructs no
+  dependency;
+- completed and retrieval-only traces require the exact declared dependency set, while S0/S2/S4
+  forbidden dependencies are absent by construction;
 - the S5 final result contains the byte-identical `StructuredResult` supplied upstream;
 - Recall/MRR/nDCG match existing ablation golden values;
 - exact sets, coordinates, identifiers, refusal denominators, and nearest-rank p50/p95 are correct;
 - undefined metrics serialize as null with a reason, never as invented zero;
-- fake provider provenance can produce only `test_only`;
+- five synthetic cases produce 35 S0-S6 records, 22 complete fake-provider requests, and 12 paired
+  answer-quality records; unsupported execution is independent of expected-refusal Gold, every
+  applicable result must retain its refusal observation, and matched end-to-end refusal binds both
+  policy and model-abstention origins to the executed path while recomputing the Phase 2 refusal
+  outcome flags and rejecting post-refusal calls; production binding, structured
+  rendering, and target extraction execute, while
+  persisted-anchor SQL resolution and production `ContextPack` remain explicitly unexercised;
+- fake provider provenance can produce only issuer-authorized `test_only`, and copied/replaced
+  decisions have no authority;
 - reviewer packets contain no system names and imports bind every claim hash;
 - two-reviewer disagreement cannot become adjudicated automatically;
-- reporting is deterministic, create-once, and derived only from revalidated machine files; and
+- reporting round-trips and revalidates the complete run, is deterministic and create-once, and
+  derives every CSV/report from machine files;
+- Phase 3 diagnostics report candidate/validated releases, missing approvals, checksum mismatch,
+  incomplete diversity, and a non-read-only database role without exposing dependency construction;
+  and
 - no production source/default/migration is changed.
 
 No new dependency is required for these contracts, calculations, CSV/JSON generation, or tests.
 
 ## 17. Current boundary
 
-The contract/metric/review/reporting tranche and pending scientific-question authoring tranche are
-implemented. The relation-class contract/assertions, association-set Gold projection, entity
-binding, question instantiation/approval, Gold and Oracle authoring, the Phase 2 fake execution
-harness, local real-data retrieval, real LLM calls, human labels, and benchmark outputs remain
-unstarted. Proceed to any of those only after their corresponding explicit approval and inputs are
-available.
+Phase 1 contracts/metrics and the Phase 2 deterministic synthetic harness are implemented. Phase 3
+contains only the offline, fail-closed preflight and is currently blocked. The 64 scientific
+questions, relation contract/assertions, entity bindings, real Gold, and real Oracle evidence still
+require human approval; the local structured release and corpus are not published, and the
+structured validation/read-only authority is incomplete. No real retrieval, real LLM call, human
+label import, scientific benchmark result, or production recommendation has been made. Stop here
+until those inputs are supplied and the next phase is explicitly authorized.
