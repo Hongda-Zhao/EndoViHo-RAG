@@ -1,11 +1,12 @@
-# RAG value ablation: Phase 0 repository mapping
+# RAG value ablation: repository mapping and Phase 1-3 status
 
 ## 1. Audit outcome
 
 This document began as a repository map at base commit
-`d73a69a0264fa33c2437fb042b25128ee2f07604` and now records the later explicitly approved
-contract/question-authoring tranches as well. No model was loaded or called, no database or corpus
-was changed, no benchmark result was created, and no production setting was changed.
+`d73a69a0264fa33c2437fb042b25128ee2f07604` and now records the implemented Phase 1 contracts and
+metrics, Phase 2 deterministic synthetic harness, and Phase 3 offline preflight. No real model was
+loaded or called, no real retrieval was executed, no database/corpus/release/embedding was changed,
+no scientific benchmark result was created, and no production setting was changed.
 
 The central finding is that EndoViHo-RAG already has the important scientific and safety
 abstractions needed by the benchmark:
@@ -16,12 +17,12 @@ abstractions needed by the benchmark:
 - PostgreSQL English FTS, current BGE dense retrieval, summary retrieval, and exact RRF;
 - exact structured-to-literature anchor resolution and release-pair binding;
 - checksum-bound context, provider, mechanical validation, and deterministic rendering;
-- an isolated experiment package with approved-only annotations, exact retrieval metrics,
-  read-only corpus snapshots, source guards, offline execution, trust states, and canonical
-  reporting.
+- an isolated experiment package with approved-only annotations, exact association and retrieval
+  metrics, read-only corpus patterns, offline execution, issuer-only trust, canonical reporting, a
+  deterministic synthetic runner, and a fail-closed Phase 3 preflight.
 
-The benchmark therefore should be a new experiment package that adapts these contracts. It should
-not add another production RAG route or loosen any production type.
+The benchmark is therefore implemented as an experiment package that adapts these contracts. It
+does not add another production RAG route or loosen any production type.
 
 Two requested status documents are not present in the current tree:
 `docs/development_status.md` and `docs/v0_release_checklist.md`. Git history shows that commit
@@ -260,10 +261,12 @@ Its transport, artifact attestation, no-redirect/no-proxy policy, and exact gene
 excellent reference behavior, but relaxing its schema guard would change production safety.
 
 **Provider verdict:** the abstract one-call pattern is reusable; the current real provider adapter
-is not a generic benchmark provider. Phase 2 should add an experiment-only deterministic fake.
-Phase 4 needs an explicitly approved experiment adapter/prompt manifest that preserves the same
-local artifact and transport attestations and returns token/latency telemetry. It must not modify or
-subclass around the checks of the production provider.
+is not a generic benchmark provider. Phase 2's experiment-only deterministic fake receives a
+checksum-bound complete request containing the exact system instruction, canonical user payload,
+generation identity, temperature, and output limits. Phase 4 still needs an explicitly approved
+experiment adapter/prompt manifest that preserves the same local artifact and transport
+attestations and returns token/latency telemetry. It must not modify or subclass around the checks
+of the production provider.
 
 **ContextPack verdict:** preserve it unchanged. An ASCII S3 request or an existing mechanical S5
 route may retain a validated production `ContextPack` as provenance. The exact natural Hybrid
@@ -309,18 +312,19 @@ benchmark.
 
 ## 8. S0-S6 component map
 
-| System | Existing components to reuse | Minimal missing experiment component |
+| System | Existing components to reuse | Implemented experiment seam / remaining real blocker |
 |---|---|---|
-| S0 closed-book | provider identity/one-call pattern; common refusal policy | evidence envelope that proves no DB, corpus, retrieval, tool, memory, or hidden context was constructed |
-| S1 raw/long context | published corpus snapshot; structured result serializers; local model tokenizer identity | approved raw-material manifest, deterministic ordering/export, exact token budget, truncation/omission ledger |
-| S2 keyword literature RAG | `PostgresFtsCandidateProvider`, published corpus snapshot, chunk identities | FTS-only hydration/result adapter and parity test; hard proof that no dense provider was constructed |
-| S3 current literature hybrid | published/candidate corpus gate, local BGE, current service/repository/RRF | experiment evidence projection, common answer schema, telemetry capture |
-| S4 structured retrieval | router/planner/resolver/gate/service/compiler/repository, `StructuredResult`, deterministic renderer | approved relation contract, canonical exact association projection, question/gold adapter, and exact metric engine |
-| S5 structured-first Hybrid RAG | release/corpus gates, binding, structured app, anchor resolver, current literature service, mechanical validators | the S4 relation projection plus source-reported literature set, cross-source alignment, isolated prompt adapter, and call trace |
-| S6 oracle evidence | immutable structured types and literature chunk identities | separately reviewed oracle manifest/loader; no retriever-derived or model-derived labels |
+| S0 closed-book | provider identity/one-call pattern; common refusal policy | Empty evidence envelope, dependency/stage proof, and fake path implemented; a real common provider remains Phase 4-only. |
+| S1 raw/long context | published corpus snapshot; structured result serializers; local model tokenizer identity | Policy/accounting and synthetic segments implemented; approved real materials, tokenizer, truncation policy, and export remain absent. |
+| S2 keyword literature RAG | `PostgresFtsCandidateProvider`, published corpus snapshot, chunk identities | FTS-only system policy and fake-rank path implemented; real published-corpus hydration/parity have not run. |
+| S3 current literature hybrid | published/candidate corpus gate, local BGE, current service/repository/RRF | Common evidence/answer/telemetry contracts and fake FTS+dense+summary+RRF path implemented; real retrieval has not run. |
+| S4 structured retrieval | router/planner/resolver/gate/service/compiler/repository, `StructuredResult`, deterministic renderer | Synthetic structured application and production deterministic renderer execute; approved relation assertions/Gold and a published release are missing. |
+| S5 structured-first Hybrid RAG | release/corpus gates, binding, structured app, anchor resolver, current literature service, mechanical validators | Production binding registry, structured target extraction and structured rendering execute over synthetic inputs; persisted-anchor SQL resolution, production `ContextPack`/generation composition, and approved real inputs remain missing. |
+| S6 oracle evidence | immutable structured types and literature chunk identities | Strict approved Oracle contracts/loaders bind structured facts exactly to question Gold and chunks to complete human-approved evidence groups while rejecting excluded/arbitrary evidence; a deliberately distinct synthetic test fixture exists, but manually approved real Oracle evidence is absent. |
 
-No existing abstraction should be replaced. The missing layer is evaluation orchestration and
-measurement, not a new RAG implementation.
+No existing abstraction is replaced. The implemented layer covers contracts, exact measurement,
+synthetic orchestration, and offline readiness gating; the remaining work is approved real-data
+adaptation and execution, not a parallel RAG architecture.
 
 ### Association-template contract
 
@@ -339,14 +343,16 @@ All 48 answerable records have status `requires_relation_contract`; none is mark
 
 - Structured: `exact_association_set` plus applicable exact structured projections;
 - Literature: `source_reported_association_set`, required documents/evidence groups, and no
-  structured `exact_*` projection; and
+  structured `exact_*` projection. A source-reported host taxon, species, named assembly/region,
+  or viral lineage remains `null` when absent from the source, and a normalized viral-lineage
+  binding cannot appear without source lineage text; and
 - Hybrid: both source-specific sets plus `cross_source_association_set`.
 
 Every answerable row also preserves `required_limitations` and `forbidden_claims`. Removing
 how/why/method/limitations questions did not remove the safety rubric needed to detect source-taxon
 overinterpretation, relation-label fabrication, lineage-role conflation, or event-count claims.
 
-## 9. Activation and data blockers found in Phase 0
+## 9. Current activation and data blockers
 
 ### 9.1 Repository-distributed blockers
 
@@ -374,18 +380,29 @@ metrics.
 ### 9.2 Current local-runtime observations
 
 - `.env` is absent, so no experiment-specific release/model paths or approved hashes are selected.
-- The current shell has no `docker`, `psql`, or `pg_isready` executable. The repository's local-dev
-  helper would prepend repository-local tool paths
-  ([`scripts/local-dev-env.sh`](../scripts/local-dev-env.sh#L5)), but the requested verification
-  commands are run exactly as written, without silently changing their environment.
-- Despite the missing PostgreSQL CLI tools, `uv run alembic check` reached a PostgreSQL endpoint
-  through the configured Python driver and found no pending schema operations. That proves schema
-  connectivity for this check; it does not prove that an approved benchmark release/corpus is
-  present or that a future experiment role is read-only.
-- Ignored `.artifacts/` content is present locally, including candidate activation manifests,
-  model files, a corpus/binding packet, and prior qualification artifacts. `.artifacts/` is excluded
-  from version control ([`.gitignore`](../.gitignore#L7)); presence does not prove approval,
-  publication, database import, current checksum validity, licensing for this benchmark, or
+- The 64 scientific authoring records are all `pending`. The trusted question template contains no
+  approved question/Gold rows; the real Oracle manifest is absent; the relation contract is a
+  pending blank worksheet; the relation-assertion JSONL is empty; and all 11 entity-binding rows are
+  pending with no selected key, snapshot, release, scope, or approval.
+- Ignored local corpus-manifest/document, BGE artifact, anchor, and binding files exist, and their
+  inspected offline file/checksum relationships are internally consistent. This is useful input to
+  a later preflight, but it grants no capability: the corpus release is `validated`, not
+  `published`.
+- The local structured packet identifies
+  `release:endoviho-rag:v0:20260826:001` as a candidate and the activation packet itself as
+  `candidate_for_owner_approval`. It explicitly does not authorize publication. Its recorded
+  structured validator identity is stale against the current validator implementation, no owner
+  approval is present, and no separately approved audit proves a strictly read-only experiment
+  database role.
+- The base shell does not expose `docker`, `psql`, or `pg_isready` directly. The documented
+  repository-local environment
+  ([`scripts/local-dev-env.sh`](../scripts/local-dev-env.sh#L5)) exposes those tools, and the current
+  verification used it explicitly. Tool availability does not establish data/release approval.
+- The historical `uv run alembic check` reached a PostgreSQL endpoint through the configured Python
+  driver and found no pending schema operations. That proves only schema connectivity for that
+  check; it does not prove approved benchmark data or a read-only experiment role.
+- `.artifacts/` is excluded from version control ([`.gitignore`](../.gitignore#L7)); local presence
+  cannot establish owner approval, publication, current validator identity, benchmark licensing, or
   reproducibility on another clone.
 - The production API and example environment still select `EVE_RAG_LLM_PROVIDER=disabled`
   ([`compose.yaml`](../compose.yaml#L60), [`.env.example`](../.env.example#L1)). Current settings do
@@ -398,7 +415,8 @@ metrics.
 
 The following remain unavailable for a trusted RAG-value run:
 
-1. human approval for the pending 64-question authoring set and all bound entities;
+1. human approval for the 64 pending scientific questions and every release/snapshot-scoped entity
+   binding;
 2. a versioned relation-class contract and independently approved `Transferred gene`/
    `Integrated virus` assertions or mapping policy, with no inference from `Integration`,
    `Viral contig`, or `HCVR`;
@@ -406,16 +424,17 @@ The following remain unavailable for a trusted RAG-value run:
    comparisons eligible;
 4. real structured association Gold, source-reported literature Gold, cross-source alignment Gold,
    limitations, forbidden claims, and refusal labels;
-5. a separately human-approved S6 oracle evidence manifest;
-6. an approved DatasetRelease, CorpusRelease, exact binding, and their manifest checksums;
+5. a separately human-approved S6 Oracle evidence manifest;
+6. a published DatasetRelease and CorpusRelease, a current trusted validation identity/receipt,
+   owner approval, and an exact approved release-pair binding;
 7. an approved raw-material set and deterministic S1 context policy;
 8. an exact LLM provider, model/revision, model artifact checksum, common prompt policy, tokenizer,
    output-token limit, credentials/egress policy, and maximum cost approved specifically for Phase 4;
 9. at least two independent EVE/virology reviewers and complete review imports;
 10. preregistered decision thresholds for any claim of superiority; and
-11. a Docker executable (or an explicitly approved equivalent release-gate environment) and, for
-   Phase 3, a separately validated read-only experiment database role. The current Alembic check
-   proves PostgreSQL schema connectivity but not approved benchmark data or role isolation.
+11. for Phase 3, a separately validated strictly read-only experiment database role. The local
+   Docker/Alembic checks prove runtime and schema connectivity but not approved benchmark data or
+   role isolation.
 
 The local artifacts observed during this audit do not waive any item above.
 
@@ -423,27 +442,27 @@ The local artifacts observed during this audit do not waive any item above.
 
 [`data_semantics.md`](data_semantics.md#L208) states that `EVE_RAG_LLM_PROVIDER` has only the value
 `disabled`. Current settings also allow `local_openai_compatible`, while the shipped defaults remain
-disabled ([`config/settings.py`](../src/eve_relation_rag/config/settings.py#L39)). Phase 0 does not
-edit that broader semantic document, but Phase 1 should treat source code and shipped defaults as
-the runtime authority and open a separate documentation correction if requested.
+disabled ([`config/settings.py`](../src/eve_relation_rag/config/settings.py#L39)). This experiment
+does not edit that broader semantic document; source code and shipped defaults remain runtime
+authority, and any general documentation correction is a separate change.
 
 ## 10. Production isolation boundary
 
-The experiment should live only under:
+The experiment is confined to:
 
 ```text
 src/eve_relation_rag/experiments/rag_value_ablation/
 tests/experiments/
-benchmark/rag_value_ablation/        # templates/results only in later approved phases
+benchmark/rag_value_ablation/        # tracked empty/pending templates; explicit runtime outputs elsewhere
 benchmark/system_regression/         # frozen mechanical software fixtures only
 docs/rag_value_ablation*.md
 docs/scientific_question*.md
 .artifacts/rag_value_ablation/       # ignored runtime scratch, never committed
 ```
 
-It must not be imported by `bootstrap.py`, the API, the normal CLI query command, or Streamlit. It
-must not add settings, migrations, database tables, provider choices, release publication calls, or
-corpus ingestion calls.
+It is not imported by `bootstrap.py`, the API, the normal CLI query command, or Streamlit. It adds
+no settings, migrations, database tables, production provider choices, release publication calls,
+or corpus ingestion calls.
 
 For real retrieval, use gate-issued capabilities and PostgreSQL read-only transactions. Capture
 before/after:
@@ -460,55 +479,77 @@ belong under `.artifacts/rag_value_ablation/<experiment_key>/`. Machine results 
 checksums, metrics, timings, and approved excerpts only; they must not contain credentials, model
 weights, restricted source bytes, or an unapproved full-text export.
 
-## 11. Phase 1 first-tranche implementation
+## 11. Phase 1-3 implementation map
 
-The explicitly approved contract/metric/review/reporting tranche remains inside the experiment
-namespace. The implemented source files are:
+All implementation remains inside the experiment namespace. The source files are:
 
 ```text
 src/eve_relation_rag/experiments/rag_value_ablation/
 ├── __init__.py
 ├── annotations.py       # approved-only question/gold/oracle loading and template export
+├── associations.py      # exact/source-reported/cross-source tuples and empty relation templates
 ├── contracts.py         # manifests, questions, gold variants, evidence, answers, results
 ├── human_review.py      # blinded packets/import validation; no labels generated
-├── metrics.py           # exact structured, grounding, refusal, retrieval, efficiency metrics
+├── metrics.py           # association/structured, grounding, refusal, retrieval, efficiency metrics
+├── preflight.py         # checksum-bound, diagnostic-only Phase 3 readiness evaluation
 ├── prompting.py         # one frozen prompt/output policy shared by all LLM conditions
-├── reporting.py         # deterministic machine/CSV/Markdown materialization and reload checks
+├── reporting.py         # create-once reports, exact refusal/efficiency summaries, paired cohorts
+├── runner.py            # explicit-output five-case Phase 2 matrix orchestration
 ├── scientific_questions.py # pending association templates and empty binding worksheet
+├── synthetic.py         # deterministic fake provider/ranks/structured/raw/oracle-like fixtures
 ├── system_regression.py # frozen legacy-question loader plus pure route/parser audit
-└── systems.py           # frozen S0-S6 definitions and applicability/call policies
+├── systems.py           # frozen S0-S6 definitions and applicability/call policies
+└── trust.py             # issuer-only Phase 2 test-output authority bound to the full run
 ```
 
-Implemented tests:
+The corresponding tests include:
 
 ```text
 tests/experiments/test_rag_value_annotations.py
+tests/experiments/test_rag_value_associations.py
 tests/experiments/test_rag_value_contracts.py
 tests/experiments/test_rag_value_human_review.py
 tests/experiments/test_rag_value_isolation.py
 tests/experiments/test_rag_value_metrics.py
+tests/experiments/test_rag_value_phase3_preflight.py
 tests/experiments/test_rag_value_prompting.py
 tests/experiments/test_rag_value_reporting.py
+tests/experiments/test_rag_value_synthetic_runner.py
 tests/experiments/test_rag_value_systems.py
 tests/experiments/test_scientific_question_templates.py
 tests/experiments/test_rag_value_system_regression.py
 ```
 
-The reporter deterministically materializes the following non-result templates when an authorized
-future run output is created:
+The tracked authoring layer contains:
 
 ```text
 benchmark/rag_value_ablation/question_schema.json
 benchmark/rag_value_ablation/questions_template.jsonl
+benchmark/rag_value_ablation/oracle_evidence_template.jsonl
 benchmark/rag_value_ablation/human_review_template.csv
+benchmark/rag_value_ablation/relation_contract_template.json
+benchmark/rag_value_ablation/relation_class_assertions_template.jsonl
 ```
 
-Every future template question must remain `review_status="pending"` with empty/unset real gold
-fields. Trusted-set admission requires 60-80 approved questions with 15-20 in each family. The
-committed tree contains the generated question schema, an empty JSONL annotation template, and a
-header-only review CSV.
+The question/Gold and Oracle JSONL worksheets are empty. The relation contract is a self-checksummed
+pending worksheet with no supplied definitions or
+source-label mappings; the assertion JSONL is empty. The regenerated question schema includes the
+association records and relation identities. Every authored question remains
+`review_status="pending"` until human review, while trusted-set admission still requires 60-80
+approved questions with 15-20 in each family.
 
-A later, separately approved authoring tranche now also contains:
+Trusted admission additionally exact-matches every structured or Hybrid structured-Gold release
+key/checksum to the question manifest. Oracle coverage is family-specific: structured facts must be
+identical to Gold, literature chunks must come only from manually approved evidence-group members
+and cover every group, and unsupported questions must carry an empty approved
+`no_supporting_evidence` entry. Each trusted entrypoint requires the exact manifest model type and
+canonically round-trips it through nested and self-checksum validation; copied, subclassed,
+serialized-shape, and checksum-stale objects are rejected with `AnnotationError`. These checks
+grant no approval to the blank worksheets. Human source attestation is required for Oracle entries,
+while verifying that the declared provenance reflects an independent manual workflow remains an
+external review responsibility.
+
+The scientific authoring and regression resources remain:
 
 ```text
 benchmark/system_regression/rag_value_route_questions_v1.jsonl
@@ -522,42 +563,95 @@ The second contains exactly 64 association templates, all pending and placeholde
 the missing relation contract and 16 are unsupported by design; its SHA-256 is
 `4ba8ad0291e57ed6eb6bbdad67cebf1c612f5b7b4bdb65fb8fbd53832c273227`. The third is an empty
 checksum-bound binding worksheet. None is approved Gold, Oracle evidence, a benchmark result, or
-directly admissible to the trusted question loader. No
-`experiment_manifest.json`, per-question output, metric CSV, `summary.json`, `failures.jsonl`, or
-formal `docs/rag_value_ablation.md` is emitted in this tranche. It adds no dependency and changes
-no production source, default, migration, release, corpus, or embedding.
+directly admissible to the trusted question loader.
 
-## 12. Phase 0 verification
+### 11.1 Phase 2 synthetic execution boundary
 
-The requested commands were executed verbatim from the repository root on 2026-09-02. No check
-was used to activate a provider, publish a release, build embeddings, or run a model.
+`execute_synthetic_harness()` runs five self-checksummed synthetic cases—one structured, one
+literature, one Hybrid, and two distinct unsupported routes—against S0-S6 and returns 35
+per-question records. It performs exactly 22 deterministic fake
+generation calls. The comparable structured and Hybrid cases contribute 12 fairness records, one
+for every LLM system and case. All output is `test_only`; the fixture itself is
+`synthetic_tests_only`; no human grounding metric is populated.
+
+The HMMER case stops under the shared production scope policy at `request_validation` for every
+system, before any dependency. The evidence-insufficient case is not routed from Gold: S0/S6 model
+outputs abstain, S1-S3 outputs are scored as unsafe acceptance, and S4/S5 stop under their
+structured route policy. Each observation records the refusal origin. The matched refusal cohort
+uses identical questions with observations across all six LLM-based systems and does not represent
+an early policy refusal as a generation call. The Phase 2 issuer rejects a missing applicable
+observation, any applicability-matrix drift, or an origin that differs from replaying the fixed
+scope/route policy; a generated model abstention therefore cannot be relabeled as a policy refusal.
+It also recomputes appropriate-refusal and unsafe-acceptance flags from the fixture and observed
+abstention, and requires a zero post-refusal call count consistent with the fail-closed trace.
+S4 has no generation, and S4/S5 are `not_applicable` for the pure literature case. The fake evidence paths
+cover empty context, fixed raw segments, FTS-only ranking, fake dense/summary plus the repository's
+pure RRF function, an in-memory structured application/repository, immutable structured-result
+preservation, and synthetic Oracle-like evidence that is intentionally not a real
+`OracleEvidenceEntry`.
+
+Each fake-provider call receives a checksum-bound complete request containing the exact system
+instruction, canonical user payload bytes, generation identity, temperature, and output limits.
+S4 executes the production deterministic structured renderer. S5 executes the production
+release-pair binding registry and structured target extractor, then persists a checksum-bound
+test-only deterministic merge. Because the aggregate fixture has no anchor target, no persisted
+anchor-store SQL resolution occurs. Production `ContextPack` and `GenerationComposition` also remain
+unexercised; the common benchmark envelope and final merge are explicit experiment adapters.
+
+`run_synthetic_benchmark(path)` writes only to the explicit new path. An issuer-only trust decision
+binds the entire run checksum, manifest checksum, exact fixture/result projection, and paired
+comparison denominator; copied, replaced, serialized, or caller-built decisions have no authority.
+The writer revalidates the complete run and authority,
+requires explicit test-output permission, writes the result/plot CSVs and
+`TEST_ONLY_REPORT.md` atomically, and rejects an existing directory. Synthetic outputs are created
+in test temporary directories or other explicit scratch paths and are not committed as scientific
+benchmark results. No formal `docs/rag_value_ablation.md` is generated.
+
+### 11.2 Phase 3 diagnostic boundary
+
+`preflight.py` evaluates an explicit self-checksummed input covering question/Gold/entity approval,
+relation contract/assertions and diversity, database-role audit, DatasetRelease, CorpusRelease, S1
+raw context, retrieval/BGE, anchors, and release-pair binding. It imports no production settings,
+opens no database, loads no model, and executes no retrieval. Its S1-S5 readiness report is
+diagnostic only and cannot construct or authorize runtime dependencies.
+
+The current local audit is blocked: the 64 scientific questions and 11 entity bindings are pending;
+real Gold, Oracle evidence, and relation assertions are empty/absent; the relation contract is
+unapproved; the structured release is candidate with stale validator identity and lacks owner plus
+read-only-role approval; and the corpus is validated rather than published. Local checksum-valid
+corpus/BGE/anchor/binding files do not override those states. Therefore no real Phase 3 retrieval
+has run.
+
+These additions require no new dependency and change no production source, default, migration,
+release, corpus, embedding, or provider activation.
+
+## 12. Current software verification
+
+The repository-local environment was loaded with `. scripts/local-dev-env.sh`, then the requested
+checks were executed from the repository root on 2026-09-03. No check activated a provider,
+published a release, built embeddings, or ran a model.
 
 | Exact command | Exit | Exact result summary |
 |---|---:|---|
-| `uv run pytest` | 0 | `1036 passed, 1 warning in 75.11s (0:01:15)`; the warning is the existing Starlette `httpx` deprecation warning |
+| `uv run pytest` | 0 | `1160 passed, 1 warning in 67.26s (0:01:07)`; the warning is the existing Starlette `httpx` deprecation warning |
 | `uv run ruff check .` | 0 | `All checks passed!` |
-| `uv run mypy src app` | 0 | `Success: no issues found in 137 source files` |
-| `uv lock --check` | 0 | `Resolved 114 packages in 5ms` |
+| `uv run mypy src app` | 0 | `Success: no issues found in 152 source files` |
+| `uv lock --check` | 0 | `Resolved 114 packages in 3ms` |
 | `uv run alembic check` | 0 | PostgreSQL autogeneration completed with `No new upgrade operations detected.` |
 | `uv run python scripts/check_docs.py` | 0 | No output |
-| `docker compose config --quiet` | 127 | `zsh:1: command not found: docker` |
+| `docker compose config --quiet` | 0 | No output |
 
-The first sandboxed `uv run pytest` attempt exited 2 before collection because the sandbox denied
-access to the existing user-level uv cache. The identical command was then rerun with access to
-that cache and produced the passing result above. This was an execution-environment permission
-issue, not a test failure. The Docker command was not replaced with a different command during
-Phase 0.
-
-After Phase 0, a read-only check loaded [`scripts/local-dev-env.sh`](../scripts/local-dev-env.sh)
-and confirmed that the repository-local Docker 29.7.2 client can reach Docker Engine 29.5.2 and
-that Docker Compose 5.5.0 validates the compose configuration. The historical exit 127 above is
-therefore a missing-`PATH` result for the exact unsourced command, not a missing repository-local
-runtime.
+The first full test run inside the network sandbox passed 1053 tests and skipped 85 PostgreSQL
+integration tests because localhost access was denied. The reported final run was repeated outside
+that network sandbox against the repository's isolated local test database and executed all 1160
+tests with zero skips. `alembic check` likewise required localhost access; its final run passed.
 
 ## 13. Current stop condition
 
-Phase 0, the explicitly approved first Phase 1 tranche, and the pending scientific-question
-authoring redesign are complete. The relation-class contract/assertions, association-set Gold,
-entity binding, instantiated/approved questions, real Oracle evidence, the synthetic execution
-harness, real retrieval, real generation, human review data, and benchmark results remain outside
-this change and require their next explicit approval or human input.
+Phase 1 contracts/metrics and Phase 2 deterministic synthetic software validation are implemented.
+Phase 3 stops at a diagnostic-only, fail-closed offline preflight. The relation contract/assertions,
+association-set Gold, entity bindings, instantiated/approved questions, and real Oracle evidence
+remain human-dependent; the local structured release and corpus do not satisfy published/current-
+validation/read-only authority requirements. No real retrieval, real generation, human review data,
+scientific benchmark result, or production change is included. Proceed only after those blockers
+are independently resolved and the corresponding phase is explicitly approved.

@@ -61,7 +61,12 @@ def test_phase3_systems_have_no_provider_binding_and_support_retrieval_only_trac
         question_id="literature-001",
         status="retrieval_only",
         constructed_dependencies=("database", "corpus", "fts"),
-        called_stages=("fts_retrieval", "chunk_hydration", "context_construction"),
+        called_stages=(
+            "request_validation",
+            "fts_retrieval",
+            "chunk_hydration",
+            "context_construction",
+        ),
         generation_call_count=0,
     )
 
@@ -118,6 +123,33 @@ def test_refusal_trace_rejects_any_stage_after_refusal() -> None:
             refusal_stage="structured_planning",
             generation_call_count=0,
         )
+
+
+def test_refusal_must_start_at_validation_and_construct_nothing_at_that_gate() -> None:
+    system = build_system_definitions(_generation_identity())[2]
+    skipped_gate = ExecutionTrace(
+        system_key="S2",
+        question_id="unsupported-001",
+        status="refused",
+        constructed_dependencies=(),
+        called_stages=("fts_retrieval",),
+        refusal_stage="fts_retrieval",
+        generation_call_count=0,
+    )
+    with pytest.raises(SystemPolicyError, match="begin at the shared"):
+        validate_execution_trace(system, skipped_gate)
+
+    premature_dependency = ExecutionTrace(
+        system_key="S2",
+        question_id="unsupported-001",
+        status="refused",
+        constructed_dependencies=("database",),
+        called_stages=("request_validation",),
+        refusal_stage="request_validation",
+        generation_call_count=0,
+    )
+    with pytest.raises(SystemPolicyError, match="before dependency construction"):
+        validate_execution_trace(system, premature_dependency)
 
 
 def test_system_evidence_shapes_prevent_hidden_context() -> None:

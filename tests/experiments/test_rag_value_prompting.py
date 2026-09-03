@@ -32,6 +32,11 @@ def test_frozen_prompt_contains_required_safety_rules_and_matches_generation() -
     assert "Cite every literature-derived factual claim" in policy.system_instruction
     assert "abstain" in policy.system_instruction
     assert "independent integration events" in policy.system_instruction
+    assert "assembly-source taxonomy as source taxonomy" in policy.system_instruction
+    assert "viral-lineage role, snapshot" in policy.system_instruction
+    assert "Integration, Viral contig, HCVR" in policy.system_instruction
+    assert "Transferred gene or Integrated virus" in policy.system_instruction
+    assert "approved relation-class assertion" in policy.system_instruction
 
 
 def test_prompt_mismatch_fails_before_generation_and_payload_hides_condition() -> None:

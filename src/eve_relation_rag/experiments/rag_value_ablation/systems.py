@@ -25,6 +25,7 @@ from eve_relation_rag.literature.hashing import canonical_json_sha256
 
 LLM_SYSTEM_KEYS: tuple[SystemKey, ...] = ("S0", "S1", "S2", "S3", "S5", "S6")
 ALL_SYSTEM_KEYS: tuple[SystemKey, ...] = ("S0", "S1", "S2", "S3", "S4", "S5", "S6")
+GENERATION_CONTEXT_CHUNK_LIMIT = 8
 
 
 class SystemPolicyError(ValueError):
@@ -68,8 +69,16 @@ def build_system_definitions(
             uses_llm=True,
             generation_identity_sha256=generation_sha,
             allowed_dependencies=("llm_provider",),
-            required_success_stages=("generation", "mechanical_validation"),
-            allowed_stages=("generation", "mechanical_validation"),
+            required_success_stages=(
+                "request_validation",
+                "generation",
+                "mechanical_validation",
+            ),
+            allowed_stages=(
+                "request_validation",
+                "generation",
+                "mechanical_validation",
+            ),
         ),
         _build_system(
             system_key="S1",
@@ -79,11 +88,13 @@ def build_system_definitions(
             generation_identity_sha256=generation_sha,
             allowed_dependencies=("raw_context_loader", "llm_provider"),
             required_success_stages=(
+                "request_validation",
                 "context_construction",
                 "generation",
                 "mechanical_validation",
             ),
             allowed_stages=(
+                "request_validation",
                 "context_construction",
                 "generation",
                 "mechanical_validation",
@@ -97,6 +108,7 @@ def build_system_definitions(
             generation_identity_sha256=generation_sha,
             allowed_dependencies=("database", "corpus", "fts", "llm_provider"),
             required_success_stages=(
+                "request_validation",
                 "fts_retrieval",
                 "chunk_hydration",
                 "context_construction",
@@ -104,6 +116,7 @@ def build_system_definitions(
                 "mechanical_validation",
             ),
             allowed_stages=(
+                "request_validation",
                 "fts_retrieval",
                 "chunk_hydration",
                 "context_construction",
@@ -128,6 +141,7 @@ def build_system_definitions(
                 "llm_provider",
             ),
             required_success_stages=(
+                "request_validation",
                 "fts_retrieval",
                 "dense_retrieval",
                 "summary_retrieval",
@@ -138,6 +152,7 @@ def build_system_definitions(
                 "mechanical_validation",
             ),
             allowed_stages=(
+                "request_validation",
                 "fts_retrieval",
                 "dense_retrieval",
                 "summary_retrieval",
@@ -156,11 +171,13 @@ def build_system_definitions(
             generation_identity_sha256=None,
             allowed_dependencies=("database", "structured_retrieval"),
             required_success_stages=(
+                "request_validation",
                 "structured_planning",
                 "structured_retrieval",
                 "deterministic_render",
             ),
             allowed_stages=(
+                "request_validation",
                 "structured_planning",
                 "structured_retrieval",
                 "deterministic_render",
@@ -184,6 +201,7 @@ def build_system_definitions(
                 "llm_provider",
             ),
             required_success_stages=(
+                "request_validation",
                 "structured_planning",
                 "release_binding",
                 "structured_retrieval",
@@ -199,6 +217,7 @@ def build_system_definitions(
                 "deterministic_render",
             ),
             allowed_stages=(
+                "request_validation",
                 "structured_planning",
                 "release_binding",
                 "structured_retrieval",
@@ -222,12 +241,14 @@ def build_system_definitions(
             generation_identity_sha256=generation_sha,
             allowed_dependencies=("oracle_loader", "llm_provider"),
             required_success_stages=(
+                "request_validation",
                 "oracle_load",
                 "context_construction",
                 "generation",
                 "mechanical_validation",
             ),
             allowed_stages=(
+                "request_validation",
                 "oracle_load",
                 "context_construction",
                 "generation",
@@ -267,10 +288,39 @@ def validate_execution_trace(system: EvaluationSystem, trace: ExecutionTrace) ->
     )
     if trace.called_stages != expected_order:
         raise SystemPolicyError("execution stages do not follow the frozen system order")
+    if trace.status != "not_applicable" and (
+        not trace.called_stages or trace.called_stages[0] != "request_validation"
+    ):
+        raise SystemPolicyError("execution must begin at the shared request-validation gate")
+    if trace.status in {"refused", "failed"} and trace.called_stages:
+        expected_prefix = system.allowed_stages[: len(trace.called_stages)]
+        if trace.called_stages != expected_prefix:
+            raise SystemPolicyError("stopped execution must record an exact stage prefix")
+    if trace.status == "refused" and trace.refusal_stage == "request_validation":
+        if trace.called_stages != ("request_validation",) or trace.constructed_dependencies:
+            raise SystemPolicyError(
+                "request-validation refusal must occur before dependency construction"
+            )
+    if trace.status == "retrieval_only" and {
+        "generation",
+        "mechanical_validation",
+        "deterministic_render",
+    } & set(trace.called_stages):
+        raise SystemPolicyError("retrieval-only execution called an answer stage")
+    generation_called = "generation" in trace.called_stages
+    if trace.generation_call_count != int(generation_called):
+        raise SystemPolicyError("generation call count differs from the stage ledger")
+    if not generation_called and "llm_provider" in trace.constructed_dependencies:
+        raise SystemPolicyError("execution constructed an LLM provider before generation")
     if trace.status == "completed" and not set(system.required_success_stages) <= set(
         trace.called_stages
     ):
         raise SystemPolicyError("completed execution is missing required stages")
+    if (
+        trace.status == "completed"
+        and trace.constructed_dependencies != system.allowed_dependencies
+    ):
+        raise SystemPolicyError("completed execution did not construct the exact dependency set")
     if trace.status == "completed" and trace.generation_call_count != int(system.uses_llm):
         raise SystemPolicyError("completed execution has the wrong generation call count")
     if trace.status == "retrieval_only":
@@ -285,6 +335,15 @@ def validate_execution_trace(system: EvaluationSystem, trace: ExecutionTrace) ->
             raise SystemPolicyError("system has no retrieval-only execution path")
         if not set(pre_generation_stages) <= set(trace.called_stages):
             raise SystemPolicyError("retrieval-only execution is missing required preparation")
+        expected_dependencies = tuple(
+            dependency
+            for dependency in system.allowed_dependencies
+            if dependency != "llm_provider"
+        )
+        if trace.constructed_dependencies != expected_dependencies:
+            raise SystemPolicyError(
+                "retrieval-only execution did not construct the exact dependency set"
+            )
         if {"generation", "mechanical_validation", "deterministic_render"} & set(
             trace.called_stages
         ):
@@ -331,6 +390,10 @@ def validate_evidence_for_system(
         evidence.production_context_pack_sha256 is not None
     ):
         raise SystemPolicyError("production ContextPack provenance is valid only for S3/S5")
+    if system.system_key in {"S2", "S3", "S5"} and (
+        len(evidence.citations) > GENERATION_CONTEXT_CHUNK_LIMIT
+    ):
+        raise SystemPolicyError("generation context exceeds the frozen eight-chunk limit")
 
 
 def validate_llm_comparison_inputs(
