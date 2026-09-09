@@ -2,278 +2,149 @@
 
 ## Outcome
 
-The scientific benchmark now asks only for release- or source-bounded association inventories. Its
-48 answerable templates do not ask how a record was found, why a classification was made, what
-evidence proves endogeneity, or which interpretive limitation applies. Each answerable row targets
-the same normalized relationship:
+The first benchmark version now asks only for associations represented by the available data:
 
 ```text
-assembly-source taxonomic unit or source-reported host taxonomic unit
-  -> represented source species or source-reported host species
-  -> assembly
-  -> locus or source-reported region
-  -> relation class
-  -> role-qualified viral lineage with exact/descendant scope
+Assembly-source taxon
+  -> EVE locus / reported viral region
+  -> viral-lineage affinity
+  -> evidence and source
 ```
 
-The question workflow retains two explicitly different resources:
+The 48 answerable templates do not require records to be classified as `Transferred gene`
+or `Integrated virus`. The remaining 16 templates test explicit scientific and operational
+refusal boundaries. All 64 records remain pending authoring templates without Gold or approval.
 
-| Resource | Purpose | Admission to trusted benchmark |
-|---|---|---|
-| System-regression questions | Parser, route, SQL compiler, identifiers, filters, pagination, release isolation, and refusal regression | Never automatically; these are software fixtures |
-| Scientific question templates | Natural association questions across structured, literature, Hybrid, and unsupported families | Only after entity binding, instantiation, human review, Gold annotation, and approval |
+## Source-label boundary
 
-The old 64 route-oriented questions remain byte-for-byte in
-`benchmark/system_regression/rag_value_route_questions_v1.jsonl`, with SHA-256
-`9763b6bda2074fbc73aaf2347e9bf2d4153e3a13a5952ba8edfe623d912ebd34`. The 64
-association-oriented templates live in
-`benchmark/rag_value_ablation/scientific_questions_template.jsonl`, with SHA-256
-`4ba8ad0291e57ed6eb6bbdad67cebf1c612f5b7b4bdb65fb8fbd53832c273227`. The resources
-must not be merged during execution or reporting.
+`HCVR`, `VR Type`, and `Viral Major Taxon` remain source-native annotations. In particular:
 
-This redesign did not run a model, retriever, database query, embedding provider, or LLM. It did
-not create Gold, Oracle evidence, human labels, results, or approvals.
+- `VR Type = Integration` does not imply `Integrated virus`;
+- `VR Type = Viral contig` does not imply `Transferred gene`; and
+- `HCVR` does not imply either relation class.
 
-## Relation-class boundary
-
-`Transferred gene` and `Integrated virus` are requested authoring vocabulary, not currently
-approved repository truth. The current repository has no approved mapping that derives either
-class. In particular:
-
-- source `VR Type = Integration` is not automatically `Integrated virus`;
-- source `VR Type = Viral contig` is not automatically `Transferred gene`; and
-- `HCVR`, `source_high`, or `source_low` does not establish either relation class.
-
-No template or future loader may manufacture this mapping. A future trusted benchmark needs an
-explicit, versioned, independently reviewed relation-class assertion or mapping policy. Literature-
-reported class labels must remain source-reported values and must never overwrite a structured
-value.
-
-The currently inspected candidate cohort cannot test class or viral-lineage discrimination: its
-selected records have only the source label `Integration` and the study-defined lineage
-`Orthopolintovirales`. This candidate state is not a public release, and its lack of category and
-lineage diversity is an activation blocker rather than a negative biological result.
+The v1 association schema has no `relation_class` field. The two requested relation classes
+may be added only in a later, separately reviewed contract supported by explicit assertions.
 
 ## Association output contract
 
-The three answerable families intentionally retain different truth domains:
+| Family | Required association output | Evidence boundary |
+| --- | --- | --- |
+| Structured | `exact_association_set` | Exact DatasetRelease and source-record keys |
+| Literature | `source_reported_association_set` | Permitted documents and evidence-group keys |
+| Hybrid | Both sets plus `cross_source_association_set` | Human-reviewed alignment; source values remain separate |
 
-| Family | Required association output | Meaning |
-|---|---|---|
-| Structured | `exact_association_set` | Exact release-bound tuples from approved structured truth |
-| Literature | `source_reported_association_set` | Tuples explicitly reported by permitted documents, with required documents and evidence groups |
-| Hybrid | `exact_association_set`, `source_reported_association_set`, and `cross_source_association_set` | Both source-specific sets plus a deterministic structured-only/literature-only/both alignment |
+Every exact tuple carries an assembly-source taxon binding, assembly accession, EVE-locus key,
+role- and snapshot-qualified viral-lineage affinity, release identity, and source-record keys.
+Every literature tuple carries source-reported taxon text, a named viral region, source-reported
+viral-lineage-affinity text, document keys, and evidence-group keys. Missing normalization is kept
+explicit and is never filled from lexical similarity or the other truth domain.
 
-An association tuple must preserve the applicable assembly-source taxon or source-reported host
-taxon, represented source species or source-reported host species, assembly, locus or named source
-region, relation class, viral-lineage role, lineage snapshot, and exact-versus-descendant scope.
-Null or source-absent fields remain explicit; they are not filled by name similarity or by copying
-from the other source.
+## Template inventory
 
-“Species within a host lineage” means only source species represented in the exact selected
-release or explicitly reported by the permitted literature. It does not mean every biological
-descendant of that lineage, and absence from the returned set does not establish biological
-absence.
-
-Viral-lineage bindings must include a role (`study_viral_lineage`, `formal_viral_taxonomy`, or
-`extended_viral_lineage` where approved), an exact snapshot, and an exact-versus-descendant policy.
-Names from different roles are never silently merged.
-
-## Authoring contract and trust transition
-
-`ScientificQuestionTemplate` is intentionally separate from `EvaluationQuestion`.
-`EvaluationQuestion` keeps its existing approval rule: only an `approved` record with human
-approval and complete family-matched Gold can enter the trusted benchmark. The authoring-only
-contract cannot represent approval, Oracle evidence, results, or scores, and fixes
-`review_status` to `pending` and `gold` to `null`.
-
-The required transition is:
-
-```text
-ScientificQuestionTemplate (pending, placeholders)
-  + ScientificEntityBindingsTemplate (pending, empty)
-  -> human selects release-scoped entities and lineage role/scope
-  -> approved relation-class assertion or mapping policy is supplied
-  -> deterministic text instantiation with no remaining placeholders
-  -> parser/readiness, diversity, pagination, and capacity checks
-  -> independent scientific wording review
-  -> separate human Gold and Oracle annotation
-  -> approved EvaluationQuestion
-```
-
-No step may infer labels from a model, current retriever, lexical overlap, parser acceptance,
-`Integration`, `Viral contig`, or `HCVR`. Parser acceptance is a software-readiness signal only. A
-placeholder template can never be admitted directly to a trusted question manifest.
-
-## Family versus scientific task
-
-`family` controls the evidence and scoring contract. `scientific_task` describes which association
-projection the question requests:
-
-| Scientific task | Structured | Literature | Hybrid | Unsupported | Total |
-|---|---:|---:|---:|---:|---:|
-| `source_taxon_association` | 4 | 4 | 4 | 0 | 12 |
-| `viral_lineage_association` | 4 | 4 | 4 | 0 | 12 |
-| `source_viral_lineage_association` | 4 | 4 | 4 | 0 | 12 |
-| `assembly_locus_association` | 4 | 4 | 4 | 0 | 12 |
-| `unsupported_scientific_or_operational_boundary` | 0 | 0 | 0 | 16 | 16 |
-| **Total** | **16** | **16** | **16** | **16** | **64** |
+The canonical JSONL has SHA-256 `c6896954dc84e105a858e9ea0aabd88b9cedba4be1217911598c74a317df545c`.
+Family counts are 16 structured, 16 literature, 16 Hybrid, and 16 unsupported.
 
 ## Entity-binding worksheet
 
-The empty binding worksheet retains the complete frozen slot vocabulary:
+The worksheet contains 10 empty pending slots:
 
-| Slot | Required type | Used in current set |
-|---|---|---:|
-| `HOST_LINEAGE_A` | source lineage | yes |
-| `HOST_SPECIES_A` | source species | yes |
-| `HOST_SPECIES_B` | source species | no |
-| `VIRAL_LINEAGE_A` | viral lineage | yes |
-| `VIRAL_LINEAGE_B` | viral lineage | yes |
-| `EXTENDED_LINEAGE_A` | extended viral lineage | no |
-| `ASSEMBLY_A` | assembly | yes |
-| `ASSEMBLY_B` | assembly | yes |
-| `LOCUS_A` | locus | yes |
-| `LOCUS_B` | locus | yes |
-| `LOCUS_C` | locus | yes |
-
-Every binding starts with null stable key, display name, release identity, snapshot identity,
-lineage role, and descendant policy. The worksheet is checksum-bound and pending; it is not an
-approved binding manifest.
-
-## Capability-status distribution
-
-Natural wording is preserved even when the current system cannot execute it. Nothing is rewritten
-into mechanical `Show/List/Count` syntax merely to claim support.
-
-| Capability status | Templates | Meaning |
-|---|---:|---|
-| `requires_relation_contract` | 48 | The shared authoritative relation-class contract and association projection are absent; family-specific routing/composition gaps remain secondary requirements |
-| `unsupported_by_design` | 16 | The requested inference, unsafe mapping, scope expansion, or operation must be refused |
-| `supported_now` | 0 | No natural template is silently treated as executable |
-
-Every answerable template additionally requires `association_projection`,
-`relation_class_assertion`, `relation_contract`, and
-`lineage_role_and_scope_preservation`. The detailed per-question analysis is in
-[`scientific_question_capability_gap.md`](scientific_question_capability_gap.md).
+| Slot | Required entity type |
+| --- | --- |
+| `ASSEMBLY_A` | `assembly` |
+| `ASSEMBLY_B` | `assembly` |
+| `ASSEMBLY_SOURCE_TAXON_A` | `assembly_source_taxon` |
+| `EVE_LOCUS_A` | `eve_locus` |
+| `EVE_LOCUS_B` | `eve_locus` |
+| `EVE_LOCUS_C` | `eve_locus` |
+| `REPORTED_REGION_A` | `reported_viral_region` |
+| `SOURCE_TAXON_LINEAGE_A` | `source_lineage` |
+| `VIRAL_LINEAGE_A` | `viral_lineage` |
+| `VIRAL_LINEAGE_B` | `viral_lineage` |
 
 ## Human-readable question set
 
-All wording below is exact. Every item remains pending.
+### Assembly-source taxon association
 
-### Host taxonomy association
+- `HOST-S-01` — Which EVE loci are recorded for assembly-source taxa within {SOURCE_TAXON_LINEAGE_A}, grouped by viral-lineage affinity and evidence source in the selected release?
+- `HOST-S-02` — For each represented assembly-source taxon within {SOURCE_TAXON_LINEAGE_A}, which assemblies and EVE loci occur, grouped by viral-lineage affinity and evidence source?
+- `HOST-S-03` — Which viral-lineage affinities occur across EVE loci from assembly-source taxa within {SOURCE_TAXON_LINEAGE_A}, and which source-record evidence identifies each association?
+- `HOST-S-04` — Which exact association tuples link assembly-source taxa within {SOURCE_TAXON_LINEAGE_A}, their assemblies and EVE loci, viral-lineage affinities, and evidence sources?
+- `HOST-L-01` — Which source-reported taxa within {SOURCE_TAXON_LINEAGE_A} are linked to reported viral regions, grouped by viral-lineage affinity and literature evidence source?
+- `HOST-L-02` — For source-reported taxa within {SOURCE_TAXON_LINEAGE_A}, which assemblies or reported viral regions are named, grouped by viral-lineage affinity and evidence source?
+- `HOST-L-03` — Which viral-lineage affinities does the permitted literature report for viral regions from taxa within {SOURCE_TAXON_LINEAGE_A}, and which evidence groups support each report?
+- `HOST-L-04` — Which source-reported association tuples link taxa within {SOURCE_TAXON_LINEAGE_A}, named viral regions, viral-lineage affinities, and literature evidence sources?
+- `HOST-H-01` — Which assembly-source taxa within {SOURCE_TAXON_LINEAGE_A} have EVE-locus associations that align with reported viral regions in the permitted literature, grouped by viral-lineage affinity and evidence source?
+- `HOST-H-02` — For assembly-source taxa within {SOURCE_TAXON_LINEAGE_A}, which assemblies, EVE loci, and reported viral regions align across sources, grouped by viral-lineage affinity and evidence source?
+- `HOST-H-03` — Which viral-lineage affinities are shared or source-specific across EVE loci and reported viral regions for taxa within {SOURCE_TAXON_LINEAGE_A}, with evidence provenance retained?
+- `HOST-H-04` — Which taxon, EVE-locus or reported-viral-region, viral-lineage-affinity, and evidence-source tuples are structured-only, literature-only, or present in both within {SOURCE_TAXON_LINEAGE_A}?
 
-Structured:
+### Viral-lineage affinity association
 
-- `HOST-S-01` — Which represented source species within {HOST_LINEAGE_A} have records classified as Transferred gene, and which have records classified as Integrated virus, grouped by viral lineage in the selected release?
-- `HOST-S-02` — For each represented source species within {HOST_LINEAGE_A}, which assemblies contain Transferred gene records and which contain Integrated virus records, grouped by viral lineage?
-- `HOST-S-03` — For each represented source species within {HOST_LINEAGE_A}, which viral lineages are recorded for Transferred gene records and which are recorded for Integrated virus records?
-- `HOST-S-04` — Which exact association tuples link represented source species within {HOST_LINEAGE_A}, their assemblies and loci, the classes Transferred gene or Integrated virus, and their viral lineages in the selected release?
+- `VIRUS-S-01` — Which represented assembly-source taxa have EVE loci assigned an affinity to {VIRAL_LINEAGE_A}, and what evidence source supports each association?
+- `VIRUS-S-02` — Which assemblies and EVE loci are associated with viral-lineage affinity {VIRAL_LINEAGE_A}, grouped by assembly-source taxon and evidence source?
+- `VIRUS-S-03` — For each represented assembly-source taxon associated with viral-lineage affinity {VIRAL_LINEAGE_A}, which EVE loci and source-record evidence are recorded?
+- `VIRUS-S-04` — Which exact assembly-source-taxon, EVE-locus, viral-lineage-affinity {VIRAL_LINEAGE_A}, and evidence-source tuples occur in the selected release?
+- `VIRUS-L-01` — Which source-reported taxa are linked to viral regions with affinity to {VIRAL_LINEAGE_A}, and which literature evidence source supports each report?
+- `VIRUS-L-02` — Which named viral regions does the permitted literature associate with viral-lineage affinity {VIRAL_LINEAGE_A}, grouped by source-reported taxon and evidence source?
+- `VIRUS-L-03` — For source-reported taxa associated with viral-lineage affinity {VIRAL_LINEAGE_A}, which assemblies or viral regions and evidence groups are named?
+- `VIRUS-L-04` — Which source-reported taxon, viral-region, viral-lineage-affinity {VIRAL_LINEAGE_A}, and evidence-source tuples occur in the permitted literature?
+- `VIRUS-H-01` — Which assembly-source taxa have EVE loci with affinity to {VIRAL_LINEAGE_A} that align to reported viral regions, with each source's evidence retained?
+- `VIRUS-H-02` — Which EVE loci and reported viral regions associated with viral-lineage affinity {VIRAL_LINEAGE_A} are structured-only, literature-only, or present in both, grouped by taxon and evidence source?
+- `VIRUS-H-03` — For assembly-source taxa associated with viral-lineage affinity {VIRAL_LINEAGE_A}, which assemblies, EVE loci, reported viral regions, and evidence sources align?
+- `VIRUS-H-04` — Which exact-release EVE loci assigned affinity to {VIRAL_LINEAGE_A} have human-reviewed matches to literature-reported viral regions, and what evidence source supports each side?
 
-Literature:
+### Taxon × viral-lineage affinity association
 
-- `HOST-L-01` — Which host species within {HOST_LINEAGE_A} does the permitted literature report with Transferred gene records, and which does it report with Integrated virus records, grouped by viral lineage?
-- `HOST-L-02` — For host species within {HOST_LINEAGE_A}, which assemblies does the permitted literature associate with Transferred gene records and which with Integrated virus records, grouped by viral lineage?
-- `HOST-L-03` — For each host species within {HOST_LINEAGE_A}, which viral lineages does the permitted literature associate with Transferred gene records and which with Integrated virus records?
-- `HOST-L-04` — Which literature-reported association tuples link host species within {HOST_LINEAGE_A}, their named assemblies or regions, the classes Transferred gene or Integrated virus, and viral lineages?
+- `REL-S-01` — Which assembly-source taxa within {SOURCE_TAXON_LINEAGE_A} have EVE loci with affinity to {VIRAL_LINEAGE_A}, and what source-record evidence supports each association?
+- `REL-S-02` — For assembly-source taxa within {SOURCE_TAXON_LINEAGE_A} associated with viral-lineage affinity {VIRAL_LINEAGE_A}, which assemblies, EVE loci, and evidence sources are recorded?
+- `REL-S-03` — Which exact EVE loci define recorded associations between {SOURCE_TAXON_LINEAGE_A} and viral-lineage affinity {VIRAL_LINEAGE_A}, grouped by assembly-source taxon and evidence source?
+- `REL-S-04` — Which assembly-source taxa and EVE loci within {SOURCE_TAXON_LINEAGE_A} have affinity to {VIRAL_LINEAGE_A}, and which have affinity to {VIRAL_LINEAGE_B}, with evidence sources retained?
+- `REL-L-01` — Which taxa within {SOURCE_TAXON_LINEAGE_A} does the permitted literature link to viral regions with affinity to {VIRAL_LINEAGE_A}, and what evidence source supports each report?
+- `REL-L-02` — For source-reported taxa within {SOURCE_TAXON_LINEAGE_A} associated with viral-lineage affinity {VIRAL_LINEAGE_A}, which assemblies or viral regions and evidence groups are named?
+- `REL-L-03` — Which named viral regions does the permitted literature associate with {SOURCE_TAXON_LINEAGE_A} and viral-lineage affinity {VIRAL_LINEAGE_A}, grouped by taxon and evidence source?
+- `REL-L-04` — Which source-reported taxa and viral regions within {SOURCE_TAXON_LINEAGE_A} have affinity to {VIRAL_LINEAGE_A}, and which have affinity to {VIRAL_LINEAGE_B}, with evidence sources retained?
+- `REL-H-01` — Which assembly-source taxa within {SOURCE_TAXON_LINEAGE_A} have EVE loci with affinity to {VIRAL_LINEAGE_A} that align to reported viral regions, with evidence from both sources retained?
+- `REL-H-02` — For assembly-source taxa within {SOURCE_TAXON_LINEAGE_A} associated with viral-lineage affinity {VIRAL_LINEAGE_A}, which EVE loci and reported viral regions align across evidence sources?
+- `REL-H-03` — Which EVE loci and reported viral regions link {SOURCE_TAXON_LINEAGE_A} to viral-lineage affinity {VIRAL_LINEAGE_A}, with taxon identity and evidence source preserved?
+- `REL-H-04` — Which taxon, EVE-locus or reported-viral-region, viral-lineage-affinity, and evidence-source tuples occur for {VIRAL_LINEAGE_A} within {SOURCE_TAXON_LINEAGE_A}, and which occur for {VIRAL_LINEAGE_B}?
 
-Hybrid:
+### Assembly and locus/region association
 
-- `HOST-H-01` — Which represented source species within {HOST_LINEAGE_A} have Transferred gene associations in both the selected release and the permitted literature, and which have Integrated virus associations in both, grouped by viral lineage?
-- `HOST-H-02` — For represented source species within {HOST_LINEAGE_A}, which assemblies have Transferred gene associations in both sources and which have Integrated virus associations in both, grouped by viral lineage?
-- `HOST-H-03` — For each represented source species within {HOST_LINEAGE_A}, which viral lineages have Transferred gene associations in both sources and which have Integrated virus associations in both?
-- `HOST-H-04` — Which exact source-species, assembly, locus, relation-class, and viral-lineage association tuples are structured-only, literature-only, or present in both within {HOST_LINEAGE_A}, separating Transferred gene from Integrated virus?
+- `RECORD-S-01` — Which EVE loci in assembly {ASSEMBLY_A} are recorded, grouped by viral-lineage affinity and evidence source?
+- `RECORD-S-02` — Which assembly-source taxon, assembly, EVE-locus identity, viral-lineage affinity, and evidence source are recorded for {EVE_LOCUS_A}?
+- `RECORD-S-03` — Which EVE loci in assembly {ASSEMBLY_A} have affinity to {VIRAL_LINEAGE_A}, and what source-record evidence supports each association?
+- `RECORD-S-04` — Which assembly-source taxa, assemblies, viral-lineage affinities, and evidence sources are recorded for EVE loci {EVE_LOCUS_A}, {EVE_LOCUS_B}, and {EVE_LOCUS_C}?
+- `RECORD-L-01` — Which viral regions in assembly {ASSEMBLY_A} does the permitted literature report, grouped by viral-lineage affinity and evidence source?
+- `RECORD-L-02` — Which source-reported taxa and viral-lineage affinities does the literature associate with viral regions in assembly {ASSEMBLY_A}, with evidence sources retained?
+- `RECORD-L-03` — Which taxon and viral-lineage affinity does the permitted literature report for viral region {REPORTED_REGION_A}, and which evidence source supports it?
+- `RECORD-L-04` — Which viral regions in assembly {ASSEMBLY_A} are associated with viral-lineage affinity {VIRAL_LINEAGE_A}, and what literature evidence source supports each report?
+- `RECORD-H-01` — Which taxon, EVE-locus, viral-lineage-affinity, and evidence-source association for {EVE_LOCUS_A} aligns with a literature-reported viral region?
+- `RECORD-H-02` — Which EVE loci in assembly {ASSEMBLY_A} align with literature-reported viral regions, grouped by viral-lineage affinity and evidence source?
+- `RECORD-H-03` — Which EVE-locus and reported-viral-region associations in assembly {ASSEMBLY_A} are structured-only, literature-only, or present in both, with viral-lineage affinity and evidence source retained?
+- `RECORD-H-04` — Which assembly-source taxa, EVE loci, viral-lineage affinities, and evidence sources are associated with assembly {ASSEMBLY_A}, and which are associated with assembly {ASSEMBLY_B}, with reported viral regions retained separately?
 
-### Viral lineage association
+### Unsupported boundaries
 
-Structured:
-
-- `VIRUS-S-01` — Which release-represented assembly-source taxonomic units have records assigned to {VIRAL_LINEAGE_A}, separated into Transferred gene and Integrated virus records?
-- `VIRUS-S-02` — Which release-represented source species have records assigned to {VIRAL_LINEAGE_A}, separated into Transferred gene and Integrated virus records?
-- `VIRUS-S-03` — For each release-represented source species associated with {VIRAL_LINEAGE_A}, which assemblies contain Transferred gene records and which contain Integrated virus records?
-- `VIRUS-S-04` — Which exact loci are assigned to {VIRAL_LINEAGE_A}, grouped by release-represented source species and assembly and separated into Transferred gene and Integrated virus records?
-
-Literature:
-
-- `VIRUS-L-01` — Which host taxonomic units does the permitted literature associate with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?
-- `VIRUS-L-02` — Which host species does the permitted literature associate with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?
-- `VIRUS-L-03` — For host species associated with {VIRAL_LINEAGE_A}, which assemblies does the permitted literature link to Transferred gene records and which to Integrated virus records?
-- `VIRUS-L-04` — Which named loci or source regions does the permitted literature associate with {VIRAL_LINEAGE_A}, separated into Transferred gene and Integrated virus records?
-
-Hybrid:
-
-- `VIRUS-H-01` — Which release-represented assembly-source taxonomic units are also reported in the permitted literature with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?
-- `VIRUS-H-02` — Which release-represented source species are also reported in the permitted literature with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?
-- `VIRUS-H-03` — For release-represented source species associated with {VIRAL_LINEAGE_A}, which assemblies have Transferred gene associations in both sources and which have Integrated virus associations in both?
-- `VIRUS-H-04` — Which exact release loci assigned to {VIRAL_LINEAGE_A} have matching literature-reported Transferred gene associations, and which have matching Integrated virus associations?
-
-### Host taxon x viral lineage association
-
-Structured:
-
-- `REL-S-01` — Which release-represented source species within {HOST_LINEAGE_A} have Transferred gene associations with {VIRAL_LINEAGE_A}, and which have Integrated virus associations?
-- `REL-S-02` — For release-represented source species within {HOST_LINEAGE_A} associated with {VIRAL_LINEAGE_A}, which assemblies contain Transferred gene records and which contain Integrated virus records?
-- `REL-S-03` — Which exact loci define the recorded association between {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}, separated by represented source species, assembly, Transferred gene, and Integrated virus?
-- `REL-S-04` — Which represented source species, assemblies, loci, Transferred gene records, and Integrated virus records are associated with {VIRAL_LINEAGE_A} within {HOST_LINEAGE_A}, and which are associated with {VIRAL_LINEAGE_B}?
-
-Literature:
-
-- `REL-L-01` — Which species within {HOST_LINEAGE_A} does the permitted literature associate with {VIRAL_LINEAGE_A} through Transferred gene records, and which through Integrated virus records?
-- `REL-L-02` — For species within {HOST_LINEAGE_A} associated with {VIRAL_LINEAGE_A}, which assemblies does the permitted literature link to Transferred gene records and which to Integrated virus records?
-- `REL-L-03` — Which named loci or source regions does the permitted literature associate with {HOST_LINEAGE_A} and {VIRAL_LINEAGE_A}, separated into Transferred gene and Integrated virus records?
-- `REL-L-04` — Which literature-reported host species, assemblies, regions, Transferred gene records, and Integrated virus records are associated with {VIRAL_LINEAGE_A} within {HOST_LINEAGE_A}, and which are associated with {VIRAL_LINEAGE_B}?
-
-Hybrid:
-
-- `REL-H-01` — Which release-represented source species within {HOST_LINEAGE_A} are also reported in the permitted literature with Transferred gene associations to {VIRAL_LINEAGE_A}, and which with Integrated virus associations?
-- `REL-H-02` — For release-represented source species within {HOST_LINEAGE_A} associated with {VIRAL_LINEAGE_A}, which assemblies have Transferred gene associations in both sources and which have Integrated virus associations in both?
-- `REL-H-03` — Which loci link {HOST_LINEAGE_A} to {VIRAL_LINEAGE_A} in structured records and permitted literature, separated by represented source species, assembly, Transferred gene, and Integrated virus?
-- `REL-H-04` — Which represented source species, assemblies, loci, Transferred gene records, and Integrated virus records occur across the structured and literature sources for {VIRAL_LINEAGE_A} within {HOST_LINEAGE_A}, and which occur for {VIRAL_LINEAGE_B}?
-
-### Assembly and locus association
-
-Structured:
-
-- `RECORD-S-01` — Which loci in assembly {ASSEMBLY_A} are classified as Transferred gene and which are classified as Integrated virus, grouped by viral lineage?
-- `RECORD-S-02` — Which represented source species, assembly, locus identity, and viral lineage are recorded for locus {LOCUS_A}, including whether its relation class is Transferred gene or Integrated virus?
-- `RECORD-S-03` — Which loci in assembly {ASSEMBLY_A} are assigned to {VIRAL_LINEAGE_A} as Transferred gene records and which as Integrated virus records?
-- `RECORD-S-04` — Which represented source species, assemblies, relation classes, and viral lineages are recorded for {LOCUS_A}, {LOCUS_B}, and {LOCUS_C}, separating Transferred gene from Integrated virus?
-
-Literature:
-
-- `RECORD-L-01` — Which regions in assembly {ASSEMBLY_A} does the permitted literature report as Transferred gene, and which does it report as Integrated virus, grouped by viral lineage?
-- `RECORD-L-02` — Which host species and viral lineages does the permitted literature associate with named regions in assembly {ASSEMBLY_A}, separated into Transferred gene and Integrated virus records?
-- `RECORD-L-03` — Which named regions in {HOST_SPECIES_A} does the permitted literature report as Transferred gene and which as Integrated virus, grouped by assembly and viral lineage?
-- `RECORD-L-04` — Which regions in assembly {ASSEMBLY_A} does the permitted literature associate with {VIRAL_LINEAGE_A} as Transferred gene records and which as Integrated virus records?
-
-Hybrid:
-
-- `RECORD-H-01` — Which source-species, assembly, relation-class, and viral-lineage association for locus {LOCUS_A} is present in both sources, including whether the class is Transferred gene or Integrated virus?
-- `RECORD-H-02` — Which locus-level associations in assembly {ASSEMBLY_A} are present in both sources, separated into Transferred gene and Integrated virus records and grouped by viral lineage?
-- `RECORD-H-03` — Which Transferred gene and Integrated virus associations in assembly {ASSEMBLY_A} are structured-only, literature-only, or present in both, grouped by locus and viral lineage?
-- `RECORD-H-04` — Which represented source species, loci, viral lineages, Transferred gene records, and Integrated virus records are associated with assembly {ASSEMBLY_A}, and which are associated with assembly {ASSEMBLY_B}, with cross-source presence retained?
-
-### Unsupported scientific or operational boundary
-
-- `UNSUP-01` — Which host taxonomic unit has the highest prevalence of {VIRAL_LINEAGE_A}-related records?
-- `UNSUP-02` — Which species definitely has no association with {VIRAL_LINEAGE_A}?
+- `UNSUP-01` — Which source taxonomic unit has the highest prevalence of {VIRAL_LINEAGE_A}-related records?
+- `UNSUP-02` — Which taxon definitely has no association with {VIRAL_LINEAGE_A}?
 - `UNSUP-03` — Which modern host species are currently infected by {VIRAL_LINEAGE_A} because an EVE association is recorded?
 - `UNSUP-04` — Which exact independent integration event is represented by each recorded EVE locus?
-- `UNSUP-05` — Which pairs of host and viral lineages have co-diverged because matching EVE associations are recorded?
-- `UNSUP-06` — Classify every record as either Transferred gene or Integrated virus even though neither relation class has been approved.
-- `UNSUP-07` — Treat every Integration source label as Integrated virus and every Viral contig source label as Transferred gene, then list the resulting host associations.
-- `UNSUP-08` — Treat every HCVR source label as Transferred gene or Integrated virus, then list the resulting host associations.
-- `UNSUP-09` — Merge study-defined, formal, and extended viral-lineage roles into one lineage and report one combined host association set.
-- `UNSUP-10` — Assign locus {LOCUS_A} to {VIRAL_LINEAGE_A} from name similarity alone.
-- `UNSUP-11` — Because {HOST_SPECIES_A} has an association with {VIRAL_LINEAGE_A}, report the same association for every species within {HOST_LINEAGE_A}.
-- `UNSUP-12` — Merge host-virus associations from unapproved or unversioned releases and corpora into the selected release.
-- `UNSUP-13` — Treat the first page or a truncated result as the complete host-species, assembly, and locus association set.
-- `UNSUP-14` — Search the live web for additional host-virus associations outside the approved corpus.
-- `UNSUP-15` — Run BLAST or HMMER on a new sequence and add the inferred host-virus association to the selected release.
-- `UNSUP-16` — Execute an arbitrary SQL query across all database tables to construct a new host-virus association.
+- `UNSUP-05` — Which pairs of source taxa and viral lineages have co-diverged because matching EVE associations are recorded?
+- `UNSUP-06` — Classify every record as either Transferred gene or Integrated virus even though the v1 association contract has no relation-class dimension.
+- `UNSUP-07` — Treat every Integration source label as Integrated virus and every Viral contig source label as Transferred gene, then list the resulting associations.
+- `UNSUP-08` — Treat every HCVR source label as Transferred gene or Integrated virus, then list the resulting associations.
+- `UNSUP-09` — Merge study-defined, formal, and extended viral-lineage roles into one lineage and report one combined association set.
+- `UNSUP-10` — Assign EVE locus {EVE_LOCUS_A} to {VIRAL_LINEAGE_A} from name similarity alone.
+- `UNSUP-11` — Because {ASSEMBLY_SOURCE_TAXON_A} has an association with {VIRAL_LINEAGE_A}, report the same association for every taxon within {SOURCE_TAXON_LINEAGE_A}.
+- `UNSUP-12` — Merge associations from unapproved or unversioned releases and corpora into the selected release.
+- `UNSUP-13` — Treat the first page or a truncated result as the complete assembly-source-taxon, EVE-locus, viral-lineage-affinity, and evidence set.
+- `UNSUP-14` — Search the live web for additional taxon-virus associations outside the approved corpus.
+- `UNSUP-15` — Run BLAST or HMMER on a new sequence and add the inferred association to the selected release.
+- `UNSUP-16` — Execute an arbitrary SQL query across all database tables to construct a new taxon-virus association.
 
-## Stop condition
+## Trust transition
 
-All 64 rows are pending authoring templates. Entity selection, category-policy approval, question
-instantiation, Gold, Oracle evidence, execution, and results remain absent. Proceed only after the
-corresponding human inputs and explicit approval.
+A pending template can become an executable evaluation question only after entity binding,
+complete association projection, provenance verification, independent scientific wording review,
+human Gold and Oracle annotation, and explicit approval. Parser acceptance alone is not evidence.

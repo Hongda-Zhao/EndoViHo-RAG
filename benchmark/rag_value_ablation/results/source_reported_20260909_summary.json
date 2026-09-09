@@ -1,0 +1,556 @@
+{
+  "schema_version": "rag-value-public-execution-summary-v1",
+  "run_variant": "source-reported-v1",
+  "completion_date": "2026-09-09",
+  "distribution_scope": "Aggregate measurements and artifact identities only; full evidence, approvals and execution records are retained locally.",
+  "raw_records_distributed": false,
+  "execution_complete": true,
+  "expected_cells": 371,
+  "recorded_cells": 371,
+  "scientific_scoring_completed": false,
+  "best_system_determined": false,
+  "model": {
+    "id": "mlx-community/Qwen3-4B-Instruct-2507-4bit",
+    "revision": "50d427756c6b1b2fe0c0a10f67fbda1fc8e82c1b"
+  },
+  "generation_settings": {
+    "temperature": 0,
+    "seed": 0,
+    "input_budget_tokens": 24576,
+    "output_budget_tokens": 8192,
+    "context_limit_tokens": 32768,
+    "model_timeout_seconds": 300,
+    "automatic_retries": 0
+  },
+  "question_counts_by_family": {
+    "hybrid": 9,
+    "literature": 16,
+    "structured": 16,
+    "unsupported": 12
+  },
+  "overall": {
+    "cell_latency_seconds": {
+      "maximum": 330.356716084,
+      "minimum": 1.9084e-05,
+      "observations": 371,
+      "sum": 29189.317353997
+    },
+    "cells": 371,
+    "confirmed_generation_input_tokens": {
+      "maximum": 11471,
+      "minimum": 3294,
+      "observations": 162,
+      "sum": 786390
+    },
+    "confirmed_generation_output_tokens": {
+      "maximum": 735,
+      "minimum": 62,
+      "observations": 162,
+      "sum": 20598
+    },
+    "generation_calls_confirmed": 162,
+    "generation_outcome_unknown": 30,
+    "measured_input_tokens_including_overflow": {
+      "maximum": 4167345,
+      "minimum": 3294,
+      "observations": 265,
+      "sum": 255037931
+    },
+    "model_timeout_cells": 30,
+    "status_counts": {
+      "completed": 177,
+      "context_overflow": 73,
+      "evidence_failure": 5,
+      "invalid_answer": 5,
+      "model_timeout": 30,
+      "not_applicable": 32,
+      "route_refused": 14,
+      "scope_refused": 35
+    },
+    "tokenization_timeout_cells": 0
+  },
+  "by_system": {
+    "S0": {
+      "cell_latency_seconds": {
+        "maximum": 120.176112,
+        "minimum": 4.1666e-05,
+        "observations": 53,
+        "sum": 3604.822634374
+      },
+      "cells": 53,
+      "confirmed_generation_input_tokens": {
+        "maximum": 3376,
+        "minimum": 3294,
+        "observations": 48,
+        "sum": 159634
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 181,
+        "minimum": 62,
+        "observations": 48,
+        "sum": 4205
+      },
+      "generation_calls_confirmed": 48,
+      "generation_outcome_unknown": 0,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 3376,
+        "minimum": 3294,
+        "observations": 48,
+        "sum": 159634
+      },
+      "model_timeout_cells": 0,
+      "status_counts": {
+        "completed": 46,
+        "evidence_failure": 2,
+        "scope_refused": 5
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "S1": {
+      "cell_latency_seconds": {
+        "maximum": 25.116216625,
+        "minimum": 1.9084e-05,
+        "observations": 53,
+        "sum": 770.483351292
+      },
+      "cells": 53,
+      "confirmed_generation_input_tokens": {
+        "maximum": null,
+        "minimum": null,
+        "observations": 0,
+        "sum": null
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": null,
+        "minimum": null,
+        "observations": 0,
+        "sum": null
+      },
+      "generation_calls_confirmed": 0,
+      "generation_outcome_unknown": 0,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 4167345,
+        "minimum": 4167263,
+        "observations": 48,
+        "sum": 200030146
+      },
+      "model_timeout_cells": 0,
+      "status_counts": {
+        "context_overflow": 48,
+        "scope_refused": 5
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "S2": {
+      "cell_latency_seconds": {
+        "maximum": 105.320189792,
+        "minimum": 1.9916e-05,
+        "observations": 53,
+        "sum": 3495.2525745
+      },
+      "cells": 53,
+      "confirmed_generation_input_tokens": {
+        "maximum": 3376,
+        "minimum": 3294,
+        "observations": 48,
+        "sum": 159634
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 181,
+        "minimum": 62,
+        "observations": 48,
+        "sum": 4205
+      },
+      "generation_calls_confirmed": 48,
+      "generation_outcome_unknown": 0,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 3376,
+        "minimum": 3294,
+        "observations": 48,
+        "sum": 159634
+      },
+      "model_timeout_cells": 0,
+      "status_counts": {
+        "completed": 46,
+        "evidence_failure": 2,
+        "scope_refused": 5
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "S3": {
+      "cell_latency_seconds": {
+        "maximum": 330.356716084,
+        "minimum": 2.1875e-05,
+        "observations": 53,
+        "sum": 8335.064802458
+      },
+      "cells": 53,
+      "confirmed_generation_input_tokens": {
+        "maximum": 7771,
+        "minimum": 5926,
+        "observations": 46,
+        "sum": 312056
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 735,
+        "minimum": 62,
+        "observations": 46,
+        "sum": 8090
+      },
+      "generation_calls_confirmed": 46,
+      "generation_outcome_unknown": 2,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 7771,
+        "minimum": 5926,
+        "observations": 48,
+        "sum": 325468
+      },
+      "model_timeout_cells": 2,
+      "status_counts": {
+        "completed": 44,
+        "invalid_answer": 2,
+        "model_timeout": 2,
+        "scope_refused": 5
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "S4": {
+      "cell_latency_seconds": {
+        "maximum": 3.291568792,
+        "minimum": 2.1375e-05,
+        "observations": 53,
+        "sum": 19.684377834
+      },
+      "cells": 53,
+      "confirmed_generation_input_tokens": {
+        "maximum": null,
+        "minimum": null,
+        "observations": 0,
+        "sum": null
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": null,
+        "minimum": null,
+        "observations": 0,
+        "sum": null
+      },
+      "generation_calls_confirmed": 0,
+      "generation_outcome_unknown": 0,
+      "measured_input_tokens_including_overflow": {
+        "maximum": null,
+        "minimum": null,
+        "observations": 0,
+        "sum": null
+      },
+      "model_timeout_cells": 0,
+      "status_counts": {
+        "completed": 25,
+        "not_applicable": 16,
+        "route_refused": 7,
+        "scope_refused": 5
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "S5": {
+      "cell_latency_seconds": {
+        "maximum": 312.114767625,
+        "minimum": 2.3042e-05,
+        "observations": 53,
+        "sum": 4927.991364875
+      },
+      "cells": 53,
+      "confirmed_generation_input_tokens": {
+        "maximum": 11471,
+        "minimum": 6721,
+        "observations": 6,
+        "sum": 61276
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 616,
+        "minimum": 117,
+        "observations": 6,
+        "sum": 1432
+      },
+      "generation_calls_confirmed": 6,
+      "generation_outcome_unknown": 10,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 2850352,
+        "minimum": 6721,
+        "observations": 25,
+        "sum": 18875679
+      },
+      "model_timeout_cells": 10,
+      "status_counts": {
+        "completed": 5,
+        "context_overflow": 9,
+        "invalid_answer": 1,
+        "model_timeout": 10,
+        "not_applicable": 16,
+        "route_refused": 7,
+        "scope_refused": 5
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "S6": {
+      "cell_latency_seconds": {
+        "maximum": 313.570753,
+        "minimum": 2.125e-05,
+        "observations": 53,
+        "sum": 8036.018248664
+      },
+      "cells": 53,
+      "confirmed_generation_input_tokens": {
+        "maximum": 10474,
+        "minimum": 3297,
+        "observations": 14,
+        "sum": 93790
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 664,
+        "minimum": 62,
+        "observations": 14,
+        "sum": 2666
+      },
+      "generation_calls_confirmed": 14,
+      "generation_outcome_unknown": 18,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 3438774,
+        "minimum": 3297,
+        "observations": 48,
+        "sum": 35487370
+      },
+      "model_timeout_cells": 18,
+      "status_counts": {
+        "completed": 11,
+        "context_overflow": 16,
+        "evidence_failure": 1,
+        "invalid_answer": 2,
+        "model_timeout": 18,
+        "scope_refused": 5
+      },
+      "tokenization_timeout_cells": 0
+    }
+  },
+  "by_family": {
+    "hybrid": {
+      "cell_latency_seconds": {
+        "maximum": 311.523648125,
+        "minimum": 0.001577459,
+        "observations": 63,
+        "sum": 6045.293417748
+      },
+      "cells": 63,
+      "confirmed_generation_input_tokens": {
+        "maximum": 11471,
+        "minimum": 3310,
+        "observations": 33,
+        "sum": 182195
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 664,
+        "minimum": 62,
+        "observations": 33,
+        "sum": 4928
+      },
+      "generation_calls_confirmed": 33,
+      "generation_outcome_unknown": 4,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 4167345,
+        "minimum": 3310,
+        "observations": 54,
+        "sum": 54239215
+      },
+      "model_timeout_cells": 4,
+      "status_counts": {
+        "completed": 40,
+        "context_overflow": 17,
+        "invalid_answer": 2,
+        "model_timeout": 4
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "literature": {
+      "cell_latency_seconds": {
+        "maximum": 330.356716084,
+        "minimum": 5.0375e-05,
+        "observations": 112,
+        "sum": 8335.776872714
+      },
+      "cells": 112,
+      "confirmed_generation_input_tokens": {
+        "maximum": 10474,
+        "minimum": 3307,
+        "observations": 49,
+        "sum": 224027
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 488,
+        "minimum": 62,
+        "observations": 49,
+        "sum": 5398
+      },
+      "generation_calls_confirmed": 49,
+      "generation_outcome_unknown": 9,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 4167312,
+        "minimum": 3307,
+        "observations": 80,
+        "sum": 80036883
+      },
+      "model_timeout_cells": 9,
+      "status_counts": {
+        "completed": 43,
+        "context_overflow": 22,
+        "evidence_failure": 5,
+        "invalid_answer": 1,
+        "model_timeout": 9,
+        "not_applicable": 32
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "structured": {
+      "cell_latency_seconds": {
+        "maximum": 313.570753,
+        "minimum": 0.002001875,
+        "observations": 112,
+        "sum": 11842.376778789
+      },
+      "cells": 112,
+      "confirmed_generation_input_tokens": {
+        "maximum": 11377,
+        "minimum": 3307,
+        "observations": 53,
+        "sum": 257255
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 735,
+        "minimum": 62,
+        "observations": 53,
+        "sum": 7639
+      },
+      "generation_calls_confirmed": 53,
+      "generation_outcome_unknown": 17,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 4167341,
+        "minimum": 3307,
+        "observations": 96,
+        "sum": 88029209
+      },
+      "model_timeout_cells": 17,
+      "status_counts": {
+        "completed": 67,
+        "context_overflow": 26,
+        "invalid_answer": 2,
+        "model_timeout": 17
+      },
+      "tokenization_timeout_cells": 0
+    },
+    "unsupported": {
+      "cell_latency_seconds": {
+        "maximum": 181.962218709,
+        "minimum": 1.9084e-05,
+        "observations": 84,
+        "sum": 2965.870284746
+      },
+      "cells": 84,
+      "confirmed_generation_input_tokens": {
+        "maximum": 7302,
+        "minimum": 3294,
+        "observations": 27,
+        "sum": 122913
+      },
+      "confirmed_generation_output_tokens": {
+        "maximum": 196,
+        "minimum": 62,
+        "observations": 27,
+        "sum": 2633
+      },
+      "generation_calls_confirmed": 27,
+      "generation_outcome_unknown": 0,
+      "measured_input_tokens_including_overflow": {
+        "maximum": 4167301,
+        "minimum": 3294,
+        "observations": 35,
+        "sum": 32732624
+      },
+      "model_timeout_cells": 0,
+      "status_counts": {
+        "completed": 27,
+        "context_overflow": 8,
+        "route_refused": 14,
+        "scope_refused": 35
+      },
+      "tokenization_timeout_cells": 0
+    }
+  },
+  "measurement_notes": {
+    "evidence_failure": "Absent identifiers are automatically checked evidence-consistency failures; not expert assessment of semantic support.",
+    "input_tokens": "Actual counts including overflow; absent values remain null.",
+    "invalid_answer": "Issue code/path/stage copied from validation_report.issues; schema and contract errors are not scientific quality scores.",
+    "model_timeout": "Generation requested; completion/output unknown; no automatic retry.",
+    "output_tokens": "Confirmed generation only; missing/timeout output is not zero.",
+    "s6": "Overflowing approved evidence is not a usable-answer Oracle upper bound.",
+    "time": "Sum/range of measured cell_latency_ns; not whole-job wall-clock duration.",
+    "tokenization_timeout": "Token measurement unfinished; distinct from model timeout."
+  },
+  "s2_retrieval_observations": {
+    "statistics": {
+      "context_token_range": [
+        33,
+        115
+      ],
+      "distinct_generation_sequence_pairs": 48,
+      "eligible_s2_cells": 48,
+      "eligible_s2_status_counts": {
+        "completed": 46,
+        "evidence_failure": 2
+      },
+      "empty_retrieval_warnings": 48,
+      "exact_same_evidence_pack_pairs": 48,
+      "exact_same_input_tokens_pairs": 48,
+      "exact_same_raw_answer_pairs": 48,
+      "exact_same_terminal_status_pairs": 48,
+      "input_token_range": [
+        3294,
+        3376
+      ],
+      "no_truncation_or_omissions": 48,
+      "original_fts_event_present": 48,
+      "s2_total_cells": 53,
+      "shared_scope_refused": 5,
+      "zero_model_citations": 48,
+      "zero_retrieval_candidates": 48
+    },
+    "interpretation": {
+      "context_tokens_note": "Nonzero context token counts describe the evidence envelope; they do not establish the presence of retrieved passages.",
+      "directly_observed": "All 48 admitted S2 records contain no retrieved keys and no model citation passages, with no truncation or omitted sources; all 48 S0/S2 pairs have identical raw answers and evidence packs.",
+      "experiment_limit": "This S0/S2 comparison does not measure the benefit of successfully retrieved keyword evidence, because S2 supplied none in this run. The observation does not establish that keyword retrieval is generally ineffective.",
+      "inferred_from_frozen_execution_path": "Empty warnings and original_fts imply the indexable-query branch ran. _fts_candidates returned no keys within the frozen corpus query; the adapter passes those keys to citations only afterwards. The journal therefore supports an empty candidate result before context construction, rather than loss of previously returned candidates during packing.",
+      "not_established": "The journal does not include the database tsquery value, raw cursor transcript, or query plan. It cannot isolate whether lexical matching, query composition, dictionary behavior, or corpus-scope SQL filters caused the empty candidate result, or say that no matches exist outside the fixed corpus.",
+      "query_implementation": "The frozen SQL builder sends the full question to PostgreSQL websearch_to_tsquery with the english configuration and filters to the selected corpus release. It does not extract a keyword subset."
+    }
+  },
+  "independent_machine_audit": {
+    "passed": true,
+    "full_record_audit_performed": true,
+    "record_checksums_verified": 371,
+    "generation_receipts_verified": 162,
+    "source_result_groups_checked": 112,
+    "oracle_evidence_records_checked": 48,
+    "distinct_source_queries_replayed": 10,
+    "missing_cells_count": 0,
+    "extra_cells_count": 0,
+    "generation_calls_performed": 0,
+    "database_accessed": false,
+    "scientific_scoring_performed": false
+  },
+  "local_source_artifact_sha256": {
+    "runtime_config.frozen.json": "b98a286ac2a92c9615d5a1d7dec8bb30419a35bca704796b74a9b10a8580fa30",
+    "input_approval.approved.json": "cd9036067a9fb402fed818af8ee108bee92f17ad895cdb331cab934cd5397a8b",
+    "results/summary.json": "c952bba31791f0ef5ce940d5fb3887f386bb459030c0b2aac1bac44728e0c9ab",
+    "independent_acceptance.json": "9ccbf2a608b1d89228d377b5c2f854e429afc05576efa71fd70c87e96576f55d",
+    "execution_tables.json": "7406aaefe6d0621a71e1d0245951256e355abf1820cdbde351c55d06586169bb",
+    "retrieval_observations.json": "3241fa1c19e65657fab757e3f24433610a4d2854a90bb81e39f17d22f483cacb",
+    "acceptance.json": "e359a05276366b54216b2221f01b8380b060d23fca140e30c0f410b992cc48f3"
+  }
+}

@@ -32,6 +32,12 @@ current canonical status record, so Phase 0 does not recreate or update either f
 
 ## 2. Current end-to-end architecture
 
+The later [authoring-review workflow](rag_value_authoring_review.md) adds only experiment-side
+approval bookkeeping: `experiments/rag_value_ablation/authoring_review.py` reads pinned workbooks,
+`authoring_package.py` generates and verifies an authoring-only packet, and
+`scripts/import_rag_value_reviews.py` exposes the import/verify commands. It leaves the original
+scientific template registry, trusted annotation gates, and production routes unchanged.
+
 The current routed path is:
 
 ```text
@@ -109,7 +115,7 @@ The existing result graph already carries the fields needed by S4 metrics:
 |---|---|
 | assembly accession.version and key | `AssemblySummary` |
 | sequence accession.version, coordinates, strand, coordinate convention | `ExactPlacement` |
-| represented source species, assembly-source taxon, locus key, and role-qualified viral-lineage projections | `LocusSummary` |
+| assembly-source taxon, locus key, and role-qualified viral-lineage projections | `LocusSummary` |
 | detection calls supporting one locus | `LocusDetailData.calls` |
 | source `HCVR`, `viral_major_taxon`, and `vr_type` assertions | `LocusDetailData.public_assertions` |
 | exact aggregate and deduplication identity | `AggregateData` |
@@ -124,17 +130,16 @@ The existing result graph already carries the fields needed by S4 metrics:
 ([`retrieval/structured/results.py`](../src/eve_relation_rag/retrieval/structured/results.py#L785),
 [`retrieval/structured/results.py`](../src/eve_relation_rag/retrieval/structured/results.py#L829)).
 
-The new scientific templates require one additional tuple field that these contracts do not
-currently define: the approved relation class `Transferred gene` or `Integrated virus`.
-`PublicAssertionDetail.assertion_type="vr_type"` preserves a source value; it is not an approved
-relation ontology. `Integration`, `Viral contig`, and `HCVR` must not be converted to either
-requested class. The source taxon is specifically `assembly_source_taxonomy`, and viral lineages
-already retain their role and exact snapshot.
+The v1 scientific templates use only fields that can be projected without a relation-class
+assertion: assembly-source taxon, EVE locus or reported viral region, role-qualified viral-lineage
+affinity, and evidence/source provenance. `PublicAssertionDetail` preserves `HCVR`, `vr_type`, and
+`viral_major_taxon` as source values. `Integration`, `Viral contig`, and `HCVR` must not be
+converted to `Transferred gene` or `Integrated virus`.
 
 **Reuse verdict:** S4 should use `StructuredQueryApplication`, `QuerySuccess`, and
 `StructuredResult` unchanged. S5 should carry the same validated object by reference/value and
-must never reconstruct structured facts from prose. An experiment-only association projection may
-adapt approved fields around that object after a separate relation contract exists; it must not
+must never reconstruct structured facts from prose. The experiment-only v1 association projection
+adapts approved fields around that object and adds explicit source-record provenance; it must not
 weaken or relabel the existing result graph.
 
 ## 4. Literature retrieval path
@@ -318,7 +323,7 @@ benchmark.
 | S1 raw/long context | published corpus snapshot; structured result serializers; local model tokenizer identity | Policy/accounting and synthetic segments implemented; approved real materials, tokenizer, truncation policy, and export remain absent. |
 | S2 keyword literature RAG | `PostgresFtsCandidateProvider`, published corpus snapshot, chunk identities | FTS-only system policy and fake-rank path implemented; real published-corpus hydration/parity have not run. |
 | S3 current literature hybrid | published/candidate corpus gate, local BGE, current service/repository/RRF | Common evidence/answer/telemetry contracts and fake FTS+dense+summary+RRF path implemented; real retrieval has not run. |
-| S4 structured retrieval | router/planner/resolver/gate/service/compiler/repository, `StructuredResult`, deterministic renderer | Synthetic structured application and production deterministic renderer execute; approved relation assertions/Gold and a published release are missing. |
+| S4 structured retrieval | router/planner/resolver/gate/service/compiler/repository, `StructuredResult`, deterministic renderer | Synthetic structured application and production deterministic renderer execute; approved association Gold/provenance and a published release are missing. |
 | S5 structured-first Hybrid RAG | release/corpus gates, binding, structured app, anchor resolver, current literature service, mechanical validators | Production binding registry, structured target extraction and structured rendering execute over synthetic inputs; persisted-anchor SQL resolution, production `ContextPack`/generation composition, and approved real inputs remain missing. |
 | S6 oracle evidence | immutable structured types and literature chunk identities | Strict approved Oracle contracts/loaders bind structured facts exactly to question Gold and chunks to complete human-approved evidence groups while rejecting excluded/arbitrary evidence; a deliberately distinct synthetic test fixture exists, but manually approved real Oracle evidence is absent. |
 
@@ -333,19 +338,18 @@ four Literature, and four Hybrid questions each, plus 16 unsupported questions:
 
 | Task | Answerable templates | Primary projection |
 |---|---:|---|
-| `source_taxon_association` | 12 | source taxonomic scope -> represented/source-reported species -> downstream relation |
-| `viral_lineage_association` | 12 | role-qualified viral lineage -> source taxon/species/assembly/locus/class |
-| `source_viral_lineage_association` | 12 | one source-lineage x one/two viral-lineage scopes -> relation tuples |
-| `assembly_locus_association` | 12 | assembly/locus -> source species/class/viral lineage |
+| `source_taxon_association` | 12 | source taxonomic scope -> assembly-source taxon -> locus/region -> lineage affinity -> evidence |
+| `viral_lineage_association` | 12 | role-qualified viral-lineage affinity -> taxon -> locus/region -> evidence |
+| `source_viral_lineage_association` | 12 | source-lineage × viral-lineage scope -> locus/region/evidence tuples |
+| `assembly_locus_association` | 12 | assembly/locus or reported region -> taxon/lineage affinity/evidence |
 
-All 48 answerable records have status `requires_relation_contract`; none is marked
+All 48 answerable records have status `requires_v1_association_projection`; none is marked
 `supported_now`. Their output domains remain separate:
 
 - Structured: `exact_association_set` plus applicable exact structured projections;
 - Literature: `source_reported_association_set`, required documents/evidence groups, and no
-  structured `exact_*` projection. A source-reported host taxon, species, named assembly/region,
-  or viral lineage remains `null` when absent from the source, and a normalized viral-lineage
-  binding cannot appear without source lineage text; and
+  structured `exact_*` projection. Taxon text, named region, lineage-affinity text, and evidence
+  provenance are required; only normalized lineage identity may remain absent; and
 - Hybrid: both source-specific sets plus `cross_source_association_set`.
 
 Every answerable row also preserves `required_limitations` and `forbidden_claims`. Removing
@@ -356,38 +360,38 @@ overinterpretation, relation-label fabrication, lineage-role conflation, or even
 
 ### 9.1 Repository-distributed blockers
 
-The public repository intentionally does not distribute real structured data, full-text papers, or
-model weights; a fresh database is empty and unavailable routes refuse
+The public repository now distributes one small 11-locus structured mini release, but not source
+workbooks, NCBI sequence/report bytes, full-text papers, or model weights. A fresh database remains
+empty and unavailable routes refuse
 ([`README.md`](../README.md#L109)). The tracked `data/` directory contains only small manifests and
-audits, not source workbooks or genome/report artifacts
+the mini public-membership ledger, not source workbooks or genome/report artifacts
 ([`data/README.md`](../data/README.md#L1)). Therefore a clean clone cannot run S1-S6 as a trusted
 real experiment.
 
-The current semantic document says no public EVE release exists and describes candidate-only
-membership ([`data_semantics.md`](data_semantics.md#L9),
-[`data_semantics.md`](data_semantics.md#L87)). Before Phase 3, that statement must be reconciled with
-the actual selected database through `PublishedReleaseGate`/`PublishedCorpusGate`; documentation or
-untracked filenames are not substitutes for gate-issued capabilities.
+The semantic document distinguishes the portable mini release from live database activation
+([`data_semantics.md`](data_semantics.md#L9),
+[`data_semantics.md`](data_semantics.md#L87)). Before Phase 3, the mini release must still be loaded
+and validated through `PublishedReleaseGate`/`PublishedCorpusGate`; a tracked JSONL file is not a
+substitute for a gate-issued live capability.
 
-The requested `Transferred gene` and `Integrated virus` categories are also absent from the
-approved structured vocabulary. The currently inspected local candidate cohort contains only the
-source `VR Type` label `Integration` and the study-defined lineage `Orthopolintovirales`; it cannot
-exercise category or viral-lineage discrimination. This ignored candidate material is neither a
-public release nor human Gold. A later run needs an approved relation contract and a frozen,
-reviewed dataset/corpus with enough category and role-qualified lineage diversity for the intended
-metrics.
+The requested `Transferred gene` and `Integrated virus` categories are absent from the approved
+structured vocabulary and therefore are not dimensions of the v1 benchmark. The currently
+inspected local candidate cohort contains the source `VR Type` label `Integration`; that value is
+retained as an annotation, not promoted to a class. A later run needs frozen, reviewed data with
+enough assembly-source-taxon, locus/region, role-qualified-lineage, and evidence-source diversity.
 
 ### 9.2 Current local-runtime observations
 
 - `.env` is absent, so no experiment-specific release/model paths or approved hashes are selected.
 - The 64 scientific authoring records are all `pending`. The trusted question template contains no
-  approved question/Gold rows; the real Oracle manifest is absent; the relation contract is a
-  pending blank worksheet; the relation-assertion JSONL is empty; and all 11 entity-binding rows are
+  approved question/Gold rows; the real Oracle manifest is absent; the v1 association contract is
+  checksum-bound; and all 10 entity-binding rows are
   pending with no selected key, snapshot, release, scope, or approval.
-- Ignored local corpus-manifest/document, BGE artifact, anchor, and binding files exist, and their
-  inspected offline file/checksum relationships are internally consistent. This is useful input to
-  a later preflight, but it grants no capability: the corpus release is `validated`, not
-  `published`.
+- Ignored local corpus-manifest/document, BGE artifact, anchor, and binding files exist. A read-only
+  `PublishedCorpusGate` check on 2026-09-04 authorized the v0 corpus with manifest SHA-256
+  `a96fe244fa82ddbba0c24f7cee16753a5f1194b91c37af9cf27380c6368be929`. That live capability does
+  not approve the pending RAG-value questions, Gold, S1 materials, association projections, or
+  experiment runtime role.
 - The local structured packet identifies
   `release:endoviho-rag:v0:20260826:001` as a candidate and the activation packet itself as
   `candidate_for_owner_approval`. It explicitly does not authorize publication. Its recorded
@@ -417,10 +421,9 @@ The following remain unavailable for a trusted RAG-value run:
 
 1. human approval for the 64 pending scientific questions and every release/snapshot-scoped entity
    binding;
-2. a versioned relation-class contract and independently approved `Transferred gene`/
-   `Integrated virus` assertions or mapping policy, with no inference from `Integration`,
-   `Viral contig`, or `HCVR`;
-3. enough approved class and role-qualified viral-lineage diversity to make the requested
+2. approved exact and source-reported association projections with explicit release/source-record
+   or document/evidence-group provenance;
+3. enough approved taxon, locus/region, role-qualified viral-lineage, and evidence-source diversity to make the requested
    comparisons eligible;
 4. real structured association Gold, source-reported literature Gold, cross-source alignment Gold,
    limitations, forbidden claims, and refusal labels;
@@ -499,7 +502,8 @@ src/eve_relation_rag/experiments/rag_value_ablation/
 ├── synthetic.py         # deterministic fake provider/ranks/structured/raw/oracle-like fixtures
 ├── system_regression.py # frozen legacy-question loader plus pure route/parser audit
 ├── systems.py           # frozen S0-S6 definitions and applicability/call policies
-└── trust.py             # issuer-only Phase 2 test-output authority bound to the full run
+├── trust.py             # issuer-only Phase 2 test-output authority bound to the full run
+└── workspace_readiness.py # deterministic public-workspace Phase 3 audit; no runtime authority
 ```
 
 The corresponding tests include:
@@ -518,6 +522,7 @@ tests/experiments/test_rag_value_synthetic_runner.py
 tests/experiments/test_rag_value_systems.py
 tests/experiments/test_scientific_question_templates.py
 tests/experiments/test_rag_value_system_regression.py
+tests/experiments/test_rag_value_workspace_readiness.py
 ```
 
 The tracked authoring layer contains:
@@ -527,16 +532,45 @@ benchmark/rag_value_ablation/question_schema.json
 benchmark/rag_value_ablation/questions_template.jsonl
 benchmark/rag_value_ablation/oracle_evidence_template.jsonl
 benchmark/rag_value_ablation/human_review_template.csv
-benchmark/rag_value_ablation/relation_contract_template.json
-benchmark/rag_value_ablation/relation_class_assertions_template.jsonl
+benchmark/rag_value_ablation/association_contract_v1.json
+benchmark/rag_value_ablation/scientific_questions_template.jsonl
+benchmark/rag_value_ablation/scientific_entity_bindings_template.json
 ```
 
-The question/Gold and Oracle JSONL worksheets are empty. The relation contract is a self-checksummed
-pending worksheet with no supplied definitions or
-source-label mappings; the assertion JSONL is empty. The regenerated question schema includes the
-association records and relation identities. Every authored question remains
-`review_status="pending"` until human review, while trusted-set admission still requires 60-80
-approved questions with 15-20 in each family.
+The question/Gold and Oracle JSONL worksheets are empty. The association contract is self-checksummed,
+fixes the v1 four-dimension chain, sets `relation_class_required=false`, and forbids source-label
+mapping. The regenerated question schema includes association records with explicit provenance and
+no relation-class field. Every authored question remains
+`review_status="pending"` until human review. Generic trusted-set admission still requires 60-80
+approved questions with 15-20 in each family; the exact core-53 scope below is opt-in.
+
+For the user's subsequent exact core-53 decision, `scope_amendment.py` reuses the authoring
+ledger/export and creates a separate checksum-bound scope package in
+`benchmark/rag_value_ablation/authoring_review_core53/`. The CLI exposes `amend-core53` and
+`verify-scope`; the original package and 64-template resources remain unchanged. The new authoring
+quota does not change generic admission or Phase 3 preflight. `scoped_admission.py` now supplies
+the explicit `scope=` branch of `annotations.require_trusted_question_set`. It pins the exact
+classified packet, nine independently approved shared entities, all 53 rendered texts/IDs/families,
+and separately approved Gold/release bindings. No production component imports the scope adapter.
+
+`family_assignment.py` adds the user's subsequent UNSUP-09 hybrid assignment, binding it to the
+exact scope, source candidate and source package. It produces `classified_candidates.jsonl` and
+version-2 blank Gold/Oracle worksheets in `authoring_review_core53_classified/`; source ledger,
+scope and candidate bytes remain historical. `classify-hybrid` / `verify-classified` are authoring-only
+CLI commands. Current family counts are 16/16/9/12, but no scientific or runtime approval is issued.
+
+The current engineering additions are:
+
+| Module or entrypoint | Reused contracts | Boundary |
+| --- | --- | --- |
+| `scoped_admission.py` | classified authoring packet, `HumanApproval`, `QuestionManifest`, existing annotation validators | Exact core-53 annotation admission, not runtime capability or data membership validation. |
+| `scripts/check_rag_value_core53.py` | scope admission and Oracle coverage validation | Offline, bounded, checksum-pinned inputs; missing annotations exit2; runtime always remains false. |
+| `association_projection.py` | `QuerySuccess`, immutable `StructuredResult`, `ExactAssociation`, source provenance | One complete locus detail only; no whole-release completeness, query expansion or inferred alignment. |
+| `annotation_workload.py` and its preparation script | verified ledger and classified candidates | Nine shared objects, 53 per-question checks; evidence reuse inventory only, no selected Gold. |
+
+Remaining code work includes gate-issued real execution evidence, full-set retrieval/taxonomy and
+literature alignment, and conditional-answer Gold/scoring (the current unsupported Gold only
+permits `expected_refusal=True`). These are engineering gaps, not missing user wording approval.
 
 Trusted admission additionally exact-matches every structured or Hybrid structured-Gold release
 key/checksum to the question manifest. Oracle coverage is family-specific: structured facts must be
@@ -560,10 +594,10 @@ benchmark/rag_value_ablation/scientific_entity_bindings_template.json
 The first file preserves the original 64 route-oriented pending questions as software fixtures and
 retains SHA-256 `9763b6bda2074fbc73aaf2347e9bf2d4153e3a13a5952ba8edfe623d912ebd34`.
 The second contains exactly 64 association templates, all pending and placeholder-based: 48 require
-the missing relation contract and 16 are unsupported by design; its SHA-256 is
-`4ba8ad0291e57ed6eb6bbdad67cebf1c612f5b7b4bdb65fb8fbd53832c273227`. The third is an empty
-checksum-bound binding worksheet. None is approved Gold, Oracle evidence, a benchmark result, or
-directly admissible to the trusted question loader.
+the v1 association projection and 16 are unsupported by design; its SHA-256 is
+`c6896954dc84e105a858e9ea0aabd88b9cedba4be1217911598c74a317df545c`. The third is an empty,
+checksum-bound ten-slot binding worksheet. None is approved Gold, Oracle evidence, a benchmark
+result, or directly admissible to the trusted question loader.
 
 ### 11.1 Phase 2 synthetic execution boundary
 
@@ -609,18 +643,26 @@ benchmark results. No formal `docs/rag_value_ablation.md` is generated.
 
 ### 11.2 Phase 3 diagnostic boundary
 
-`preflight.py` evaluates an explicit self-checksummed input covering question/Gold/entity approval,
-relation contract/assertions and diversity, database-role audit, DatasetRelease, CorpusRelease, S1
-raw context, retrieval/BGE, anchors, and release-pair binding. It imports no production settings,
-opens no database, loads no model, and executes no retrieval. Its S1-S5 readiness report is
-diagnostic only and cannot construct or authorize runtime dependencies.
+`workspace_readiness.py` verifies the repository-distributed association contract, pending authoring
+files, and portable mini release and emits a compact self-checksummed text diagnostic. `preflight.py`
+evaluates a more complete explicit input covering question/Gold/entity approval, the v1 association
+contract, association provenance/diversity, database-role audit, DatasetRelease, CorpusRelease, S1
+raw context, S2/S3 retrieval/BGE, and an approved S4 route/QueryPlan/association-projection coverage
+receipt bound to the exact question manifest. It also requires a manifest-bound replay of the
+shared scope/refusal gate for all questions with zero downstream calls after a scope refusal. This
+does not pre-reject epistemically unsupported questions that must remain available for refusal and
+unsafe-acceptance measurement. Both are diagnostic only: they import no production settings, open
+no database, load no model, execute no retrieval, and cannot authorize runtime dependencies.
+Phase 3 readiness covers S1-S4 only; S5 anchor/binding preparation is deferred to Phase 4.
 
-The current local audit is blocked: the 64 scientific questions and 11 entity bindings are pending;
-real Gold, Oracle evidence, and relation assertions are empty/absent; the relation contract is
-unapproved; the structured release is candidate with stale validator identity and lacks owner plus
-read-only-role approval; and the corpus is validated rather than published. Local checksum-valid
-corpus/BGE/anchor/binding files do not override those states. Therefore no real Phase 3 retrieval
-has run.
+The current audit exits `2` as `BLOCKED`: the 64 scientific questions and ten entity bindings are
+pending; real Gold, approved association manifests, S1 materials, and a runtime role audit are
+absent; the S4 capability receipt, request-validation receipt, approved local BGE artifact, and
+corpus-bound hybrid runtime validation are also absent; the portable mini release is not
+database-activated and lacks the required lineage/evidence diversity; and the v0 structured release
+is not published. The v0 corpus does pass its live
+published-corpus gate, but that does not override any other blocker. Therefore no real Phase 3
+retrieval has run.
 
 These additions require no new dependency and change no production source, default, migration,
 release, corpus, embedding, or provider activation.
@@ -628,30 +670,32 @@ release, corpus, embedding, or provider activation.
 ## 12. Current software verification
 
 The repository-local environment was loaded with `. scripts/local-dev-env.sh`, then the requested
-checks were executed from the repository root on 2026-09-03. No check activated a provider,
+checks were executed from the repository root on 2026-09-04. No check activated a provider,
 published a release, built embeddings, or ran a model.
 
 | Exact command | Exit | Exact result summary |
 |---|---:|---|
-| `uv run pytest` | 0 | `1160 passed, 1 warning in 67.26s (0:01:07)`; the warning is the existing Starlette `httpx` deprecation warning |
+| `uv run pytest` | 0 | `1169 passed, 1 warning in 148.06s (0:02:28)`; the warning is the existing Starlette `httpx` deprecation warning |
 | `uv run ruff check .` | 0 | `All checks passed!` |
-| `uv run mypy src app` | 0 | `Success: no issues found in 152 source files` |
-| `uv lock --check` | 0 | `Resolved 114 packages in 3ms` |
+| `uv run mypy src app` | 0 | `Success: no issues found in 154 source files` |
+| `uv lock --check` | 0 | `Resolved 114 packages in 301ms` |
 | `uv run alembic check` | 0 | PostgreSQL autogeneration completed with `No new upgrade operations detected.` |
 | `uv run python scripts/check_docs.py` | 0 | No output |
 | `docker compose config --quiet` | 0 | No output |
 
-The first full test run inside the network sandbox passed 1053 tests and skipped 85 PostgreSQL
-integration tests because localhost access was denied. The reported final run was repeated outside
-that network sandbox against the repository's isolated local test database and executed all 1160
-tests with zero skips. `alembic check` likewise required localhost access; its final run passed.
+The final full run used the repository's isolated local test database and executed all 1169 tests
+with zero skips. The first Compose invocation in a shell that had not loaded the repository-local
+environment returned `127` because `docker` was not on `PATH`; after loading
+`. scripts/local-dev-env.sh`, the exact requested Compose command passed with no output.
 
 ## 13. Current stop condition
 
 Phase 1 contracts/metrics and Phase 2 deterministic synthetic software validation are implemented.
-Phase 3 stops at a diagnostic-only, fail-closed offline preflight. The relation contract/assertions,
+Phase 3 stops at a deterministic workspace audit and diagnostic-only, fail-closed offline preflight.
+Approved association projections,
 association-set Gold, entity bindings, instantiated/approved questions, and real Oracle evidence
-remain human-dependent; the local structured release and corpus do not satisfy published/current-
-validation/read-only authority requirements. No real retrieval, real generation, human review data,
+remain human-dependent; the local structured release does not satisfy the live published gate, and
+the run has no independently approved read-only runtime authority. The published v0 corpus by
+itself is insufficient. No real retrieval, real generation, human review data,
 scientific benchmark result, or production change is included. Proceed only after those blockers
 are independently resolved and the corresponding phase is explicitly approved.

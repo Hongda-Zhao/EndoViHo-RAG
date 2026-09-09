@@ -5,10 +5,12 @@ import json
 import pytest
 
 from eve_relation_rag.experiments.rag_value_ablation.contracts import (
+    EvaluationAnswer,
     build_evidence_pack,
     build_generation_identity,
 )
 from eve_relation_rag.experiments.rag_value_ablation.prompting import (
+    FORMAT_EXAMPLES,
     PromptPolicyError,
     build_prompt_policy,
     render_user_payload,
@@ -34,9 +36,12 @@ def test_frozen_prompt_contains_required_safety_rules_and_matches_generation() -
     assert "independent integration events" in policy.system_instruction
     assert "assembly-source taxonomy as source taxonomy" in policy.system_instruction
     assert "viral-lineage role, snapshot" in policy.system_instruction
-    assert "Integration, Viral contig, HCVR" in policy.system_instruction
-    assert "Transferred gene or Integrated virus" in policy.system_instruction
-    assert "approved relation-class assertion" in policy.system_instruction
+    assert "HCVR, VR Type, Viral Major Taxon, Integration" in policy.system_instruction
+    assert "Do not classify a record as Transferred gene" in policy.system_instruction
+    for example in FORMAT_EXAMPLES:
+        assert example["example_evidence"]
+        EvaluationAnswer.model_validate_json(json.dumps(example["example_answer"]))
+    assert "NO facts for the current question" in policy.request_instruction
 
 
 def test_prompt_mismatch_fails_before_generation_and_payload_hides_condition() -> None:
@@ -61,6 +66,8 @@ def test_prompt_mismatch_fails_before_generation_and_payload_hides_condition() -
     )
     payload = json.loads(render_user_payload(evidence))
     assert payload["evidence"]["question"] == evidence.question_text
+    assert "answer_schema" in payload
+    assert "answer_text" in payload["answer_schema"]["properties"]
     assert "system_key" not in payload
     assert "gold" not in payload
     assert "review_status" not in payload

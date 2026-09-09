@@ -44,6 +44,7 @@ local-embeddings = [
 [dependency-groups]
 dev = [
   "httpx>=0.28,<1",
+  "jsonschema>=4.23,<5",
   "mypy>=1.14,<2",
   "pyyaml>=6,<7",
   "pytest>=8.3,<9",
@@ -84,6 +85,8 @@ addopts = ["-ra", "--strict-config", "--strict-markers"]
 testpaths = ["tests"]
 
 [tool.ruff]
+# Generated review receipts and historical workbook helper scripts are immutable outputs.
+extend-exclude = ["outputs"]
 line-length = 100
 target-version = "py312"
 

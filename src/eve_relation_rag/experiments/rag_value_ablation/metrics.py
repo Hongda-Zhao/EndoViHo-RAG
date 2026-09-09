@@ -26,12 +26,14 @@ from eve_relation_rag.experiments.rag_value_ablation.contracts import (
     AssemblyAccessionVersion,
     CoordinateGold,
     EvaluationAnswer,
+    EvaluationQuestion,
     EvidenceGroup,
     LiteratureGold,
     SequenceAccessionVersion,
     StructuredGold,
     SupportLabel,
     SystemKey,
+    UnsupportedGold,
 )
 from eve_relation_rag.literature.contracts import ChunkKey, Sha256, StableToken, StrictFrozenSchema
 
@@ -108,9 +110,13 @@ class AssociationMetrics(StrictFrozenSchema):
     association_set_exact: bool
     missing_association_count: int = Field(ge=0)
     extra_association_count: int = Field(ge=0)
-    class_corrupted_count: int = Field(ge=0)
+    taxon_corrupted_count: int = Field(ge=0)
+    region_corrupted_count: int = Field(ge=0)
+    lineage_corrupted_count: int = Field(ge=0)
     role_corrupted_count: int = Field(ge=0)
     scope_corrupted_count: int = Field(ge=0)
+    evidence_source_corrupted_count: int = Field(ge=0)
+    source_annotations_corrupted_count: int = Field(ge=0)
 
 
 def score_association_set(
@@ -140,14 +146,26 @@ def score_association_set(
         association_set_exact=not missing and not extra,
         missing_association_count=len(missing),
         extra_association_count=len(extra),
-        class_corrupted_count=association_corruption_count(
-            missing, extra, dimension="class"
+        taxon_corrupted_count=association_corruption_count(
+            missing, extra, dimension="taxon"
+        ),
+        region_corrupted_count=association_corruption_count(
+            missing, extra, dimension="region"
+        ),
+        lineage_corrupted_count=association_corruption_count(
+            missing, extra, dimension="lineage"
         ),
         role_corrupted_count=association_corruption_count(
             missing, extra, dimension="role"
         ),
         scope_corrupted_count=association_corruption_count(
             missing, extra, dimension="scope"
+        ),
+        evidence_source_corrupted_count=association_corruption_count(
+            missing, extra, dimension="evidence_source"
+        ),
+        source_annotations_corrupted_count=association_corruption_count(
+            missing, extra, dimension="source_annotations"
         ),
     )
 
@@ -164,9 +182,6 @@ class StructuredPrediction(StrictFrozenSchema):
     coordinates: tuple[CoordinateGold, ...] | None = None
     detection_call_keys: tuple[StableToken, ...] | None = None
     exact_association_set: tuple[ExactAssociation, ...] | None = None
-    relation_contract_key: StableToken | None = None
-    relation_contract_sha256: Sha256 | None = None
-    relation_assertion_manifest_sha256: Sha256 | None = None
     release_key: StableToken | None = None
     release_manifest_sha256: Sha256 | None = None
     limitation_codes: tuple[StableToken, ...] = ()
@@ -219,29 +234,6 @@ class StructuredPrediction(StrictFrozenSchema):
             raise ValueError("predicted exact_count and metric_key must be supplied together")
         if (self.release_key is None) != (self.release_manifest_sha256 is None):
             raise ValueError("predicted release identity must be supplied together")
-        if (self.relation_contract_key is None) != (
-            self.relation_contract_sha256 is None
-        ):
-            raise ValueError("predicted relation contract identity must be supplied together")
-        if (
-            self.relation_assertion_manifest_sha256 is not None
-            and self.relation_contract_key is None
-        ):
-            raise ValueError("predicted relation assertions require a relation contract")
-        if self.exact_association_set is not None and self.relation_contract_key is None:
-            raise ValueError("predicted associations require a relation contract identity")
-        if self.exact_association_set is not None and (
-            self.relation_assertion_manifest_sha256 is None
-        ):
-            raise ValueError("predicted associations require an assertion manifest identity")
-        if any(
-            association.relation_assertion_manifest_sha256
-            != self.relation_assertion_manifest_sha256
-            for association in self.exact_association_set or ()
-        ):
-            raise ValueError(
-                "each predicted association must bind the prediction assertion manifest"
-            )
         return self
 
     @property
@@ -253,13 +245,13 @@ class StructuredPrediction(StrictFrozenSchema):
             identifier
             for association in self.exact_association_set or ()
             for identifier in (
-                association.source_species.term_key,
-                association.source_species.snapshot_key,
+                association.assembly_source_taxon.term_key,
+                association.assembly_source_taxon.snapshot_key,
                 association.assembly_accession_version,
-                association.locus_key,
-                association.relation_assertion_key,
-                association.viral_lineage.term_key,
-                association.viral_lineage.snapshot_key,
+                association.eve_locus_key,
+                association.viral_lineage_affinity.term_key,
+                association.viral_lineage_affinity.snapshot_key,
+                *association.evidence_source.source_record_keys,
             )
         )
         return frozenset(
@@ -271,7 +263,6 @@ class StructuredPrediction(StrictFrozenSchema):
                 *(self.detection_call_keys or ()),
                 *coordinate_identifiers,
                 *association_identifiers,
-                *((self.relation_contract_key,) if self.relation_contract_key else ()),
                 *((self.release_key,) if self.release_key is not None else ()),
                 *self.observed_identifier_tokens,
             )
@@ -293,9 +284,23 @@ def _structured_prediction_from_facts(
     *,
     observed_identifier_tokens: tuple[str, ...],
 ) -> StructuredPrediction:
+    # Only the comparison projection is ordered. The saved model answer is untouched.
+    payload = facts.model_dump(mode="python")
+    for name in (
+        "record_keys", "assembly_accession_versions", "sequence_accession_versions",
+        "locus_keys", "detection_call_keys", "limitation_codes",
+    ):
+        if payload[name] is not None:
+            payload[name] = tuple(sorted(payload[name]))
+    if facts.coordinates is not None:
+        payload["coordinates"] = tuple(sorted(facts.coordinates, key=lambda c: c.sort_key()))
+    if facts.exact_association_set is not None:
+        payload["exact_association_set"] = tuple(
+            sorted(facts.exact_association_set, key=association_sort_key)
+        )
     return StructuredPrediction.model_validate(
         {
-            **facts.model_dump(mode="python"),
+            **payload,
             "observed_identifier_tokens": observed_identifier_tokens,
         }
     )
@@ -333,8 +338,6 @@ class StructuredMetrics(StrictFrozenSchema):
     coordinate_set_exact: bool | None
     detection_call_set_exact: bool | None
     association_metrics: AssociationMetrics | None
-    relation_contract_exact: bool | None
-    relation_assertion_manifest_exact: bool | None
     missing_record_count: int = Field(ge=0)
     extra_record_count: int = Field(ge=0)
     missing_coordinate_count: int = Field(ge=0)
@@ -416,21 +419,6 @@ def score_structured(
         coordinate_set_exact=coordinate_exact,
         detection_call_set_exact=exact["detection_call_set_exact"],
         association_metrics=association_metrics,
-        relation_contract_exact=(
-            None
-            if gold.relation_contract_key is None
-            else (
-                prediction.relation_contract_key == gold.relation_contract_key
-                and prediction.relation_contract_sha256
-                == gold.relation_contract_sha256
-            )
-        ),
-        relation_assertion_manifest_exact=(
-            None
-            if gold.relation_assertion_manifest_sha256 is None
-            else prediction.relation_assertion_manifest_sha256
-            == gold.relation_assertion_manifest_sha256
-        ),
         missing_record_count=missing_records,
         extra_record_count=extra_records,
         missing_coordinate_count=missing_coordinates,
@@ -678,6 +666,34 @@ class RefusalMetrics(StrictFrozenSchema):
     unsafe_acceptance_rate: RatioMetric
     downstream_calls_after_refusal: int = Field(ge=0)
     downstream_call_violation_rate: RatioMetric
+
+
+def refusal_observation_from_question(
+    question: EvaluationQuestion, *, abstained: bool, refusal_origin: RefusalOrigin,
+    downstream_call_count_after_refusal: int = 0,
+) -> RefusalObservation | None:
+    """Score the frozen human expectation, never infer it from the family prefix.
+
+    Pending/rejected labels are missing data, not zeroes. Appropriate here means
+    matching the binary refusal expectation, not expert assessment of explanation
+    quality; that remains a separate human-review field.
+    """
+
+    if type(question) is not EvaluationQuestion:
+        raise MetricError("refusal scoring requires an exact evaluation question")
+    validated = EvaluationQuestion.model_validate_json(question.model_dump_json())
+    if validated.review_status != "approved":
+        return None
+    expected = isinstance(validated.gold, UnsupportedGold)
+    return RefusalObservation(
+        question_id=validated.question_id,
+        expected_refusal=expected,
+        abstained=abstained,
+        refusal_origin=refusal_origin,
+        refusal_appropriate=expected and abstained,
+        unsafe_acceptance=expected and not abstained,
+        downstream_call_count_after_refusal=downstream_call_count_after_refusal,
+    )
 
 
 def summarize_refusal(observations: Sequence[RefusalObservation]) -> RefusalMetrics:

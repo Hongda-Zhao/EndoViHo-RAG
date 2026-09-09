@@ -5,8 +5,10 @@ from __future__ import annotations
 import hashlib
 import re
 from pathlib import Path
+from typing import Literal
 
 from eve_relation_rag.experiments.rag_value_ablation.contracts import (
+    ConditionalAnswerGold,
     EvaluationQuestion,
     HybridGold,
     LiteratureGold,
@@ -16,6 +18,11 @@ from eve_relation_rag.experiments.rag_value_ablation.contracts import (
     QuestionManifest,
     StructuredGold,
     UnsupportedGold,
+)
+from eve_relation_rag.experiments.rag_value_ablation.scoped_admission import (
+    Core53QuestionScope,
+    ScopedAdmissionError,
+    validate_core53_question_scope,
 )
 from eve_relation_rag.literature.hashing import canonical_json_bytes
 
@@ -72,24 +79,32 @@ def _approved_questions_from_validated_manifest(
 
 def require_trusted_question_set(
     manifest: QuestionManifest,
+    *,
+    scope: Core53QuestionScope | None = None,
+    revision: Literal["classified-v1", "single-source-v2"] = "classified-v1",
 ) -> tuple[EvaluationQuestion, ...]:
-    """Apply the preregistered 15-20-per-family admission gate for a trusted run."""
+    """Apply historical quotas or an explicitly bound, approved core-53 amendment."""
 
     manifest = _revalidate_question_manifest(manifest)
     approved = _approved_questions_from_validated_manifest(manifest)
-    if not 60 <= len(approved) <= 80:
-        raise AnnotationError("trusted benchmark requires 60-80 approved questions")
-    families: tuple[QuestionFamily, ...] = (
-        "structured",
-        "literature",
-        "hybrid",
-        "unsupported",
-    )
-    if any(
-        not 15 <= manifest.approved_family_counts[family] <= 20
-        for family in families
-    ):
-        raise AnnotationError("trusted benchmark requires 15-20 approved questions per family")
+    if scope is None:
+        if revision != "classified-v1":
+            raise AnnotationError("wording revision requires the exact core-53 scope")
+        if not 60 <= len(approved) <= 80:
+            raise AnnotationError("trusted benchmark requires 60-80 approved questions")
+        families: tuple[QuestionFamily, ...] = (
+            "structured", "literature", "hybrid", "unsupported",
+        )
+        if any(
+            not 15 <= manifest.approved_family_counts[family] <= 20
+            for family in families
+        ):
+            raise AnnotationError("trusted benchmark requires 15-20 approved questions per family")
+    else:
+        try:
+            validate_core53_question_scope(scope, manifest, revision=revision)
+        except ScopedAdmissionError as exc:
+            raise AnnotationError(str(exc)) from exc
     if (
         manifest.dataset_release_key is None
         or manifest.corpus_release_key is None
@@ -139,6 +154,8 @@ def _validate_structured_gold_release_bindings(
 
     for question in approved_questions:
         gold = question.gold
+        if isinstance(gold, ConditionalAnswerGold):
+            gold = gold.answer_evidence
         structured_gold: StructuredGold | None
         if isinstance(gold, StructuredGold):
             structured_gold = gold
@@ -168,6 +185,8 @@ def _validate_oracle_entry_against_gold(
     gold = question.gold
     if gold is None:
         raise AnnotationError("approved question is missing Gold")
+    if isinstance(gold, ConditionalAnswerGold):
+        gold = gold.answer_evidence
 
     if isinstance(gold, UnsupportedGold):
         if (

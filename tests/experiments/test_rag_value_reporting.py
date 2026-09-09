@@ -94,7 +94,7 @@ def test_test_only_outputs_are_complete_create_once_and_deterministic(tmp_path: 
     )
     answer_header = (first / "answer_metrics.csv").read_text().splitlines()[0]
     assert "exact_association_set_exact" in answer_header
-    assert "source_reported_association_class_corrupted_count" in answer_header
+    assert "source_reported_association_evidence_source_corrupted_count" in answer_header
     assert "cross_source_association_scope_corrupted_count" in answer_header
     assert "citation_passage_accuracy" in answer_header
     assert len(tuple((first / "systems").glob("*.json"))) == 7
@@ -416,6 +416,19 @@ def test_deterministic_fake_generation_identity_can_never_be_marked_trusted() ->
         )
 
 
+def test_manifest_binds_s1_tokenizer_to_common_generation_identity() -> None:
+    manifest = _run().manifest
+    raw_payload = manifest.raw_context_policy.model_dump(mode="python")
+    raw_payload.pop("policy_sha256")
+    raw_payload["tokenizer_id"] = "different/tokenizer"
+    manifest_payload = manifest.model_dump(mode="python")
+    manifest_payload.pop("manifest_sha256")
+    manifest_payload["raw_context_policy"] = build_raw_context_policy(**raw_payload)
+
+    with pytest.raises(ValidationError, match="S1 tokenizer differs"):
+        build_experiment_manifest(**manifest_payload)
+
+
 def test_synthetic_fixture_manifest_is_required_only_for_phase2() -> None:
     manifest = _run().manifest
     phase2_payload = manifest.model_dump(mode="python")
@@ -461,6 +474,9 @@ def test_trusted_phase3_run_records_retrieval_without_binding_an_llm() -> None:
             final_partial_segment_allowed=False,
             separator_sha256="c" * 64,
             tokenizer_key="tokenizer:approved",
+            tokenizer_id="approved/tokenizer",
+            tokenizer_revision="d" * 40,
+            tokenizer_artifact_manifest_sha256="f" * 64,
             model_context_limit_tokens=4096,
             reserved_output_tokens=512,
         ),

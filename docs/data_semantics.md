@@ -6,16 +6,17 @@
 >
 > Presentation semantics: typed API/CLI/Demo responses and fail-closed packaging
 >
-> Status: verified structured staging; no public EVE release; real generation remains disabled
+> Status: 11-locus portable public mini release; live database and real generation remain disabled
 >
 > Frozen pilot source: Zhao et al. v4 Data S1
 
 ## Scientific definition
 
 An endogenous viral element (EVE) is a continuous virus-like gene fragment embedded in a
-eukaryotic host genome and flanked on both sides by host genomic sequence. The current importer
-stages source-reported candidates; it does not yet claim that this definition has been demonstrated
-for any staged row.
+eukaryotic host genome and flanked on both sides by host genomic sequence. The importer stages
+source-reported candidates. A later, separately checksummed mini release makes 11 assembly-local
+loci public only after exact placements, adjacent-sequence flank assessments, explicit decisions,
+and frozen authority bindings are present.
 
 ## Frozen pilot scope
 
@@ -95,11 +96,18 @@ evidence and provenance, including:
 4. complete frozen NCBI taxonomy history and an ICTV release/snapshot binding; and
 5. a clean, checksum-bound, conflict-free validation result.
 
-The current pilot has no flank assessments, no inclusion decisions, and no public locus
-memberships. Consequently, the 38,968 `Integration` placements are staged candidates—not a
-published EVE catalogue—and the 527 `Viral contig` rows remain quarantined. Migration
-`0005_m1_fail_closed_publication` additionally rejects database status promotion to `validated`
-or `published` until a trusted, immutable validation-receipt workflow is implemented.
+The historical 39,495-call import remains a staging ledger; neither `source_high` nor
+`VR Type = Integration` creates membership. The portable release
+`release:endoviho-rag:mini:v1:20260903:001` publishes exactly 11 source-high loci from three
+current Unionidae assemblies. Each has two complete unambiguous 20 kb adjacent-sequence flank
+assessments and an explicit `include` decision. NCBI Taxonomy taxdump
+`2026-08-29T05:29:15Z` (including merged/deleted history), ICTV MSL41 v1, and corrected VMR
+`MSL41.v1.20260729` are fixed in its manifest.
+
+The remaining 39,484 source calls are not public members. The mini release is a version-controlled
+portable artifact, not a claim that a live PostgreSQL instance has been activated. Its exact scope
+and limitations are in
+[`data/releases/endoviho-mini-v1/`](../data/releases/endoviho-mini-v1/README.md).
 
 ## Routed-answer object separation
 
@@ -215,7 +223,7 @@ and no remote SDK, model revision, credential, retry, or data-egress policy is a
 
 Real Zhao hybrid activation is independently blocked by all of the following:
 
-1. the Zhao structured release is still candidate-only and has no public locus memberships;
+1. the 11-locus portable mini release has not been activated as a live database release;
 2. no checksum-approved real dataset-release/corpus-release binding manifest exists;
 3. the external literature corpus has no approved structured-target locus, assembly, lineage, or
    method anchors derivable from a structured result;

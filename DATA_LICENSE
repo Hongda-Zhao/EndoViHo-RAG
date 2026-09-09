@@ -7,10 +7,11 @@ papers, model artifacts, genome records, or source workbooks.
 Tracked repository content
 --------------------------
 
-The repository tracks small project-authored manifests, audit metadata, and tests. It does not
-track the Zhao source workbook, NCBI resolution reports, genome assemblies, the approved Europe
-PMC full-text corpus, embeddings, or the BGE model artifact. Those bytes must be obtained and
-verified independently under their own terms and exact checksums.
+The repository tracks small project-authored manifests, audit metadata, tests, and the 11-locus
+portable public release under data/releases/endoviho-mini-v1. It does not track the Zhao source
+workbook, NCBI resolution reports, genome assemblies, the approved Europe PMC full-text corpus,
+embeddings, or the BGE model artifact. Those bytes must be obtained and verified independently
+under their own terms and exact checksums.
 
 The fabricated literature fixtures under tests/fixtures/literature are project test data. Their
 strict corpus manifest declares CC0-1.0 for each fixture document. This declaration does not apply
@@ -24,6 +25,20 @@ CC-BY-NC-ND-4.0. The separately recorded Zenodo dataset metadata declares CC-BY-
 distinct provenance statements; the Zenodo metadata does not silently override the license basis
 of the canonical supplement. See data/manifests/milestone1_zhao_v4_data_s1.json. No Zhao source
 workbook is distributed in Git, the Python packages, or the container image.
+
+EndoViHo mini DatasetRelease v1
+-------------------------------
+
+The 11-locus ledger is a small project-authored selection and provenance package derived from the
+frozen Zhao source and NCBI/ICTV authority metadata. It retains source-row attribution, exact
+accession/coordinate identifiers, checksums, and the conservative source-license statement. It
+does not reproduce source workbook cells beyond the minimum annotations needed to interpret each
+published membership, and it does not redistribute genome sequence or NCBI/ICTV workbooks.
+
+The release publishes identifiers, coordinates, minimal source annotations, and project-authored
+provenance/selection metadata rather than source workbook or sequence bytes. Users must cite Zhao
+et al. and determine how the source, NCBI, and ICTV terms recorded in the release manifest apply to
+their reuse. No broader rights are granted by this notice.
 
 NCBI-derived resolution metadata
 --------------------------------
@@ -55,10 +70,11 @@ exact revision/checksum package. Model weights are not distributed in this repos
 software artifacts. The project's software MIT license does not substitute for verifying the
 model artifact's own license and checksum.
 
-No data warranty or publication grant
--------------------------------------
+No data warranty or blanket publication grant
+---------------------------------------------
 
-This notice records boundaries; it is not legal advice, a warranty, or permission to publish a
-candidate DatasetRelease. A local database status or checksum does not override source terms.
-Real structured publication, hybrid binding, model/provider activation, and external distribution
-of third-party artifacts remain separate approvals.
+This notice records boundaries; it is not legal advice or a warranty. The explicit mini release is
+the only real structured publication authorized by this repository state. A local database status
+or checksum does not override source terms. Publication of additional records, hybrid binding,
+model/provider activation, and external distribution of third-party artifacts remain separate
+approvals.

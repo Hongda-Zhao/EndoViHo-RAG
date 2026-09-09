@@ -9,6 +9,7 @@ def test_all_project_markdown_parses_and_local_links_resolve() -> None:
         ROOT / "README.md",
         ROOT / "CHANGELOG.md",
         ROOT / "data" / "README.md",
+        ROOT / "data" / "releases" / "endoviho-mini-v1" / "README.md",
         ROOT / "docs" / "data_semantics.md",
         ROOT / "docs" / "repository" / "README.cn.md",
         ROOT / "docs" / "repository" / "README.ja.md",

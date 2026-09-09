@@ -1,16 +1,17 @@
 """Isolated contracts and analysis utilities for the RAG-value ablation."""
 
 from eve_relation_rag.experiments.rag_value_ablation.associations import (
+    AssemblySourceTaxonBinding,
+    AssociationContractV1,
     CrossSourceAssociation,
     ExactAssociation,
-    PendingRelationClassAssertion,
-    PendingRelationContractTemplate,
+    LiteratureEvidenceSource,
+    SourceRecordAnnotations,
     SourceReportedAssociation,
-    SourceSpeciesBinding,
-    ViralLineageBinding,
-    build_pending_relation_contract_template,
-    relation_class_assertions_template_bytes,
-    relation_contract_template_bytes,
+    StructuredEvidenceSource,
+    ViralLineageAffinity,
+    association_contract_v1_bytes,
+    build_association_contract_v1,
 )
 from eve_relation_rag.experiments.rag_value_ablation.contracts import (
     AnswerStructuredFacts,
@@ -32,6 +33,11 @@ from eve_relation_rag.experiments.rag_value_ablation.prompting import build_prom
 from eve_relation_rag.experiments.rag_value_ablation.systems import (
     build_system_definitions,
 )
+from eve_relation_rag.experiments.rag_value_ablation.workspace_readiness import (
+    Phase3WorkspaceAuditReport,
+    audit_public_phase3_workspace,
+    render_phase3_workspace_audit,
+)
 
 __all__ = [
     "AnswerStructuredFacts",
@@ -40,14 +46,18 @@ __all__ = [
     "EvaluationQuestion",
     "GenerationIdentity",
     "QuestionManifest",
+    "Phase3WorkspaceAuditReport",
+    "AssociationContractV1",
+    "AssemblySourceTaxonBinding",
     "CrossSourceAssociation",
     "ExactAssociation",
-    "PendingRelationClassAssertion",
-    "PendingRelationContractTemplate",
+    "LiteratureEvidenceSource",
+    "SourceRecordAnnotations",
     "SourceReportedAssociation",
-    "SourceSpeciesBinding",
-    "ViralLineageBinding",
-    "build_pending_relation_contract_template",
+    "StructuredEvidenceSource",
+    "ViralLineageAffinity",
+    "association_contract_v1_bytes",
+    "build_association_contract_v1",
     "build_evaluation_question",
     "build_evidence_pack",
     "build_experiment_manifest",
@@ -58,6 +68,6 @@ __all__ = [
     "build_raw_context_policy",
     "build_retrieval_policy_identity",
     "build_system_definitions",
-    "relation_class_assertions_template_bytes",
-    "relation_contract_template_bytes",
+    "audit_public_phase3_workspace",
+    "render_phase3_workspace_audit",
 ]

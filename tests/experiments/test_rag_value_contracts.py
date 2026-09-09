@@ -219,11 +219,13 @@ def test_structured_claim_and_typed_projection_must_correspond() -> None:
         )
 
 
-def test_answer_structured_projection_requires_canonical_complete_pairs() -> None:
+def test_answer_structured_projection_requires_unique_values_and_complete_pairs() -> None:
     with pytest.raises(ValidationError, match="supplied together"):
         AnswerStructuredFacts(exact_count=1)
-    with pytest.raises(ValidationError, match="sorted and unique"):
-        AnswerStructuredFacts(record_keys=("record-b", "record-a"))
+    values = ("record-b", "record-a")
+    assert AnswerStructuredFacts(record_keys=values).record_keys == values
+    with pytest.raises(ValidationError, match="must be unique"):
+        AnswerStructuredFacts(record_keys=("record-a", "record-a"))
     with pytest.raises(ValidationError, match="at least one asserted value"):
         AnswerStructuredFacts()
 

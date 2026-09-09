@@ -28,11 +28,11 @@ inputs:
 3. **Semantic hybrid value:** S3 versus S2 with identical corpus, chunking, question, prompt, model,
    context limit, and output limit.
 4. **Structured protection:** S4/S5 versus S0-S3 on exact association sets, represented source
-   species, assemblies, loci, relation classes, role-qualified viral lineages, identifiers,
+   taxa, assemblies, EVE loci, role-qualified viral-lineage affinities, evidence provenance, identifiers,
    coordinates, counts, and release provenance.
 5. **EndoViHo hybrid value:** S5 versus S3 on hybrid questions, holding the generation model fixed.
 6. **Grounding and refusal:** change in unsupported claims, required safety limitations, correct
-   refusal, false refusal, unsafe category mapping, unsafe taxonomy/lineage expansion, and forbidden
+   refusal, false refusal, unsafe source-label mapping, unsafe taxonomy/lineage expansion, and forbidden
    downstream execution.
 7. **Generation ceiling:** S6 error with manually approved complete evidence. Residual S6 error is
    generation/interpretation error, not retrieval error.
@@ -67,6 +67,10 @@ The production provider already demonstrates exact temperature, sampling, output
 retry pinning ([`generation/policy.py`](../src/eve_relation_rag/generation/policy.py#L189)), but its
 prompt is bound to the production `ContextPack`. The benchmark must use a separately approved
 experiment prompt contract without changing that production policy.
+
+The S1 raw-context policy also binds the exact tokenizer id, immutable revision, and artifact
+manifest checksum. A Phase 4+ experiment manifest must match all three to the common
+`GenerationIdentity`; matching only the context and output limits is insufficient.
 
 ### 3.2 Frozen data
 
@@ -150,7 +154,15 @@ Use a single strict `EvaluationQuestion` union with:
 - one family-specific gold object, required only when approved; and
 - a self/checksum binding to the containing annotation manifest.
 
-The trusted manifest must contain 60-80 stable-ID questions with 15-20 items in each family. The
+The historical trusted manifest policy requires 60-80 stable-ID questions with 15-20 items in each
+family. The user has now explicitly selected the exact 53 retained core candidates instead; the
+scope-specific amendment supersedes that authoring quota for this revision only, without changing
+historical resources or granting Gold/runtime approval. See the
+[53-question scope and family record](../benchmark/rag_value_ablation/authoring_review_core53_classified/README.md).
+The later explicit UNSUP-09 hybrid assignment fixes the distribution at 16 structured, 16 literature,
+9 hybrid and 12 unsupported/boundary questions. All original question wording remains unchanged.
+The amendment is not yet connected to trusted runtime admission; those existing gates still fail
+closed under the historical policy until exact candidate-to-approved-question bindings exist. The
 current 64 Codex-authored templates remain `pending`; all real gold fields remain empty or null.
 Only a human may change `review_status` to `approved` and supply the required gold. The loader must
 select only approved questions and must fail if the selected set is empty. Trusted-set admission
@@ -159,9 +171,9 @@ match the outer question manifest's DatasetRelease key and manifest checksum exa
 
 The frozen scientific authoring set now contains exactly 64 natural templates: 16 structured, 16
 literature, 16 Hybrid, and 16 unsupported. Its 48 answerable questions ask only for associations
-among taxonomic scope, represented/source-reported species, assembly, locus or named region,
-`Transferred gene` versus `Integrated virus`, and a role-qualified viral lineage. They do not ask
-for methods, causal explanations, evidence rationales, or interpretation essays.
+along the v1 chain: assembly-source taxon -> EVE locus or reported viral region -> role-qualified
+viral-lineage affinity -> evidence and source. They do not ask for methods, causal explanations,
+or interpretation essays.
 
 Natural wording must not be rewritten into the current controlled-English `Show/List/Count`
 grammar merely to claim support. The earlier 64 grammar-shaped questions remain a separate,
@@ -169,17 +181,18 @@ checksum-frozen system-regression resource. Scientific templates declare their m
 capabilities and remain pending until deterministic planning/readiness and human review are
 complete.
 
-The current repository has no approved `Transferred gene`/`Integrated virus` relation contract.
-`Integration`, `Viral contig`, and `HCVR` are source fields and must not be mapped to those requested
-classes. Consequently, all 48 answerable templates have primary status
-`requires_relation_contract`; none is `supported_now`.
+The v1 contract intentionally has no relation-class dimension. `HCVR`, `VR Type`, and `Viral Major
+Taxon` remain source annotations; `Integration`, `Viral contig`, and `HCVR` must not be mapped to
+`Transferred gene` or `Integrated virus`. All 48 answerable templates have primary status
+`requires_v1_association_projection`; none is `supported_now`.
 
 ### 5.2 Structured gold
 
 The structured gold variant supports nullable, question-dependent fields:
 
-- an exact canonical association set whose tuple preserves represented source species, assembly,
-  locus, approved relation class, and role/snapshot/scope-qualified viral lineage;
+- an exact canonical association set whose tuple preserves assembly-source taxon, assembly,
+  EVE locus, role/snapshot/scope-qualified viral-lineage affinity, release identity, and source
+  record evidence;
 - exact integer count and metric/deduplication key;
 - exact canonical record set;
 - assembly accession.version set;
@@ -191,8 +204,8 @@ The structured gold variant supports nullable, question-dependent fields:
 - exact release key and release manifest identity; and
 - required deterministic limitation codes and forbidden claims.
 
-For source-lineage scopes, “species within” means only source species represented through public
-membership in the exact selected release. It is not a complete biological descendant inventory.
+For source-lineage scopes, results include only assembly-source taxa represented through public
+membership in the exact selected release. They are not a complete biological descendant inventory.
 An assembly-source taxon is not an ancient or modern host assertion.
 
 Approved structured gold must be independently derived and reviewed from the approved release. It
@@ -203,10 +216,9 @@ approved immutable release, but it may not turn the current query result into a 
 
 The literature variant records:
 
-- a canonical `source_reported_association_set` preserving source wording and provenance for any
-  reported host taxon/species, named assembly/region, reported relation class, and viral-lineage
-  role/scope; fields absent from the source remain `null` rather than being completed from
-  structured truth;
+- a canonical `source_reported_association_set` preserving source-reported taxon wording, named
+  viral region, viral-lineage-affinity wording/role/scope, document identity, and evidence-group
+  provenance; absent normalization remains `null` rather than being completed from structured truth;
 - required document keys;
 - required chunk keys grouped into evidence units;
 - acceptable alternative chunks per evidence unit;
@@ -217,7 +229,7 @@ The literature variant records:
 
 Literature gold contains no structured `exact_*` association projection. A literature-only system
 must not consult DatasetRelease membership, inject an internal locus key, or inherit a structured
-relation class. Missing source fields remain missing rather than being filled from structured
+source annotation. Missing source fields remain missing rather than being filled from structured
 truth.
 
 Evidence groups should reuse the prior ablation semantics: one required chunk and its manually
@@ -291,25 +303,23 @@ generate a real oracle label.
 
 Phase 1 implements three experiment-only, immutable association records:
 
-- `ExactAssociation` binds assembly-source species, exact assembly accession.version, locus key,
-  approved relation class, relation-assertion key/hash/manifest, and role/snapshot/scope-qualified
-  viral lineage;
-- `SourceReportedAssociation` preserves literature wording and evidence-group provenance without
-  importing structured identities. Host taxon, species, named assembly/region, and viral lineage
-  are nullable when the source does not report them; at least one host/region descriptor is
-  required, and a normalized viral-lineage binding cannot exist without source lineage text; and
+- `ExactAssociation` binds an assembly-source taxon, exact assembly accession.version, EVE-locus
+  key, role/snapshot/scope-qualified viral-lineage affinity, release identity, source-record keys,
+  and optional source-native annotations;
+- `SourceReportedAssociation` requires source-reported taxon text, a named viral region,
+  viral-lineage-affinity text, document/evidence-group provenance, and optional source annotations;
+  normalized lineage identity remains optional and cannot be inferred from lexical similarity; and
 - `CrossSourceAssociation` records a human-reviewed `both`, `structured_only`,
   `literature_only`, `unmatched`, or `ambiguous` relationship between the two truth domains.
 
-Structured, literature, and Hybrid Gold carry these sets only with one exact relation-contract and
-assertion-manifest identity. Sets must be homogeneous, canonical, and unique; Hybrid alignment must
-cover each supplied record exactly once. The exact metric reports set equality, missing/extra
-records, and conservative class-, lineage-role-, and lineage-scope-corruption counts. It does not
-use fuzzy matching or lexical overlap.
+Sets must be homogeneous, canonical, and unique; Hybrid alignment must cover each supplied record
+exactly once. The exact metric reports set equality, missing/extra records, and conservative
+taxon-, region-, lineage-, role-, scope-, evidence-source-, and source-annotation-corruption counts.
+It does not use fuzzy matching or lexical overlap.
 
-The committed relation-contract worksheet remains `pending`, supplies no definitions or source
-label mapping, and explicitly leaves `HCVR`, `Integration`, and `Viral contig` unmapped. The relation
-assertion JSONL is empty. These are annotation templates, not scientific assertions.
+The committed `association_contract_v1.json` fixes the four-dimension chain, records
+`relation_class_required=false`, preserves the three source-native fields, and explicitly forbids
+the unsafe automatic mappings. It is a data-shape contract, not a new biological assertion.
 
 ## 6. Common evidence and answer contracts
 
@@ -354,9 +364,8 @@ template, evidence schema, and answer schema. Its instruction includes, verbatim
 - preserve structured values exactly and do not modify the supplied structured object;
 - preserve assembly-source taxonomy and every viral-lineage role, snapshot, and
   exact-versus-descendant scope;
-- do not convert `Integration`, `Viral contig`, `HCVR`, or a literature label into
-  `Transferred gene` or `Integrated virus` unless the provided evidence contains an approved
-  relation-class assertion;
+- treat `HCVR`, `VR Type`, `Viral Major Taxon`, `Integration`, and `Viral contig` only as source
+  annotations, and do not classify records as `Transferred gene` or `Integrated virus`;
 - cite every literature-derived factual claim;
 - state when evidence is insufficient; and
 - do not infer modern infection, prevalence, biological absence, co-divergence, or independent
@@ -506,9 +515,9 @@ failure counts are reported beside every denominator.
 - **Numeric exact match:** `1` only when the typed predicted integer equals gold exactly.
 - **Exact record-set accuracy:** `1` only when canonical predicted and gold sets are identical; no
   partial set receives exact-match credit. Also report missing and extra record counts.
-- **Exact association-set accuracy:** apply the same all-or-nothing comparison to the complete
-  source-species/assembly/locus/relation-class/role-qualified-lineage tuples; additionally report
-  missing, extra, class-corrupted, role-corrupted, and scope-corrupted tuple counts.
+- **Exact association-set accuracy:** apply the same all-or-nothing comparison to complete
+  assembly-source-taxon/locus/viral-lineage-affinity/evidence tuples; additionally report missing,
+  extra, taxon-, region-, lineage-, role-, scope-, evidence-source-, and annotation-corruption counts.
 - **Coordinate exact match:** exact equality of the complete typed coordinate tuple; report missing,
   changed, and invented tuples.
 - **Identifier preservation:** fraction of required identifiers reproduced byte-for-byte with
@@ -554,7 +563,7 @@ with the wrong passage is not a supporting citation.
 The answerable association questions do not ask reviewers for a methods or limitations essay.
 `required_limitations` remains a safety rubric: it tests whether the answer preserves necessary
 scope statements and avoids turning release representation into biological completeness or source
-labels into approved relation classes.
+labels into unsupported relation classes.
 
 ### 9.4 Refusal
 
@@ -776,9 +785,8 @@ directory.
 The authoring layer is separate from those trusted/result artifacts. It now preserves the frozen
 route-oriented software fixtures under `benchmark/system_regression/` and stores 64 natural,
 pending association templates plus an empty checksum-bound entity-binding worksheet under
-`benchmark/rag_value_ablation/`. All answerable rows require a future approved relation contract;
-the placeholder templates are not `EvaluationQuestion` records and cannot enter execution or
-scoring.
+`benchmark/rag_value_ablation/`. All answerable rows require the v1 association projection; the
+placeholder templates are not `EvaluationQuestion` records and cannot enter execution or scoring.
 
 Add plot-ready derived CSV files, generated from the same revalidated per-question records:
 
@@ -805,8 +813,8 @@ atomic and create-once: an existing directory or report path is rejected rather 
 **Status: implemented for software validation.** It provides:
 
 - strict experiment, question, gold, oracle, evidence, answer, prompt, system, and result contracts;
-- strict exact, source-reported, and cross-source association records bound to approved
-  relation-assertion identities;
+- strict exact, source-reported, and cross-source association records with explicit release,
+  source-record, document, and evidence-group provenance;
 - approved-only checksum-bound annotation and oracle loaders;
 - trusted-set admission requiring 60-80 approved questions and 15-20 per family;
 - the canonical S0-S6 dependency/stage graph, shared pre-dependency request validation, and
@@ -825,23 +833,18 @@ retain both plus `cross_source_association_set`. Every answerable template also 
 system-regression fixtures, and the entity-binding worksheet remains empty and checksum-bound.
 This does not change trusted `EvaluationQuestion` admission rules.
 
-The authoring vocabulary names `Transferred gene` and `Integrated virus`, but the repository has
-not approved those relation classes or a mapping from `Integration`, `Viral contig`, or `HCVR`.
-The currently inspected candidate cohort also lacks relation-class and viral-lineage diversity.
-These are explicit readiness blockers, not labels to infer during question construction.
-
-Phase 1 therefore adds only a checksum-bound pending relation-contract worksheet and an empty
-relation-assertion JSONL template. It does not fill a definition, mapping, class assertion, reviewer,
-or approval.
+The answerable authoring vocabulary no longer names `Transferred gene` or `Integrated virus`.
+The committed v1 association contract preserves `Integration`, `Viral contig`, `HCVR`, and Viral
+Major Taxon as source annotations and prohibits mapping them to either unsupported class.
 
 The remaining question work is human-dependent:
 
-1. approve a versioned relation-class contract and independently reviewed assertions/mapping;
-2. bind placeholders to approved release/corpus-scoped objects, including lineage role and scope;
-3. instantiate self-contained question text and complete parser, diversity, pagination, and
+1. bind placeholders to approved release/corpus-scoped objects, including lineage role and scope;
+2. instantiate self-contained question text and complete association, evidence-source, parser,
+   diversity, pagination, and
    capacity checks;
-4. obtain independent scientific wording review; and
-5. author and separately approve real Gold and Oracle evidence without deriving labels from a
+3. obtain independent scientific wording review; and
+4. author and separately approve real Gold and Oracle evidence without deriving labels from a
    model or current retriever.
 
 No real provider, database, model, retriever, or scientific result execution is part of Phase 1.
@@ -901,28 +904,79 @@ phase. The current values are software assertions, not scientific benchmark resu
 
 ### Phase 3 - real retrieval only
 
-**Status: offline preflight only; real retrieval has not run.** The preflight consumes one explicit,
-self-checksummed evidence object covering questions/Gold/bindings, relation contract/assertions and
-diversity, database-role audit, DatasetRelease, CorpusRelease, S1 raw context, retrieval/BGE,
-anchors, and the release-pair binding. It reads no production setting or path, opens no database,
-loads no model, and constructs no retriever. It reports canonical S1-S5 blocker codes.
+**Status: deterministic workspace audit plus offline preflight; real retrieval has not run.** Phase 3
+is limited to S1-S4. The preflight consumes one explicit, self-checksummed evidence object covering
+questions/Gold/bindings, the v1 association contract, association provenance and diversity,
+database-role audit, DatasetRelease, CorpusRelease, S1 raw context, S2/S3 retrieval/BGE, and an
+approved question-manifest-bound S4 route/QueryPlan/association-projection coverage receipt.
+A separate question-manifest-bound receipt must replay shared request validation for every
+question, record its actual admitted/refused outcome, validate every scope-policy refusal, and
+prove zero downstream calls after such a refusal. Epistemically unsupported questions remain
+admitted unless the frozen scope policy independently rejects them; otherwise unsafe acceptance
+could not be measured.
+S5 anchor and release-pair identities may be carried as early diagnostics but do not affect Phase 3
+readiness; S5 remains a Phase 4 condition. The preflight reads no production setting or path, opens
+no database, loads no model, and constructs no retriever.
 
 The preflight report is diagnostic only. It cannot authorize or construct a database, retriever,
 model, or other runtime dependency even when every reported check is ready; a later execution gate
 must separately revalidate runtime capabilities. Candidate or merely validated releases never
 satisfy the diagnostic `published` requirement.
 
-The current local inputs fail readiness: all 64 scientific questions are `pending`; real Gold,
-Oracle evidence, relation assertions, and approved entity bindings are absent; the relation contract
-is unapproved; the structured release is candidate rather than published and its validation
-identity is stale, without owner approval or a separately verified strictly read-only database role;
-and the corpus is validated rather than published. Consequently S1-S5 real construction is blocked,
-and this phase has executed no real FTS, dense/summary retrieval, RRF, structured query, or raw-context
-export.
+The deterministic public-workspace audit is available through
+`uv run python scripts/check_rag_value_phase3.py`. It currently exits `2` with `BLOCKED`, while
+proving that it constructed no database, retriever, embedding provider, or LLM. All 64 scientific
+questions and ten entity bindings are `pending`; real Gold, approved association projections, an
+approved S4 capability receipt, an approved S1 material bundle, and exact run bindings are absent.
+The portable mini DatasetRelease verifies correctly, but it has not been activated in PostgreSQL,
+has only one biological viral
+lineage and one evidence source, and cannot satisfy the production published-release gate. A
+read-only live check on 2026-09-04 found the existing v0 CorpusRelease published, while the existing
+v0 DatasetRelease was rejected as not published. No independently approved strictly read-only
+experiment role, request-validation receipt, approved local BGE artifact/runtime validation, or
+runtime execution authority exists. Consequently S1-S4 construction remains
+blocked, and this phase has executed no real FTS, dense/summary retrieval, RRF, structured query, or
+raw-context export.
 
 After those blockers are independently resolved, the intended Phase 3 matrix remains: S1-S3 use
 `retrieval_only` with no LLM provider or answer payload, S4 may complete deterministically, and S0,
 S5, and S6 are `not_applicable`.
+
+### Accepted wording and annotation handoff
+
+Human wording decisions now have a separate checksum-bound authoring ledger and revision
+package. The original preregistered templates remain unchanged and pending. The importer reuses
+the existing frozen schemas and canonical hashing, preserves the old decisions, and emits empty
+Gold/Oracle forms without constructing providers or runtime dependencies. Deleted questions and
+the independent external-search proposal do not enter core annotation forms. The user's subsequent
+UNSUP-09 hybrid assignment resolves the last family through a separately checksummed projection;
+the historical ledger and scope package preserve their earlier unresolved state. The core-53 decision
+is recorded in a new package
+bound to the old ledger and every retained candidate; it replaces the authoring count/balancing
+quota, not the human evidence or runtime requirements. The historical package records
+`scope_amendment_runtime_admission_not_implemented`; its bytes remain a historical snapshot.
+An explicit `Core53QuestionScope` now connects this exact package to annotation admission,
+requiring the nine separately approved entity selections, exact rendered question text and family,
+and approved per-question Gold with the same release bindings. Generic quotas remain unchanged.
+This grants no database, corpus-member verification, or model execution authority.
+The classified package also removes the family-assignment blocker, retaining all
+evidence, model and runtime requirements. Historical package bytes and generic admission defaults
+remain unchanged. See the
+[authoring workflow](rag_value_authoring_review.md) and its machine-generated package for the
+current counts and accepted wording. Wording acceptance never grants scientific or runtime approval.
+
+`check_rag_value_core53.py` can validate pinned entity, question/Gold and Oracle manifests offline;
+even successful annotation validation does not make runtime ready. `annotation_workload.py`
+derives shared-object and evidence-work counts without producing labels. Shared human-selected
+evidence may be referenced across questions, but each question's scope/completeness and the
+separate Oracle use still require explicit human approval.
+
+`association_projection.py` now projects existing complete `locus_detail` results into exact
+source-qualified associations while preserving the immutable result. It does not complete whole
+release retrieval, taxonomy closure, literature extraction or cross-source alignment. The mini
+release remains incompatible with the current production release-key contract; no production
+grammar is changed. Conditional-answer authoring policies also remain blocked by the existing
+`UnsupportedGold.expected_refusal=True` contract and need a deliberate scoring extension.
 
 ### Phase 4 - real LLM comparison
 
@@ -951,9 +1005,10 @@ The implemented tests prove:
 - strict schemas reject extras, coercion, duplicate IDs, noncanonical order, and checksum drift;
 - pending templates cannot enter scoring and approved entries require human provenance;
 - family-specific gold cannot be mixed or left incomplete when approved;
-- association records remain separated by truth domain, bind exact assertion provenance, require
-  canonical sets, and distinguish class, viral-lineage-role, and lineage-scope corruption;
-- the pending relation worksheet cannot prefill a mapping, class assertion, or approval;
+- association records remain separated by truth domain, bind exact release/source-record
+  provenance, require canonical sets, and preserve the four ordered v1 association dimensions;
+- pending scientific questions and entity bindings cannot prefill Gold, Oracle evidence, or human
+  approval;
 - oracle entries require separate human approval and source attestation, and trusted entrypoints
   canonically revalidate exact model types plus nested/self checksums;
 - all six LLM system definitions share one generation identity and question checksum;
@@ -978,7 +1033,7 @@ The implemented tests prove:
 - two-reviewer disagreement cannot become adjudicated automatically;
 - reporting round-trips and revalidates the complete run, is deterministic and create-once, and
   derives every CSV/report from machine files;
-- Phase 3 diagnostics report candidate/validated releases, missing approvals, checksum mismatch,
+- Phase 3 diagnostics report missing approvals, release/activation mismatch, checksum mismatch,
   incomplete diversity, and a non-read-only database role without exposing dependency construction;
   and
 - no production source/default/migration is changed.
@@ -988,9 +1043,11 @@ No new dependency is required for these contracts, calculations, CSV/JSON genera
 ## 17. Current boundary
 
 Phase 1 contracts/metrics and the Phase 2 deterministic synthetic harness are implemented. Phase 3
-contains only the offline, fail-closed preflight and is currently blocked. The 64 scientific
-questions, relation contract/assertions, entity bindings, real Gold, and real Oracle evidence still
-require human approval; the local structured release and corpus are not published, and the
-structured validation/read-only authority is incomplete. No real retrieval, real LLM call, human
+contains a deterministic public-workspace audit and the offline, fail-closed preflight, and is
+currently blocked. The 64 scientific
+questions, association projections, entity bindings, real Gold, and real Oracle evidence still
+require human approval; the portable structured release is not database-activated, the v0
+structured release is not published, and the experiment runtime/read-only authority is incomplete.
+The published local v0 corpus alone does not clear those gates. No real retrieval, real LLM call, human
 label import, scientific benchmark result, or production recommendation has been made. Stop here
 until those inputs are supplied and the next phase is explicitly authorized.

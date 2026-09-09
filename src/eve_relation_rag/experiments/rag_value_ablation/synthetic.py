@@ -365,7 +365,10 @@ class DeterministicFakeGenerationProvider:
         if self._call_sink is not None:
             self._call_sink.append(request)
         payload = json.loads(request.user_payload_json)
-        if set(payload) != {"evidence", "instruction"}:
+        if (
+            set(payload) != {"evidence", "instruction", "answer_schema"}
+            or payload["answer_schema"] != EvaluationAnswer.model_json_schema()
+        ):
             raise ValueError("synthetic request envelope drifted")
         evidence = payload["evidence"]
         if not isinstance(evidence, dict):
@@ -607,11 +610,11 @@ def synthetic_citations(chunk_keys: tuple[str, ...]) -> tuple[EvidenceCitation, 
     source = {
         CHUNK_A: (
             DOCUMENT_A,
-            "Synthetic source A reports a Transferred gene test association.",
+            "Synthetic source A reports viral region A with a polinton-like lineage affinity.",
         ),
         CHUNK_B: (
             DOCUMENT_B,
-            "Synthetic source B reports an Integrated virus test association.",
+            "Synthetic source B reports viral region B with an adenovirus-like lineage affinity.",
         ),
     }
     citations: list[EvidenceCitation] = []
@@ -642,12 +645,12 @@ def synthetic_raw_segments() -> tuple[RawContextSegment, ...]:
         (
             "document",
             "synthetic-source:document-a",
-            "Synthetic source A reports a Transferred gene test association.",
+            "Synthetic source A reports viral region A with a polinton-like lineage affinity.",
         ),
         (
             "document",
             "synthetic-source:document-b",
-            "Synthetic source B reports an Integrated virus test association.",
+            "Synthetic source B reports viral region B with an adenovirus-like lineage affinity.",
         ),
     )
     return tuple(
@@ -687,7 +690,7 @@ def _default_synthetic_cases() -> tuple[SyntheticCase, ...]:
                 required_chunk_key=CHUNK_B,
             ),
         ),
-        required_concepts=("Integrated virus", "Transferred gene"),
+        required_concepts=("adenovirus-like lineage affinity", "polinton-like lineage affinity"),
     )
     structured_question = "Count distinct included loci in this release."
     return (

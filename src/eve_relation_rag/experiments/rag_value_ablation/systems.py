@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import hashlib
+import json
 from collections import defaultdict
 from collections.abc import Sequence
 
@@ -46,9 +47,10 @@ class ComparisonInputRecord(StrictFrozenSchema):
     def validate_question_hash(self) -> ComparisonInputRecord:
         if self.system_key == "S4":
             raise ValueError("S4 has no LLM comparison input")
-        if self.question_text_sha256 != hashlib.sha256(
-            self.question_text.encode("utf-8")
-        ).hexdigest():
+        if (
+            self.question_text_sha256
+            != hashlib.sha256(self.question_text.encode("utf-8")).hexdigest()
+        ):
             raise ValueError("comparison question checksum does not match")
         return self
 
@@ -58,9 +60,7 @@ def build_system_definitions(
 ) -> tuple[EvaluationSystem, ...]:
     """Build canonical systems, optionally without provider binding for Phase 3."""
 
-    generation_sha = (
-        None if generation_identity is None else generation_identity.identity_sha256
-    )
+    generation_sha = None if generation_identity is None else generation_identity.identity_sha256
     return (
         _build_system(
             system_key="S0",
@@ -268,14 +268,42 @@ def validate_system_definitions(
         raise SystemPolicyError("system definitions differ from the canonical S0-S6 policy")
 
 
+def _source_report_variant(system: EvaluationSystem) -> EvaluationSystem:
+    if system.system_key not in {"S4", "S5"}:
+        return system
+    payload = system.model_dump(mode="json", exclude={"system_sha256"})
+    payload["display_name"] += " [source-reported-v1]"
+    dependencies = list(system.allowed_dependencies)
+    if system.system_key == "S4":
+        dependencies.remove("database")
+    dependencies.insert(0, "source_report_repository")
+    payload["allowed_dependencies"] = dependencies
+    return EvaluationSystem.model_validate_json(json.dumps(
+        {**payload, "system_sha256": canonical_json_sha256(payload)}))
+
+
+def build_source_report_system_definitions(
+    generation_identity: GenerationIdentity | None,
+) -> tuple[EvaluationSystem, ...]:
+    """Accepted amendment: version only S4/S5; preserve the other five definitions exactly."""
+    return tuple(_source_report_variant(s) for s in build_system_definitions(generation_identity))
+
+
+def _is_source_report_system(system: EvaluationSystem) -> bool:
+    if system.system_key not in {"S4", "S5"}:
+        return False
+    reference = next(s for s in build_source_report_system_definitions(None)
+                     if s.system_key == system.system_key)
+    omitted = {"system_sha256", "generation_identity_sha256"}
+    return system.model_dump(exclude=omitted) == reference.model_dump(exclude=omitted)
+
+
 def validate_execution_trace(system: EvaluationSystem, trace: ExecutionTrace) -> None:
     """Reject forbidden dependency construction, routes, fallbacks, and post-refusal work."""
 
     if trace.system_key != system.system_key:
         raise SystemPolicyError("execution trace system key does not match system")
-    forbidden_dependencies = set(trace.constructed_dependencies) - set(
-        system.allowed_dependencies
-    )
+    forbidden_dependencies = set(trace.constructed_dependencies) - set(system.allowed_dependencies)
     if forbidden_dependencies:
         raise SystemPolicyError(
             f"system constructed forbidden dependencies: {sorted(forbidden_dependencies)}"
@@ -336,9 +364,7 @@ def validate_execution_trace(system: EvaluationSystem, trace: ExecutionTrace) ->
         if not set(pre_generation_stages) <= set(trace.called_stages):
             raise SystemPolicyError("retrieval-only execution is missing required preparation")
         expected_dependencies = tuple(
-            dependency
-            for dependency in system.allowed_dependencies
-            if dependency != "llm_provider"
+            dependency for dependency in system.allowed_dependencies if dependency != "llm_provider"
         )
         if trace.constructed_dependencies != expected_dependencies:
             raise SystemPolicyError(
@@ -364,7 +390,13 @@ def validate_evidence_for_system(
         return
     if evidence is None:
         raise SystemPolicyError("LLM system requires an evidence pack")
-    has_structured = evidence.structured_success is not None
+    source_variant = _is_source_report_system(system)
+    if evidence.source_report_groups and system.system_key == "S5" and not source_variant:
+        raise SystemPolicyError("source reports require the separately versioned S5 definition")
+    if source_variant and system.system_key == "S5" and not evidence.source_report_groups:
+        raise SystemPolicyError("source-report S5 requires complete source query results")
+    has_structured = (evidence.structured_success is not None or bool(evidence.structured_groups)
+                      or bool(evidence.source_report_groups))
     has_citations = bool(evidence.citations)
     has_raw = bool(evidence.raw_context_segments)
     expected_shapes = {
@@ -374,12 +406,16 @@ def validate_evidence_for_system(
         "S3": (False, True, False),
         "S5": (True, True, False),
     }
-    if system.system_key in expected_shapes and (
-        has_structured,
-        has_citations,
-        has_raw,
-    ) != expected_shapes[system.system_key]:
-        raise SystemPolicyError("evidence shape does not match the frozen system condition")
+    if system.system_key in expected_shapes:
+        expected_structured, expected_citations, expected_raw = expected_shapes[system.system_key]
+        # A real retrieval may return zero passages. Preserve the empty evidence
+        # and let the shared answer contract abstain; never inject a fallback hit.
+        if (
+            has_structured != expected_structured
+            or has_raw != expected_raw
+            or (has_citations and not expected_citations)
+        ):
+            raise SystemPolicyError("evidence shape does not match the frozen system condition")
     if system.system_key == "S6" and has_raw:
         raise SystemPolicyError("S6 cannot substitute raw context for approved oracle evidence")
     if system.system_key == "S6" and evidence.oracle_entry_sha256 is None:

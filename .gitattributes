@@ -1,0 +1,2 @@
+# These checksum-bound review pages use Markdown's two-space hard line breaks.
+benchmark/rag_value_ablation/authoring_review*/QUESTION_REVIEW.cn.md whitespace=-blank-at-eol

@@ -10,20 +10,40 @@ from __future__ import annotations
 import hashlib
 import json
 import re
+import unicodedata
 from collections.abc import Sequence
-from typing import Annotated, Literal, Self, cast
+from typing import Annotated, Any, Literal, Self, cast
 
-from pydantic import AfterValidator, BaseModel, Field, field_validator, model_validator
+from pydantic import (
+    AfterValidator,
+    BaseModel,
+    ConfigDict,
+    Field,
+    SerializerFunctionWrapHandler,
+    field_validator,
+    model_serializer,
+    model_validator,
+)
 
 from eve_relation_rag.domain.keys import (
     is_versioned_assembly_accession,
     is_versioned_contig_accession,
 )
+from eve_relation_rag.experiments.rag_value_ablation.answer_schema import (
+    answer_schema,
+    claim_schema,
+    structured_facts_schema,
+)
 from eve_relation_rag.experiments.rag_value_ablation.associations import (
     CrossSourceAssociation,
     ExactAssociation,
     SourceReportedAssociation,
+    association_sort_key,
     validate_canonical_association_set,
+)
+from eve_relation_rag.experiments.rag_value_ablation.source_report_queries import SourceReportResult
+from eve_relation_rag.experiments.rag_value_ablation.structured_evidence import (
+    StructuredEvidenceGroup,
 )
 from eve_relation_rag.literature.contracts import (
     EMBEDDING_MODEL_KEY,
@@ -71,6 +91,7 @@ type EvidenceMode = Literal[
 ]
 type DependencyKind = Literal[
     "database",
+    "source_report_repository",
     "structured_retrieval",
     "corpus",
     "fts",
@@ -191,9 +212,6 @@ class StructuredGold(StrictFrozenSchema):
     coordinates: tuple[CoordinateGold, ...] | None = None
     detection_call_keys: tuple[StableToken, ...] | None = None
     exact_association_set: tuple[ExactAssociation, ...] | None = None
-    relation_contract_key: StableToken | None = None
-    relation_contract_sha256: Sha256 | None = None
-    relation_assertion_manifest_sha256: Sha256 | None = None
     release_key: StableToken
     release_manifest_sha256: Sha256
     required_limitation_codes: tuple[StableToken, ...] = ()
@@ -254,30 +272,12 @@ class StructuredGold(StrictFrozenSchema):
         )
         if not substantive:
             raise ValueError("structured gold requires at least one exact scored value")
-        if (self.relation_contract_key is None) != (
-            self.relation_contract_sha256 is None
-        ):
-            raise ValueError("relation contract key and checksum must be supplied together")
-        if (
-            self.relation_assertion_manifest_sha256 is not None
-            and self.relation_contract_key is None
-        ):
-            raise ValueError("relation assertions require a relation contract identity")
-        if self.exact_association_set is not None and (
-            self.relation_contract_key is None
-            or self.relation_assertion_manifest_sha256 is None
-        ):
-            raise ValueError(
-                "exact associations require approved relation contract and assertion identities"
-            )
         if any(
-            association.relation_assertion_manifest_sha256
-            != self.relation_assertion_manifest_sha256
+            association.evidence_source.release_key != self.release_key
+            or association.evidence_source.release_manifest_sha256 != self.release_manifest_sha256
             for association in self.exact_association_set or ()
         ):
-            raise ValueError(
-                "each exact association must bind the Gold assertion manifest"
-            )
+            raise ValueError("each exact association must bind the Gold release evidence")
         return self
 
     @property
@@ -289,13 +289,13 @@ class StructuredGold(StrictFrozenSchema):
             identifier
             for association in self.exact_association_set or ()
             for identifier in (
-                association.source_species.term_key,
-                association.source_species.snapshot_key,
+                association.assembly_source_taxon.term_key,
+                association.assembly_source_taxon.snapshot_key,
                 association.assembly_accession_version,
-                association.locus_key,
-                association.relation_assertion_key,
-                association.viral_lineage.term_key,
-                association.viral_lineage.snapshot_key,
+                association.eve_locus_key,
+                association.viral_lineage_affinity.term_key,
+                association.viral_lineage_affinity.snapshot_key,
+                *association.evidence_source.source_record_keys,
             )
         )
         return frozenset(
@@ -307,7 +307,6 @@ class StructuredGold(StrictFrozenSchema):
                 *(self.detection_call_keys or ()),
                 *coordinate_identifiers,
                 *association_identifiers,
-                *((self.relation_contract_key,) if self.relation_contract_key else ()),
                 self.release_key,
             )
         )
@@ -350,9 +349,6 @@ class LiteratureGold(StrictFrozenSchema):
     required_limitations: tuple[NonEmptyText, ...] = ()
     forbidden_claims: tuple[NonEmptyText, ...] = ()
     source_reported_association_set: tuple[SourceReportedAssociation, ...] | None = None
-    relation_contract_key: StableToken | None = None
-    relation_contract_sha256: Sha256 | None = None
-    relation_assertion_manifest_sha256: Sha256 | None = None
 
     @field_validator(
         "required_document_keys",
@@ -398,37 +394,14 @@ class LiteratureGold(StrictFrozenSchema):
         group_documents = {group.required_document_key for group in self.evidence_groups}
         if not group_documents <= set(self.required_document_keys):
             raise ValueError("evidence-group documents must be required documents")
-        if (self.relation_contract_key is None) != (
-            self.relation_contract_sha256 is None
-        ):
-            raise ValueError("relation contract key and checksum must be supplied together")
-        if (
-            self.relation_assertion_manifest_sha256 is not None
-            and self.relation_contract_key is None
-        ):
-            raise ValueError("relation assertions require a relation contract identity")
-        if (
-            self.source_reported_association_set is not None
-            and (
-                self.relation_contract_key is None
-                or self.relation_assertion_manifest_sha256 is None
-            )
-        ):
-            raise ValueError(
-                "source-reported associations require approved relation contract and assertion "
-                "identities"
-            )
         if any(
-            association.relation_assertion_manifest_sha256
-            != self.relation_assertion_manifest_sha256
+            not set(association.evidence_source.document_keys) <= set(self.required_document_keys)
             for association in self.source_reported_association_set or ()
         ):
-            raise ValueError(
-                "each source-reported association must bind the Gold assertion manifest"
-            )
+            raise ValueError("source-reported association names a non-required document")
         known_groups = {group.group_id for group in self.evidence_groups}
         if any(
-            not set(association.evidence_group_ids) <= known_groups
+            not set(association.evidence_source.evidence_group_ids) <= known_groups
             for association in self.source_reported_association_set or ()
         ):
             raise ValueError("source-reported association names an unknown evidence group")
@@ -474,17 +447,6 @@ class HybridGold(StrictFrozenSchema):
             raise ValueError("hybrid association gold requires all three association sets")
         if cross is None:
             return self
-        if (
-            self.structured.relation_contract_key
-            != self.literature.relation_contract_key
-            or self.structured.relation_contract_sha256
-            != self.literature.relation_contract_sha256
-            or self.structured.relation_assertion_manifest_sha256
-            != self.literature.relation_assertion_manifest_sha256
-        ):
-            raise ValueError(
-                "hybrid association gold must use one relation contract and assertion manifest"
-            )
         projected_exact = tuple(
             value.structured_association
             for value in cross
@@ -549,8 +511,40 @@ class UnsupportedGold(StrictFrozenSchema):
         return values
 
 
+class ConditionalAnswerGold(StrictFrozenSchema):
+    """A boundary question with a manually established answerable condition.
+
+    The family remains unsupported/boundary for historical membership. This
+    variant explicitly records that refusal is NOT expected for the frozen
+    question and release. It never decides conditions from model output.
+    """
+
+    gold_kind: Literal["conditional_answer"] = "conditional_answer"
+    expected_refusal: Literal[False] = False
+    conditions: tuple[NonEmptyText, ...] = Field(min_length=1)
+    answer_evidence: Annotated[
+        StructuredGold | LiteratureGold | HybridGold,
+        Field(discriminator="gold_kind"),
+    ]
+    prohibited_downstream_stages: tuple[ExecutionStage, ...] = ()
+    required_explanations: tuple[NonEmptyText, ...] = Field(min_length=1)
+    forbidden_claims: tuple[NonEmptyText, ...] = Field(min_length=1)
+
+    @field_validator(
+        "conditions",
+        "prohibited_downstream_stages",
+        "required_explanations",
+        "forbidden_claims",
+    )
+    @classmethod
+    def unique_values(cls, values: tuple[str, ...]) -> tuple[str, ...]:
+        if len(values) != len(set(values)):
+            raise ValueError("conditional answer criteria must be unique")
+        return values
+
+
 type QuestionGold = Annotated[
-    StructuredGold | LiteratureGold | HybridGold | UnsupportedGold,
+    StructuredGold | LiteratureGold | HybridGold | UnsupportedGold | ConditionalAnswerGold,
     Field(discriminator="gold_kind"),
 ]
 
@@ -571,14 +565,20 @@ class EvaluationQuestion(StrictFrozenSchema):
 
     @model_validator(mode="after")
     def validate_review_and_hash(self) -> Self:
-        if self.question_text_sha256 != hashlib.sha256(
-            self.question_text.encode("utf-8")
-        ).hexdigest():
+        if (
+            self.question_text_sha256
+            != hashlib.sha256(self.question_text.encode("utf-8")).hexdigest()
+        ):
             raise ValueError("question_text_sha256 does not match question_text")
         if self.review_status == "approved":
             if self.approval is None or self.gold is None:
                 raise ValueError("approved question requires human approval and complete gold")
-            if self.family != self.gold.gold_kind:
+            expected_family = (
+                "unsupported"
+                if isinstance(self.gold, ConditionalAnswerGold)
+                else self.gold.gold_kind
+            )
+            if self.family != expected_family:
                 raise ValueError("question family does not match gold kind")
         elif self.approval is not None or self.gold is not None:
             raise ValueError("only approved questions may carry approval or real gold")
@@ -676,9 +676,7 @@ def build_question_manifest(
     """Build a canonical annotation manifest without upgrading review status."""
 
     ordered = tuple(sorted(questions, key=lambda question: question.question_id))
-    approved = tuple(
-        question for question in ordered if question.review_status == "approved"
-    )
+    approved = tuple(question for question in ordered if question.review_status == "approved")
     payload: dict[str, object] = {
         "manifest_schema_version": "rag-value-question-manifest-v1",
         "dataset_release_key": dataset_release_key,
@@ -700,25 +698,22 @@ def build_question_manifest(
 class OracleEvidenceEntry(StrictFrozenSchema):
     """Separately reviewed oracle facts/chunks; a retriever cannot issue approval."""
 
-    entry_schema_version: Literal["rag-value-oracle-entry-v1"] = (
-        "rag-value-oracle-entry-v1"
-    )
+    entry_schema_version: Literal["rag-value-oracle-entry-v1"] = "rag-value-oracle-entry-v1"
     question_id: StableToken
     question_text_sha256: Sha256
     review_status: ReviewStatus
     approval: HumanApproval | None = None
-    evidence_disposition: Literal[
-        "evidence_supplied", "no_supporting_evidence"
-    ] | None = None
+    evidence_disposition: Literal["evidence_supplied", "no_supporting_evidence"] | None = None
     structured_facts: StructuredGold | None = None
     literature_chunk_keys: tuple[ChunkKey, ...] = ()
     dataset_release_key: StableToken | None = None
     dataset_manifest_sha256: Sha256 | None = None
     corpus_release_key: CorpusReleaseKey | None = None
     corpus_manifest_sha256: Sha256 | None = None
-    source_attestation: Literal[
-        "Evidence was selected manually and not generated from model or retriever output."
-    ] | None = None
+    source_attestation: (
+        Literal["Evidence was selected manually and not generated from model or retriever output."]
+        | None
+    ) = None
     entry_sha256: Sha256
 
     @field_validator("literature_chunk_keys")
@@ -815,9 +810,7 @@ def build_oracle_manifest(
     payload: dict[str, object] = {
         "manifest_schema_version": "rag-value-oracle-manifest-v1",
         "entry_count": len(ordered),
-        "approved_entry_count": sum(
-            entry.review_status == "approved" for entry in ordered
-        ),
+        "approved_entry_count": sum(entry.review_status == "approved" for entry in ordered),
         "entries": ordered,
     }
     return OracleEvidenceManifest.model_validate(
@@ -895,12 +888,9 @@ class RetrievalPolicyIdentity(StrictFrozenSchema):
         "retrieval:postgres16-english-bge-hnsw-summary-rrf60-v2"
     ] = RETRIEVAL_POLICY_KEY
     embedding_model_key: Literal[
-        "embedding:hf:BAAI-bge-small-en-v1.5@"
-        "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a:cls-l2norm-v1"
+        "embedding:hf:BAAI-bge-small-en-v1.5@5c38ec7c405ec4b44b94cc5a9bb96e735b38267a:cls-l2norm-v1"
     ] = EMBEDDING_MODEL_KEY
-    embedding_revision: Literal[
-        "5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"
-    ] = EMBEDDING_REVISION
+    embedding_revision: Literal["5c38ec7c405ec4b44b94cc5a9bb96e735b38267a"] = EMBEDDING_REVISION
     embedding_artifact_manifest_sha256: Sha256 | None
     dense_branches: tuple[Literal["full"], Literal["title_abstract"]] = (
         "full",
@@ -959,9 +949,19 @@ class RawContextPolicy(StrictFrozenSchema):
     final_partial_segment_allowed: bool
     separator_sha256: Sha256
     tokenizer_key: StableToken
+    tokenizer_id: str = Field(min_length=1, max_length=255)
+    tokenizer_revision: str = Field(min_length=40, max_length=64)
+    tokenizer_artifact_manifest_sha256: Sha256
     model_context_limit_tokens: int = Field(ge=1)
     reserved_output_tokens: int = Field(ge=1)
     policy_sha256: Sha256
+
+    @field_validator("tokenizer_revision")
+    @classmethod
+    def immutable_tokenizer_revision(cls, value: str) -> str:
+        if _REVISION_RE.fullmatch(value) is None:
+            raise ValueError("tokenizer revision must be immutable lowercase hex")
+        return value
 
     @model_validator(mode="after")
     def validate_policy(self) -> Self:
@@ -1077,8 +1077,19 @@ class RawContextSegment(StrictFrozenSchema):
     source_sha256: Sha256
     byte_start: int = Field(ge=0)
     byte_end: int = Field(gt=0)
-    text: CanonicalText
+    text: str = Field(min_length=1)
     text_sha256: Sha256
+
+    @field_validator("text")
+    @classmethod
+    def exact_source_text(cls, value: str) -> str:
+        # Whole UTF-8 files retain their line endings and tabs. Passage text's
+        # single-line CanonicalText would otherwise reject all ordinary raw files.
+        if unicodedata.normalize("NFC", value) != value:
+            raise ValueError("raw source text must already use Unicode NFC")
+        if any(unicodedata.category(c).startswith("C") and c not in "\r\n\t" for c in value):
+            raise ValueError("raw source contains unsupported control or format characters")
+        return value
 
     @model_validator(mode="after")
     def validate_segment(self) -> Self:
@@ -1094,13 +1105,15 @@ class RawContextSegment(StrictFrozenSchema):
 class EvaluationEvidencePack(StrictFrozenSchema):
     """Common model evidence envelope; it intentionally contains no system or gold label."""
 
-    pack_schema_version: Literal["rag-value-evidence-pack-v1"] = (
-        "rag-value-evidence-pack-v1"
-    )
+    pack_schema_version: Literal[
+        "rag-value-evidence-pack-v1", "rag-value-evidence-pack-v2", "rag-value-evidence-pack-v3"
+    ] = "rag-value-evidence-pack-v1"
     question_id: StableToken
     question_text: QuestionText
     question_text_sha256: Sha256
     structured_success: QuerySuccess | None = None
+    structured_groups: tuple[StructuredEvidenceGroup, ...] = ()
+    source_report_groups: tuple[SourceReportResult, ...] = ()
     citations: tuple[EvidenceCitation, ...] = ()
     raw_context_segments: tuple[RawContextSegment, ...] = ()
     construction: ContextConstructionRecord
@@ -1108,11 +1121,48 @@ class EvaluationEvidencePack(StrictFrozenSchema):
     oracle_entry_sha256: Sha256 | None = None
     pack_sha256: Sha256
 
+    @model_serializer(mode="wrap")
+    def serialize_compatible(self, handler: SerializerFunctionWrapHandler) -> dict[str, Any]:
+        result: dict[str, Any] = handler(self)
+        if not self.structured_groups:
+            result.pop("structured_groups", None)
+        if not self.source_report_groups:
+            result.pop("source_report_groups", None)
+        return result
+
     @model_validator(mode="after")
     def validate_pack(self) -> Self:
-        if self.question_text_sha256 != hashlib.sha256(
-            self.question_text.encode("utf-8")
-        ).hexdigest():
+        is_v2 = self.pack_schema_version == "rag-value-evidence-pack-v2"
+        if bool(self.structured_groups) != is_v2:
+            raise ValueError("multiple structured query groups require evidence pack v2")
+        if bool(self.source_report_groups) != (
+            self.pack_schema_version == "rag-value-evidence-pack-v3"
+        ):
+            raise ValueError("source-report query groups require evidence pack v3")
+        if self.source_report_groups:
+            if self.structured_success is not None or self.structured_groups:
+                raise ValueError("source reports cannot masquerade as public-locus evidence")
+            queries = [g.query.model_dump_json() for g in self.source_report_groups]
+            if len(set(queries)) != len(queries):
+                raise ValueError("source-report queries must be unique")
+            if len({g.source_packet_file_sha256 for g in self.source_report_groups}) != 1:
+                raise ValueError("source-report queries must share one fixed packet")
+        if self.structured_groups:
+            if self.structured_success is not None:
+                raise ValueError("use either singular structured evidence or query groups")
+            requests = tuple(g.request.model_dump_json() for g in self.structured_groups)
+            if len(requests) != len(set(requests)):
+                raise ValueError("structured subqueries must be unique")
+            releases = {
+                (g.pages or g.details)[0].structured_result.release.model_dump_json()
+                for g in self.structured_groups
+            }
+            if len(releases) != 1:
+                raise ValueError("structured subqueries must share one fixed release")
+        if (
+            self.question_text_sha256
+            != hashlib.sha256(self.question_text.encode("utf-8")).hexdigest()
+        ):
             raise ValueError("evidence question checksum does not match")
         citation_ids = tuple(item.citation_id for item in self.citations)
         expected_citations = tuple(f"D{index}" for index in range(1, len(self.citations) + 1))
@@ -1141,6 +1191,8 @@ def model_visible_evidence(pack: EvaluationEvidencePack) -> dict[str, object]:
     return _model_visible_payload(
         question_text=pack.question_text,
         structured_success=pack.structured_success,
+        structured_groups=pack.structured_groups,
+        source_report_groups=pack.source_report_groups,
         citations=pack.citations,
         raw_context_segments=pack.raw_context_segments,
     )
@@ -1151,6 +1203,8 @@ def build_evidence_pack(
     question_id: str,
     question_text: str,
     structured_success: QuerySuccess | None = None,
+    structured_groups: Sequence[StructuredEvidenceGroup] = (),
+    source_report_groups: Sequence[SourceReportResult] = (),
     citations: Sequence[EvidenceCitation] = (),
     raw_context_segments: Sequence[RawContextSegment] = (),
     policy_sha256: str,
@@ -1172,6 +1226,8 @@ def build_evidence_pack(
     visible = _model_visible_payload(
         question_text=question_text,
         structured_success=structured_success,
+        structured_groups=structured_groups,
+        source_report_groups=source_report_groups,
         citations=citation_tuple,
         raw_context_segments=raw_tuple,
     )
@@ -1188,7 +1244,10 @@ def build_evidence_pack(
         omitted_segment_count=omitted_segment_count,
     )
     payload: dict[str, object] = {
-        "pack_schema_version": "rag-value-evidence-pack-v1",
+        "pack_schema_version": (
+            "rag-value-evidence-pack-v3" if source_report_groups else
+            "rag-value-evidence-pack-v2" if structured_groups else "rag-value-evidence-pack-v1"
+        ),
         "question_id": question_id,
         "question_text": question_text,
         "question_text_sha256": hashlib.sha256(question_text.encode("utf-8")).hexdigest(),
@@ -1199,6 +1258,10 @@ def build_evidence_pack(
         "production_context_pack_sha256": production_context_pack_sha256,
         "oracle_entry_sha256": oracle_entry_sha256,
     }
+    if structured_groups:
+        payload["structured_groups"] = tuple(structured_groups)
+    if source_report_groups:
+        payload["source_report_groups"] = tuple(source_report_groups)
     json_payload = _json_normalized_payload(payload)
     return EvaluationEvidencePack.model_validate(
         {**payload, "pack_sha256": canonical_json_sha256(json_payload)}
@@ -1209,32 +1272,41 @@ def _model_visible_payload(
     *,
     question_text: str,
     structured_success: QuerySuccess | None,
+    structured_groups: Sequence[StructuredEvidenceGroup] = (),
+    source_report_groups: Sequence[SourceReportResult] = (),
     citations: Sequence[EvidenceCitation],
     raw_context_segments: Sequence[RawContextSegment],
 ) -> dict[str, object]:
-    return {
+    result: dict[str, object] = {
         "question": question_text,
         "structured_result": (
             None
             if structured_success is None
             else structured_success.structured_result.model_dump(mode="json")
         ),
-        "literature_evidence": [
-            citation.model_dump(mode="json") for citation in citations
-        ],
-        "raw_context": [
-            segment.model_dump(mode="json") for segment in raw_context_segments
-        ],
+        "literature_evidence": [citation.model_dump(mode="json") for citation in citations],
+        "raw_context": [segment.model_dump(mode="json") for segment in raw_context_segments],
     }
+    if structured_groups:
+        result["structured_queries"] = [group.visible() for group in structured_groups]
+    if source_report_groups:
+        result["source_report_queries"] = [group.visible() for group in source_report_groups]
+    return result
 
 
 class EvaluationClaim(StrictFrozenSchema):
     """One model-authored atomic claim in the common answer schema."""
 
-    claim_id: str = Field(pattern=_CLAIM_ID_RE.pattern)
+    model_config = ConfigDict(json_schema_extra=claim_schema)
+
+    claim_id: str = Field(pattern=_CLAIM_ID_RE.pattern, description="C1, C2, ... in order.")
     text: NonEmptyText
     claim_type: ClaimType
-    citation_ids: tuple[str, ...] = ()
+    citation_ids: tuple[Annotated[str, Field(pattern=_CITATION_ID_RE.pattern)], ...] = Field(
+        default=(),
+        description="Copy D IDs from literature or R IDs from raw segments. Never chunk hashes.",
+        json_schema_extra={"uniqueItems": True},
+    )
 
     @field_validator("citation_ids")
     @classmethod
@@ -1243,8 +1315,6 @@ class EvaluationClaim(StrictFrozenSchema):
             raise ValueError("claim citation ID is invalid")
         if len(values) != len(set(values)):
             raise ValueError("claim citation IDs must be unique")
-        if values != tuple(sorted(values, key=lambda value: (value[0], int(value[1:])))):
-            raise ValueError("claim citation IDs must be canonically ordered")
         return values
 
     @model_validator(mode="after")
@@ -1255,10 +1325,26 @@ class EvaluationClaim(StrictFrozenSchema):
 
 
 class AnswerStructuredFacts(StrictFrozenSchema):
-    """Typed structured values asserted by an LLM answer, never copied from evidence."""
+    """Copy only question-relevant values supported by supplied evidence; omit unknown fields.
+
+    Counts require the matching metric_key. Release identity requires both key and
+    manifest SHA. Arrays are sets: keep values unique; their order is not significant.
+    A count alone supplies no locus IDs, coordinates, taxa, or exact associations.
+    """
+
+    model_config = ConfigDict(json_schema_extra=structured_facts_schema)
 
     exact_count: int | None = Field(default=None, ge=0)
-    metric_key: StableToken | None = None
+    metric_key: StableToken | None = Field(
+        default=None,
+        description=(
+            "Copy the supplied metric. For raw exports, 'distinct included loci' maps to "
+            "distinct_included_locus_count; distinct contigs to distinct_contig_count; "
+            "distinct assemblies to distinct_assembly_count; distinct source taxa to "
+            "distinct_source_taxon_count; detection calls to detection_call_count. "
+            "Do not infer a number from the number of passages."
+        ),
+    )
     record_keys: tuple[StableToken, ...] | None = None
     assembly_accession_versions: tuple[AssemblyAccessionVersion, ...] | None = None
     sequence_accession_versions: tuple[SequenceAccessionVersion, ...] | None = None
@@ -1266,9 +1352,6 @@ class AnswerStructuredFacts(StrictFrozenSchema):
     coordinates: tuple[CoordinateGold, ...] | None = None
     detection_call_keys: tuple[StableToken, ...] | None = None
     exact_association_set: tuple[ExactAssociation, ...] | None = None
-    relation_contract_key: StableToken | None = None
-    relation_contract_sha256: Sha256 | None = None
-    relation_assertion_manifest_sha256: Sha256 | None = None
     release_key: StableToken | None = None
     release_manifest_sha256: Sha256 | None = None
     limitation_codes: tuple[StableToken, ...] = ()
@@ -1282,13 +1365,11 @@ class AnswerStructuredFacts(StrictFrozenSchema):
         "limitation_codes",
     )
     @classmethod
-    def canonical_collections(
-        cls, values: tuple[str, ...] | None
-    ) -> tuple[str, ...] | None:
+    def canonical_collections(cls, values: tuple[str, ...] | None) -> tuple[str, ...] | None:
         if values is None:
             return None
-        if values != tuple(sorted(values)) or len(values) != len(set(values)):
-            raise ValueError("answer structured collections must be sorted and unique")
+        if len(values) != len(set(values)):
+            raise ValueError("answer structured collections must be unique")
         return values
 
     @field_validator("coordinates")
@@ -1299,8 +1380,8 @@ class AnswerStructuredFacts(StrictFrozenSchema):
         if values is None:
             return None
         keys = tuple(value.sort_key() for value in values)
-        if keys != tuple(sorted(keys)) or len(keys) != len(set(keys)):
-            raise ValueError("answer coordinates must be canonically ordered and unique")
+        if len(keys) != len(set(keys)):
+            raise ValueError("answer coordinates must be unique")
         return values
 
     @field_validator("exact_association_set")
@@ -1310,7 +1391,9 @@ class AnswerStructuredFacts(StrictFrozenSchema):
     ) -> tuple[ExactAssociation, ...] | None:
         if values is None:
             return None
-        validate_canonical_association_set(values, association_kind="exact")
+        keys = tuple(association_sort_key(value) for value in values)
+        if len(keys) != len(set(keys)):
+            raise ValueError("answer associations must be unique")
         return values
 
     @model_validator(mode="after")
@@ -1319,30 +1402,6 @@ class AnswerStructuredFacts(StrictFrozenSchema):
             raise ValueError("answer exact_count and metric_key must be supplied together")
         if (self.release_key is None) != (self.release_manifest_sha256 is None):
             raise ValueError("answer release identity must be supplied together")
-        if (self.relation_contract_key is None) != (
-            self.relation_contract_sha256 is None
-        ):
-            raise ValueError("answer relation contract identity must be supplied together")
-        if (
-            self.relation_assertion_manifest_sha256 is not None
-            and self.relation_contract_key is None
-        ):
-            raise ValueError("answer relation assertions require a relation contract")
-        if self.exact_association_set is not None and (
-            self.relation_contract_key is None
-            or self.relation_assertion_manifest_sha256 is None
-        ):
-            raise ValueError(
-                "answer associations require relation contract and assertion identities"
-            )
-        if any(
-            association.relation_assertion_manifest_sha256
-            != self.relation_assertion_manifest_sha256
-            for association in self.exact_association_set or ()
-        ):
-            raise ValueError(
-                "each answer association must bind the answer assertion manifest"
-            )
         substantive = (
             self.exact_count is not None
             or self.record_keys is not None
@@ -1352,8 +1411,6 @@ class AnswerStructuredFacts(StrictFrozenSchema):
             or self.coordinates is not None
             or self.detection_call_keys is not None
             or self.exact_association_set is not None
-            or self.relation_contract_key is not None
-            or self.relation_assertion_manifest_sha256 is not None
             or self.release_key is not None
             or bool(self.limitation_codes)
         )
@@ -1363,14 +1420,32 @@ class AnswerStructuredFacts(StrictFrozenSchema):
 
 
 class EvaluationAnswer(StrictFrozenSchema):
-    """Common model-visible output contract for S0/S1/S2/S3/S5/S6."""
+    """Answer only the exact question. Claims must be atomic and numbered C1, C2, ... .
+
+    On abstention, explain in answer_text/limitations and leave claims and citations
+    empty, structured_facts null. Otherwise include at least one claim. A
+    structured_fact claim requires structured_facts, and conversely.
+    """
+
+    model_config = ConfigDict(json_schema_extra=answer_schema)
 
     answer_text: NonEmptyText
     abstained: bool
     claims: tuple[EvaluationClaim, ...] = ()
     structured_facts: AnswerStructuredFacts | None = None
-    limitations: tuple[NonEmptyText, ...] = ()
-    cited_chunk_ids: tuple[ChunkKey, ...] = ()
+    limitations: tuple[NonEmptyText, ...] = Field(
+        default=(), json_schema_extra={"uniqueItems": True},
+    )
+    cited_chunk_ids: tuple[
+        Annotated[str, Field(pattern=r"^chunk:sha256:[0-9a-f]{64}$")], ...
+    ] = Field(
+        default=(),
+        description=(
+            "Exact chunk_key values for D citations used by claims. "
+            "R segment references never go here. Empty when there are no D citations."
+        ),
+        json_schema_extra={"uniqueItems": True},
+    )
 
     @field_validator("limitations", "cited_chunk_ids")
     @classmethod
@@ -1393,9 +1468,7 @@ class EvaluationAnswer(StrictFrozenSchema):
             )
         if not self.abstained and not self.claims:
             raise ValueError("non-abstained answer requires at least one atomic claim")
-        has_structured_claim = any(
-            claim.claim_type == "structured_fact" for claim in self.claims
-        )
+        has_structured_claim = any(claim.claim_type == "structured_fact" for claim in self.claims)
         if has_structured_claim != (self.structured_facts is not None):
             raise ValueError(
                 "structured_fact claims and the typed structured projection must correspond"
@@ -1427,9 +1500,7 @@ def mechanically_validate_answer(
     citation_by_id = {citation.citation_id: citation for citation in evidence.citations}
     raw_by_id = {segment.segment_id: segment for segment in evidence.raw_context_segments}
     issues: set[str] = set()
-    referenced_ids = {
-        citation_id for claim in answer.claims for citation_id in claim.citation_ids
-    }
+    referenced_ids = {citation_id for claim in answer.claims for citation_id in claim.citation_ids}
     unknown = referenced_ids - set(citation_by_id) - set(raw_by_id)
     if unknown:
         issues.add("unknown_citation_id")
@@ -1441,12 +1512,13 @@ def mechanically_validate_answer(
     if expected_chunks != set(answer.cited_chunk_ids):
         issues.add("cited_chunk_set_mismatch")
     has_raw_structured_export = any(
-        segment.source_kind == "structured_export"
-        for segment in evidence.raw_context_segments
+        segment.source_kind == "structured_export" for segment in evidence.raw_context_segments
     )
     if (
         any(claim.claim_type == "structured_fact" for claim in answer.claims)
         and evidence.structured_success is None
+        and not evidence.structured_groups
+        and not evidence.source_report_groups
         and not has_raw_structured_export
     ):
         issues.add("structured_claim_without_structured_result")
@@ -1488,9 +1560,7 @@ class ExecutionTrace(StrictFrozenSchema):
 
     system_key: SystemKey
     question_id: StableToken
-    status: Literal[
-        "completed", "refused", "retrieval_only", "not_applicable", "failed"
-    ]
+    status: Literal["completed", "refused", "retrieval_only", "not_applicable", "failed"]
     constructed_dependencies: tuple[DependencyKind, ...] = ()
     called_stages: tuple[ExecutionStage, ...] = ()
     refusal_stage: ExecutionStage | None = None
@@ -1551,9 +1621,7 @@ class RuntimeIdentity(StrictFrozenSchema):
 class ExperimentManifest(StrictFrozenSchema):
     """Frozen inputs and trust status shared by one future evaluation run."""
 
-    manifest_schema_version: Literal["rag-value-experiment-v1"] = (
-        "rag-value-experiment-v1"
-    )
+    manifest_schema_version: Literal["rag-value-experiment-v1"] = "rag-value-experiment-v1"
     experiment_key: StableToken
     phase: Literal[
         "phase2_synthetic",
@@ -1610,9 +1678,7 @@ class ExperimentManifest(StrictFrozenSchema):
             system.generation_identity_sha256 for system in self.systems if system.uses_llm
         }
         expected_hash = (
-            None
-            if self.generation_identity is None
-            else self.generation_identity.identity_sha256
+            None if self.generation_identity is None else self.generation_identity.identity_sha256
         )
         if llm_hashes != {expected_hash}:
             raise ValueError("all LLM systems must share the manifest generation identity")
@@ -1629,6 +1695,14 @@ class ExperimentManifest(StrictFrozenSchema):
             != self.generation_identity.max_output_tokens
         ):
             raise ValueError("S1 raw-context budget differs from the common generation identity")
+        if self.generation_identity is not None and (
+            self.raw_context_policy.tokenizer_id != self.generation_identity.tokenizer_id
+            or self.raw_context_policy.tokenizer_revision
+            != self.generation_identity.tokenizer_revision
+            or self.raw_context_policy.tokenizer_artifact_manifest_sha256
+            != self.generation_identity.tokenizer_artifact_manifest_sha256
+        ):
+            raise ValueError("S1 tokenizer differs from the common generation identity")
         if self.phase == "phase2_synthetic" and self.trust_status == "trusted":
             raise ValueError("synthetic Phase 2 runs can never be trusted")
         if self.phase == "phase2_synthetic":
@@ -1653,15 +1727,20 @@ class ExperimentManifest(StrictFrozenSchema):
             or self.retrieval_policy.embedding_artifact_manifest_sha256 is None
         ):
             raise ValueError("trusted run requires real frozen data and a clean source tree")
-        if self.trust_status == "trusted" and self.phase in {
-            "phase4_llm",
-            "phase5_human",
-            "phase6_analysis",
-        } and (
-            self.binding_manifest_sha256 is None
-            or self.oracle_manifest_sha256 is None
-            or self.generation_identity is None
-            or self.generation_identity.provider_kind != "verified_local"
+        if (
+            self.trust_status == "trusted"
+            and self.phase
+            in {
+                "phase4_llm",
+                "phase5_human",
+                "phase6_analysis",
+            }
+            and (
+                self.binding_manifest_sha256 is None
+                or self.oracle_manifest_sha256 is None
+                or self.generation_identity is None
+                or self.generation_identity.provider_kind != "verified_local"
+            )
         ):
             raise ValueError("trusted generation requires bound oracle and hybrid artifacts")
         if self.manifest_sha256 != _self_sha256(self, "manifest_sha256"):
@@ -1717,20 +1796,14 @@ def _family_counts(questions: Sequence[EvaluationQuestion]) -> dict[QuestionFami
         "hybrid",
         "unsupported",
     )
-    return {
-        family: sum(question.family == family for question in questions)
-        for family in families
-    }
+    return {family: sum(question.family == family for question in questions) for family in families}
 
 
 def _gold_sha256(approved: Sequence[EvaluationQuestion]) -> str | None:
     if not approved:
         return None
     return canonical_json_sha256(
-        tuple(
-            {"question_id": question.question_id, "gold": question.gold}
-            for question in approved
-        )
+        tuple({"question_id": question.question_id, "gold": question.gold} for question in approved)
     )
 
 
