@@ -1,7 +1,8 @@
-# Frozen data manifests and audits
+# Frozen data manifests, audits, and public mini release
 
-This directory contains only small, versioned metadata and audit records. Source workbooks, NCBI
-reports, genome assemblies, and other large or license-controlled artifacts are not committed.
+This directory contains small, versioned metadata, audit records, and one 11-locus public mini
+release. Source workbooks, NCBI reports, genome assemblies, and other large or license-controlled
+artifacts are not committed.
 
 ## Structured pilot metadata
 
@@ -9,6 +10,8 @@ reports, genome assemblies, and other large or license-controlled artifacts are 
   checksums, licenses/usage bases, acquisition commands, and expected counts.
 - `audits/milestone1_data_s1_import_audit.json` is the deterministic import audit: observed counts,
   distinct/duplicate checks, issue counts, key digests, and release-readiness state.
+- `releases/endoviho-mini-v1/` is the first real portable DatasetRelease: 11 explicitly included
+  loci on three current Unionidae assemblies with complete flank and authority bindings.
 
 ## Canonical workbook
 
@@ -34,13 +37,23 @@ resolved exactly, with no length mismatch.
 
 ## Frozen audit result
 
-The audit records 39,495 source calls: 71 `source_high`, 39,424 `source_low`, 38,968 normalized
-`Integration` placements, and 527 quarantined `Viral contig` outcomes. It does not create public
-membership. Publication remains fail-closed until every proposed member has independently
-supported left/right flanks and an explicit inclusion decision, and the release is bound to a
-complete NCBI taxonomy history plus a frozen ICTV snapshot/release. Database status promotion to
-`validated` or `published` is also hard-disabled until a trusted, immutable validation-receipt
-workflow is implemented.
+The historical import audit records 39,495 source calls: 71 `source_high`, 39,424 `source_low`,
+38,968 normalized `Integration` placements, and 527 quarantined `Viral contig` outcomes. That
+audit does not create public membership by itself. Its recorded readiness state remains an
+immutable description of the 2026-08-26 staging event.
+
+## Public mini DatasetRelease
+
+`release:endoviho-rag:mini:v1:20260903:001` publishes only 11 explicitly listed loci. Each member
+has one exact placement, complete unambiguous 20 kb sequence on each side, an explicit `include`
+decision, NCBI taxonomy with merged/deleted history, and ICTV MSL41 v1 plus corrected VMR
+`MSL41.v1.20260729` bindings. The source label `Orthopolintovirales` is preserved and linked by the
+approved rename evidence to formal `Amphintovirales`.
+
+This portable release does not classify any locus as `Transferred gene` or `Integrated virus`,
+does not make the other 39,484 source calls public, and has not been activated in a live
+PostgreSQL deployment. See
+[`releases/endoviho-mini-v1/README.md`](releases/endoviho-mini-v1/README.md).
 
 ## Canonical full staging command
 

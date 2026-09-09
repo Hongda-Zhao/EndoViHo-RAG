@@ -15,3 +15,9 @@ build/
 dist/
 htmlcov/
 .coverage
+
+# Local experiment evidence, credentials, and checksum-bound execution journals.
+/outputs/
+/docs/rag_value_steps1_6_progress.cn.md
+/docs/rag_value_formal_run_and_review.cn.md
+/docs/rag_value_engineering_handoff.cn.md

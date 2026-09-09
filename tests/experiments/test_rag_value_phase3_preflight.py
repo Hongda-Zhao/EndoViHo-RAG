@@ -8,12 +8,13 @@ import pytest
 from pydantic import ValidationError
 
 from eve_relation_rag.experiments.rag_value_ablation.associations import (
-    CANONICAL_RELATION_CLASSES,
-    build_pending_relation_contract_template,
+    ASSOCIATION_DIMENSIONS,
+    build_association_contract_v1,
 )
 from eve_relation_rag.experiments.rag_value_ablation.preflight import (
     AnchorEvidence,
     ApprovedArtifactEvidence,
+    AssociationEvidence,
     BindingEvidence,
     DatabaseRoleEvidence,
     Phase3PreflightBlocked,
@@ -21,9 +22,10 @@ from eve_relation_rag.experiments.rag_value_ablation.preflight import (
     Phase3PreflightInput,
     QuestionEvidence,
     RawContextEvidence,
-    RelationEvidence,
     ReleaseEvidence,
+    RequestValidationEvidence,
     RetrievalEvidence,
+    StructuredQueryCapabilityEvidence,
     build_phase3_preflight_input,
     construct_phase3_dependencies,
     is_issued_phase3_preflight_decision,
@@ -54,7 +56,6 @@ def test_ready_preflight_is_checksum_bound_but_cannot_release_factory() -> None:
         "S2",
         "S3",
         "S4",
-        "S5",
     )
     assert all(item.ready and not item.blocker_codes for item in decision.report.systems)
 
@@ -67,24 +68,24 @@ def test_ready_preflight_is_checksum_bound_but_cannot_release_factory() -> None:
     with pytest.raises(Phase3PreflightBlocked) as error:
         construct_phase3_dependencies(decision, factory)
     assert calls == []
-    assert "phase3_gate_issued_execution_evidence_not_implemented" in (
+    assert "phase3_live_execution_authority_required" in (
         error.value.blocker_codes
     )
 
 
-def test_relation_template_and_preflight_share_one_canonical_class_order() -> None:
-    template = build_pending_relation_contract_template()
+def test_association_contract_and_preflight_share_one_canonical_dimension_order() -> None:
+    contract = build_association_contract_v1()
     evidence = _ready_input()
 
-    assert template.relation_classes == CANONICAL_RELATION_CLASSES
-    assert evidence.relations.relation_classes == template.relation_classes
+    assert contract.dimensions == ASSOCIATION_DIMENSIONS
+    assert evidence.associations.association_dimensions == contract.dimensions
     assert run_phase3_preflight(evidence).report.ready is True
 
-    with pytest.raises(ValidationError, match="canonical domain order"):
-        RelationEvidence.model_validate(
+    with pytest.raises(ValidationError, match="canonical v1 chain order"):
+        AssociationEvidence.model_validate(
             {
-                **evidence.relations.model_dump(mode="python"),
-                "relation_classes": tuple(reversed(CANONICAL_RELATION_CLASSES)),
+                **evidence.associations.model_dump(mode="python"),
+                "association_dimensions": tuple(reversed(ASSOCIATION_DIMENSIONS)),
             }
         )
 
@@ -101,11 +102,9 @@ def test_candidate_and_validated_releases_are_never_treated_as_published() -> No
 
     assert "dataset_release_not_published" in systems["S1"]
     assert "dataset_release_not_published" in systems["S4"]
-    assert "dataset_release_not_published" in systems["S5"]
     assert "corpus_release_not_published" in systems["S1"]
     assert "corpus_release_not_published" in systems["S2"]
     assert "corpus_release_not_published" in systems["S3"]
-    assert "corpus_release_not_published" in systems["S5"]
     assert decision.report.ready is False
 
 
@@ -156,11 +155,10 @@ def test_exact_hash_approval_and_integrity_fail_closed_per_system() -> None:
         "offline_model_policy_not_enforced",
     }
     assert expected <= systems["S3"]
-    assert expected <= systems["S5"]
     assert expected.isdisjoint(systems["S2"])
 
 
-def test_question_relation_and_binding_requirements_are_explicit() -> None:
+def test_question_and_association_requirements_are_explicit() -> None:
     ready = _ready_input()
     evidence = _rebuild(
         ready,
@@ -175,13 +173,12 @@ def test_question_relation_and_binding_requirements_are_explicit() -> None:
                 },
             }
         ),
-        relations=ready.relations.model_copy(
+        associations=ready.associations.model_copy(
             update={
-                "integrated_virus_assertion_count": 0,
                 "role_qualified_viral_lineage_count": 1,
+                "reported_viral_region_count": 0,
             }
         ),
-        binding=ready.binding.model_copy(update={"corpus_manifest_sha256": "f" * 64}),
     )
     decision = run_phase3_preflight(evidence)
     systems = {item.system_key: set(item.blocker_codes) for item in decision.report.systems}
@@ -192,10 +189,9 @@ def test_question_relation_and_binding_requirements_are_explicit() -> None:
         for codes in systems.values()
     )
     assert all("viral_lineage_diversity_insufficient" in codes for codes in systems.values())
-    assert "integrated_virus_assertions_missing" in systems["S4"]
-    assert "integrated_virus_assertions_missing" in systems["S5"]
-    assert "hybrid_binding_pair_identity_mismatch" in systems["S5"]
-    assert "hybrid_binding_pair_identity_mismatch" not in systems["S4"]
+    assert all(
+        "reported_viral_region_coverage_missing" in codes for codes in systems.values()
+    )
 
 
 def test_raw_context_identity_and_budget_only_block_s1() -> None:
@@ -218,6 +214,77 @@ def test_raw_context_identity_and_budget_only_block_s1() -> None:
         "raw_context_omission_policy_missing",
     } <= systems["S1"]
     assert "raw_context_release_identity_mismatch" not in systems["S2"]
+
+
+def test_structured_query_capability_is_bound_and_complete_for_s4() -> None:
+    ready = _ready_input()
+    blocked = _rebuild(
+        ready,
+        structured_query_capability=ready.structured_query_capability.model_copy(
+            update={
+                "question_manifest_sha256": "f" * 64,
+                "route_accepted_question_count": 31,
+                "query_plan_validated_question_count": 30,
+                "association_projection_validated_question_count": 0,
+            }
+        ),
+    )
+    systems = {
+        item.system_key: set(item.blocker_codes)
+        for item in run_phase3_preflight(blocked).report.systems
+    }
+
+    assert {
+        "structured_query_capability_question_identity_mismatch",
+        "structured_query_route_coverage_incomplete",
+        "structured_query_plan_coverage_incomplete",
+        "structured_association_projection_coverage_incomplete",
+    } <= systems["S4"]
+    assert "structured_query_route_coverage_incomplete" not in systems["S1"]
+
+
+def test_request_validation_replay_is_required_for_every_phase3_system() -> None:
+    ready = _ready_input()
+    blocked = _rebuild(
+        ready,
+        request_validation=ready.request_validation.model_copy(
+            update={
+                "replayed_question_count": 63,
+                "validated_scope_refusal_question_count": 0,
+                "downstream_calls_after_scope_refusal": 1,
+            }
+        ),
+    )
+    systems = run_phase3_preflight(blocked).report.systems
+
+    assert all(
+        {
+            "request_validation_replay_coverage_incomplete",
+            "request_validation_refusal_coverage_incomplete",
+            "request_validation_downstream_after_refusal",
+        }
+        <= set(system.blocker_codes)
+        for system in systems
+    )
+
+
+def test_s5_preparation_evidence_is_optional_and_does_not_block_phase3() -> None:
+    ready = _ready_input()
+    assert ready.anchors is not None
+    assert ready.binding is not None
+    without_s5 = _rebuild(ready, anchors=None, binding=None)
+    stale_s5 = _rebuild(
+        ready,
+        anchors=ready.anchors.model_copy(
+            update={"required_target_coverage_complete": False}
+        ),
+        binding=ready.binding.model_copy(
+            update={"corpus_manifest_sha256": "f" * 64}
+        ),
+    )
+
+    assert run_phase3_preflight(without_s5).report.ready is True
+    assert run_phase3_preflight(stale_s5).report.ready is True
 
 
 def test_decision_cannot_be_forged_or_replaced_by_serialized_shape() -> None:
@@ -344,15 +411,16 @@ def _ready_input() -> Phase3PreflightInput:
             corpus_release_key=CORPUS_KEY,
             corpus_manifest_sha256=CORPUS_MANIFEST_SHA,
         ),
-        relations=RelationEvidence(
-            relation_contract=_artifact("4"),
-            relation_assertion_manifest=_artifact("5"),
-            relation_classes=CANONICAL_RELATION_CLASSES,
-            transferred_gene_assertion_count=12,
-            integrated_virus_assertion_count=12,
+        associations=AssociationEvidence(
+            association_contract=_artifact("4"),
+            structured_association_manifest=_artifact("5"),
+            association_dimensions=ASSOCIATION_DIMENSIONS,
             represented_source_taxon_count=4,
             represented_assembly_count=6,
+            represented_eve_locus_count=12,
+            reported_viral_region_count=12,
             role_qualified_viral_lineage_count=3,
+            evidence_source_count=4,
         ),
         database_role=DatabaseRoleEvidence(
             audit=_artifact("6"),
@@ -372,6 +440,9 @@ def _ready_input() -> Phase3PreflightInput:
             dataset_manifest_sha256=DATASET_MANIFEST_SHA,
             corpus_release_key=CORPUS_KEY,
             corpus_manifest_sha256=CORPUS_MANIFEST_SHA,
+            tokenizer_id="example/tokenizer",
+            tokenizer_revision="3" * 40,
+            tokenizer_artifact_manifest_sha256="f" * 64,
             model_context_limit_tokens=4096,
             reserved_output_tokens=512,
             truncation_policy_explicit=True,
@@ -389,6 +460,23 @@ def _ready_input() -> Phase3PreflightInput:
             bge_artifact=_artifact("2"),
             bge_complete_file_set_verified=True,
             offline_model_policy_enforced=True,
+        ),
+        structured_query_capability=StructuredQueryCapabilityEvidence(
+            validation_receipt=_artifact("5"),
+            question_manifest_sha256="1" * 64,
+            applicable_question_count=32,
+            route_accepted_question_count=32,
+            query_plan_validated_question_count=32,
+            association_projection_validated_question_count=32,
+        ),
+        request_validation=RequestValidationEvidence(
+            validation_receipt=_artifact("6"),
+            question_manifest_sha256="1" * 64,
+            replayed_question_count=64,
+            scope_admitted_question_count=63,
+            scope_refused_question_count=1,
+            validated_scope_refusal_question_count=1,
+            downstream_calls_after_scope_refusal=0,
         ),
         anchors=AnchorEvidence(
             manifest=_artifact("3"),

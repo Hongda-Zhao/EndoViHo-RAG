@@ -8,8 +8,9 @@
 
 **A local research tool that checks EVE data and scientific papers before answering with supporting evidence.**
 
-> This is currently an engineering preview. It is not a published biological knowledge base and
-> should not be used to draw new biological conclusions automatically.
+> This is an engineering preview with one deliberately small published 11-locus data release. It
+> is not a comprehensive biological knowledge base and should not be used to draw new biological
+> conclusions automatically.
 
 ## The project in 30 seconds
 
@@ -35,6 +36,17 @@ This repository mainly provides:
 
 It is not an open-ended chatbot. On its own, it also cannot establish infection, prevalence,
 independent integration, coevolution, or any other new biological conclusion.
+
+## First real mini DatasetRelease
+
+The repository now includes a self-checksummed public release of 11 real loci from three current
+Unionidae assemblies. Every member has an exact versioned contig and interval, physical source
+row, two complete unambiguous 20 kb adjacent-sequence flank assessments, an explicit `include`
+decision, and frozen NCBI Taxonomy/ICTV identities. `HCVR` and `VR Type` remain source annotations;
+the release assigns neither `Transferred gene` nor `Integrated virus`.
+
+See the [mini release and its limitations](data/releases/endoviho-mini-v1/README.md). The portable
+release is distributed with the repository but is not automatically loaded into PostgreSQL.
 
 ## Latest results: Which literature-retrieval setup is the better fit?
 
@@ -109,10 +121,11 @@ Full metrics, model versions, resource usage, and reproducibility details are av
 ## What works today?
 
 The code, database migrations, API, CLI, web demo, Docker Compose setup, and automated tests can
-all run. However, this repository does not distribute real structured data, full-text papers, or
-model weights, and it does not download models automatically. A fresh installation starts with an
-empty database. Requests that require unavailable data return an explicit reason for refusal
-instead of presenting sample data as though it were real.
+all run. The repository distributes the 11-locus portable mini release, but not the source
+workbook, genome sequences, NCBI reports, full-text papers, or model weights, and it does not load
+the release or download models automatically. A fresh installation starts with an empty database.
+Requests that require unavailable data return an explicit reason for refusal instead of presenting
+sample data as though it were real.
 
 The production configuration currently disables the text-generation model. In other words, this
 repository already provides an auditable engineering framework and real retrieval experiments,
@@ -194,6 +207,8 @@ papers, releases, or bindings.
 - [Script used to generate the README figure](scripts/plot_readme_embedding_ablation.py)
 - [Data semantics and scientific boundaries](docs/data_semantics.md)
 - [Data source information](data/README.md)
+- [RAG-value question review and remaining annotation steps](docs/rag_value_authoring_review.md)
+- [Formal 53 × 7 RAG-value execution and limitations](docs/rag_value_formal_results.cn.md)
 
 ## License and citation
 

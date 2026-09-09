@@ -831,10 +831,6 @@ def _answer_row(result: PerQuestionEvaluation) -> dict[str, object]:
             "exact_association",
             None if structured is None else structured.association_metrics,
         ),
-        "relation_contract_exact": _optional(structured, "relation_contract_exact"),
-        "relation_assertion_manifest_exact": _optional(
-            structured, "relation_assertion_manifest_exact"
-        ),
         "missing_record_count": _optional(structured, "missing_record_count"),
         "extra_record_count": _optional(structured, "extra_record_count"),
         "missing_coordinate_count": _optional(
@@ -1295,12 +1291,18 @@ def _association_columns(
         f"{prefix}_set_exact": _optional(metric, "association_set_exact"),
         f"{prefix}_missing_count": _optional(metric, "missing_association_count"),
         f"{prefix}_extra_count": _optional(metric, "extra_association_count"),
-        f"{prefix}_class_corrupted_count": _optional(
-            metric, "class_corrupted_count"
-        ),
+        f"{prefix}_taxon_corrupted_count": _optional(metric, "taxon_corrupted_count"),
+        f"{prefix}_region_corrupted_count": _optional(metric, "region_corrupted_count"),
+        f"{prefix}_lineage_corrupted_count": _optional(metric, "lineage_corrupted_count"),
         f"{prefix}_role_corrupted_count": _optional(metric, "role_corrupted_count"),
         f"{prefix}_scope_corrupted_count": _optional(
             metric, "scope_corrupted_count"
+        ),
+        f"{prefix}_evidence_source_corrupted_count": _optional(
+            metric, "evidence_source_corrupted_count"
+        ),
+        f"{prefix}_source_annotations_corrupted_count": _optional(
+            metric, "source_annotations_corrupted_count"
         ),
     }
 

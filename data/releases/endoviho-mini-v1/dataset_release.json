@@ -1,0 +1,112 @@
+{
+  "authority_snapshots": [
+    {
+      "artifacts": [
+        {
+          "filename": "taxdump.tar.gz",
+          "license_key": "NCBI-PUBLIC-DOMAIN-US-GOVERNMENT-WORK",
+          "retrieved_at": "2026-08-29T05:45:09Z",
+          "role": "taxdump",
+          "sha256": "3f60957db12bf78e61da18effb2b280b0c81c7d7cbf34fef20bce73aef4f55fa",
+          "source_uri": "https://ftp.ncbi.nlm.nih.gov/pub/taxonomy/taxdump.tar.gz",
+          "version": "NCBI Taxonomy taxdump 2026-08-29T05:29:15Z"
+        }
+      ],
+      "authority": "NCBI Taxonomy",
+      "coverage": "required-taxa-and-ancestors-complete-history-bound",
+      "deleted_history_included": true,
+      "manifest_sha256": "3dcb218b4aae4f35ce6053767399b934a18f3d65dc302e1e59fdc6de9c803de3",
+      "merged_history_included": true,
+      "snapshot_key": "lineage-snapshot:ncbi-taxonomy:sha256:d48a06d82d68e918aa93c43a729b20e890cf424663ba2389e100ec51446ca40f",
+      "version": "NCBI Taxonomy taxdump 2026-08-29T05:29:15Z"
+    },
+    {
+      "artifacts": [
+        {
+          "filename": "ICTV_Master_Species_List_2025_MSL41.v1.xlsx",
+          "license_key": "CC-BY-4.0",
+          "retrieved_at": "2026-08-29T05:40:18Z",
+          "role": "master_species_list",
+          "sha256": "9d262d7864f1f619445a897ae568718ed15b1309c8f0c157a12fd7fb9fd07801",
+          "source_uri": "https://ictv.global/sites/default/files/MSL/ICTV_Master_Species_List_2025_MSL41.v1.xlsx",
+          "version": "MSL41 v1"
+        },
+        {
+          "filename": "VMR_MSL41.v1.20260729.xlsx",
+          "license_key": "CC-BY-4.0",
+          "retrieved_at": "2026-08-29T05:40:18Z",
+          "role": "corrected_virus_metadata_resource",
+          "sha256": "b79b5d82a1b3b8e9dd5e19afe8fe1a8f441267474918a7cefa8ae4913adf45bb",
+          "source_uri": "https://ictv.global/sites/default/files/VMR/VMR_MSL41.v1.20260729.xlsx",
+          "version": "MSL41.v1.20260729"
+        }
+      ],
+      "authority": "ICTV",
+      "coverage": "complete-msl41-hierarchy",
+      "deleted_history_included": false,
+      "manifest_sha256": "97da2d3db9c82dd95fe3750c9eddad7e4955084d04d8cfbd2d367265c11a308d",
+      "merged_history_included": false,
+      "snapshot_key": "lineage-snapshot:ictv-msl41:sha256:7c5f784708f36a8d717df8a24ba84d45ca27d9b13e805b520284c203fcfe1374",
+      "version": "MSL41 v1"
+    }
+  ],
+  "coordinate_system": "0-based-half-open",
+  "counts": {
+    "assemblies": 3,
+    "exclude": 0,
+    "formal_viral_lineages": 1,
+    "host_lineages": 1,
+    "include": 11,
+    "loci": 11,
+    "review": 0,
+    "source_viral_lineages": 1
+  },
+  "database_activation_status": "not_performed",
+  "dataset_key": "dataset:endoviho-rag",
+  "formal_viral_lineage": "Amphintovirales",
+  "host_lineage": "Unionidae",
+  "inclusion_policy_key": "policy:v0-pilot-inclusion-v1",
+  "limitations": [
+    "The release includes only the explicitly listed 11 loci and says nothing about the remaining source calls.",
+    "Flank support means exact adjacent assembly sequence was inspectable under the frozen policy; it does not independently prove germline transmission or fixation.",
+    "Orthopolintovirales is preserved as the study label and linked by a frozen approved rename mapping to ICTV MSL41 v1 Amphintovirales.",
+    "HCVR and VR Type remain source annotations and are not relation-class evidence.",
+    "The portable release is public data; activation in a live PostgreSQL deployment is a separate operational step."
+  ],
+  "manifest_schema_version": "endoviho-mini-dataset-release-v1",
+  "manifest_sha256": "34f438c6d79362b0872cae9d55b2b455b7368a608b3199e79c83d12cd49b461d",
+  "parent_cohort_manifest_sha256": "0a1b47e1f32b0f7ec5ef2e92692270ad93b3a956755d5e879523e5f61150208f",
+  "parent_flank_manifest_sha256": "c82bb5d22fa1085bf71bd14248efb06741af4ad2103eeba9db0b9b3930a44cc9",
+  "parent_inclusion_manifest_sha256": "0ab2c7209400b259cc6059c0efe6af6ac13f421cbcb7a1effbe0a8b890ae817d",
+  "public_membership_file": {
+    "byte_size": 38959,
+    "media_type": "application/x-ndjson",
+    "path": "loci.jsonl",
+    "record_count": 11,
+    "sha256": "b20242b8c5f752db6dbe400c160e16c3aeb96ef3e72a010d851a2efed9ffbfbc"
+  },
+  "publication_channel": "version-controlled-portable-release",
+  "published_at": "2026-09-03T06:21:26Z",
+  "relation_class_policy": "HCVR and VR Type are source annotations; no Transferred gene or Integrated virus class is assigned",
+  "release_key": "release:endoviho-rag:mini:v1:20260903:001",
+  "release_status": "published",
+  "scope_statement": "Eleven source-high loci on three current Unionidae assemblies, each with exact NCBI contig coordinates, two complete unambiguous 20 kb flanks, and an explicit include decision; this is not an exhaustive survey of the source workbook.",
+  "selection_policy_key": "policy:mini-v1-source-high-full-flanks-v1",
+  "source": {
+    "artifact_filename": "649669_file12.xlsx",
+    "artifact_label": "Supplementary Data S1",
+    "artifact_sha256": "79b5d99c095b359d93c834014863fffbbd5968a1dbadafe6a77133a1d690f800",
+    "authors_short": "Zhao et al.",
+    "doi": "10.1101/2025.04.19.649669",
+    "license_key": "CC-BY-NC-ND-4.0",
+    "posted_date": "2026-05-21",
+    "provenance_uri": "https://www.biorxiv.org/content/biorxiv/early/2026/05/21/2025.04.19.649669/DC6/embed/media-6.xlsx?download=true",
+    "title": "Lineage-specific accumulation of endogenous dsDNA viral elements across eukaryotes",
+    "version": "v4",
+    "worksheet": "S3"
+  },
+  "source_audit_sha256": "3429fe94b6e7c2da8bbdf107ad69a39e91998433ffd963ba8fd65f8701ea75c6",
+  "source_manifest_sha256": "afa5982542c592aaec6ec1033e0ac9ebbd3786e881baed0d81a1a602a30adf0d",
+  "source_viral_lineage": "Orthopolintovirales",
+  "title": "EndoViHo real mini DatasetRelease v1"
+}

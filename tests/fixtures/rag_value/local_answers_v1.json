@@ -1,0 +1,434 @@
+{
+  "origin": "real local model on synthetic evidence; regression input only, never Gold",
+  "records": [
+    {
+      "system_key": "S0",
+      "original_file_sha256": "4818ef19ea7bf2bfbf90d54e409366cc343848864d7076175b5f99efcb067d2e",
+      "prompt_policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+      "evidence": {
+        "citations": [],
+        "construction": {
+          "context_byte_count": 127,
+          "context_token_count": 27,
+          "input_token_count": 2006,
+          "model_context_limit_tokens": 32768,
+          "omitted_segment_count": 0,
+          "omitted_source_keys": [],
+          "policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+          "reserved_output_tokens": 8192,
+          "tokenizer_key": "tokenizer:rag-value:qwen3-4b-instruct-2507",
+          "truncated": false
+        },
+        "oracle_entry_sha256": null,
+        "pack_schema_version": "rag-value-evidence-pack-v1",
+        "pack_sha256": "16ad4d1ed962a09e7514b5ae12fe5738f3b005ad02859fcd3e248e8b52d8d4d2",
+        "production_context_pack_sha256": null,
+        "question_id": "synthetic-hybrid-001",
+        "question_text": "Count distinct included loci in this release.",
+        "question_text_sha256": "2d6fa4b5a41fc10fe2bc48db1469d69037eba31093dcb84b5358b85ccc13ae11",
+        "raw_context_segments": [],
+        "structured_success": null
+      },
+      "raw_answer": "{\n  \"abstained\": true,\n  \"answer_text\": \"Evidence is insufficient to determine the count of distinct included loci.\",\n  \"cited_chunk_ids\": [],\n  \"claims\": [],\n  \"limitations\": [\n    \"No evidence provided regarding the presence or count of distinct included loci.\"\n  ],\n  \"structured_facts\": null\n}"
+    },
+    {
+      "system_key": "S1",
+      "original_file_sha256": "e42fc78bd61e50e90cdad8f254d70f767be7902900dc8b25ada4a4383208e747",
+      "prompt_policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+      "evidence": {
+        "citations": [],
+        "construction": {
+          "context_byte_count": 1234,
+          "context_token_count": 554,
+          "input_token_count": 2533,
+          "model_context_limit_tokens": 32768,
+          "omitted_segment_count": 0,
+          "omitted_source_keys": [],
+          "policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+          "reserved_output_tokens": 8192,
+          "tokenizer_key": "tokenizer:rag-value:qwen3-4b-instruct-2507",
+          "truncated": false
+        },
+        "oracle_entry_sha256": null,
+        "pack_schema_version": "rag-value-evidence-pack-v1",
+        "pack_sha256": "285f205bd7296b02a92b66c43364ce623d83663d500cfaf5d253649523fcffff",
+        "production_context_pack_sha256": null,
+        "question_id": "synthetic-hybrid-001",
+        "question_text": "Count distinct included loci in this release.",
+        "question_text_sha256": "2d6fa4b5a41fc10fe2bc48db1469d69037eba31093dcb84b5358b85ccc13ae11",
+        "raw_context_segments": [
+          {
+            "byte_end": 56,
+            "byte_start": 0,
+            "segment_id": "R1",
+            "source_key": "synthetic-source:structured-export",
+            "source_kind": "structured_export",
+            "source_sha256": "66bcdfb112f1deef79bf7e65794b56af9c36fac14dcdab65a17bbe09ee82c1b1",
+            "text": "The synthetic release contains 2 distinct included loci.",
+            "text_sha256": "66bcdfb112f1deef79bf7e65794b56af9c36fac14dcdab65a17bbe09ee82c1b1"
+          },
+          {
+            "byte_end": 80,
+            "byte_start": 0,
+            "segment_id": "R2",
+            "source_key": "synthetic-source:document-a",
+            "source_kind": "document",
+            "source_sha256": "87a75d03d0f0081af956ee6839d7a4f18a5a9279a8c9841a8c2090c72f5b7f59",
+            "text": "Synthetic source A reports viral region A with a polinton-like lineage affinity.",
+            "text_sha256": "87a75d03d0f0081af956ee6839d7a4f18a5a9279a8c9841a8c2090c72f5b7f59"
+          },
+          {
+            "byte_end": 83,
+            "byte_start": 0,
+            "segment_id": "R3",
+            "source_key": "synthetic-source:document-b",
+            "source_kind": "document",
+            "source_sha256": "addfea8ab2140597638375a29c737c7660bf95b091d447c4f6657bb3517251df",
+            "text": "Synthetic source B reports viral region B with an adenovirus-like lineage affinity.",
+            "text_sha256": "addfea8ab2140597638375a29c737c7660bf95b091d447c4f6657bb3517251df"
+          }
+        ],
+        "structured_success": null
+      },
+      "raw_answer": "{\n  \"abstained\": false,\n  \"answer_text\": \"The release contains 2 distinct included loci.\",\n  \"cited_chunk_ids\": [\n    \"R1\",\n    \"R2\",\n    \"R3\"\n  ],\n  \"claims\": [\n    {\n      \"claim_id\": \"C1\",\n      \"text\": \"The synthetic release contains 2 distinct included loci.\",\n      \"claim_type\": \"structured_fact\"\n    }\n  ],\n  \"limitations\": [],\n  \"structured_facts\": {\n    \"exact_count\": 2,\n    \"detection_call_keys\": [\n      \"det_call_001\"\n    ],\n    \"record_keys\": [\n      \"rec_key_001\"\n    ],\n    \"release_key\": \"rel_key_001\",\n    \"release_manifest_sha256\": \"66bcdfb112f1deef79bf7e65794b56af9c36fac14dcdab65a17bbe09ee82c1b1\",\n    \"assembly_accession_versions\": [\n      \"GCA_000001235.1\"\n    ],\n    \"sequence_accession_versions\": [\n      \"MN888888.1\"\n    ],\n    \"locus_keys\": [\n      \"locus_key_A\",\n      \"locus_key_B\"\n    ],\n    \"metric_key\": \"count_distinct_loci\"\n  }\n}"
+    },
+    {
+      "system_key": "S2",
+      "original_file_sha256": "2cdfdcd51e6155ad3486e2de29d72ab4095e3cea3276f3f89ac3d353f0cf68af",
+      "prompt_policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+      "evidence": {
+        "citations": [
+          {
+            "chunk_key": "chunk:sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "citation_id": "D1",
+            "document_key": "document:sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "locator_text": "synthetic paragraph 1",
+            "text": "Synthetic source A reports viral region A with a polinton-like lineage affinity.",
+            "text_sha256": "87a75d03d0f0081af956ee6839d7a4f18a5a9279a8c9841a8c2090c72f5b7f59"
+          }
+        ],
+        "construction": {
+          "context_byte_count": 547,
+          "context_token_count": 279,
+          "input_token_count": 2258,
+          "model_context_limit_tokens": 32768,
+          "omitted_segment_count": 0,
+          "omitted_source_keys": [],
+          "policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+          "reserved_output_tokens": 8192,
+          "tokenizer_key": "tokenizer:rag-value:qwen3-4b-instruct-2507",
+          "truncated": false
+        },
+        "oracle_entry_sha256": null,
+        "pack_schema_version": "rag-value-evidence-pack-v1",
+        "pack_sha256": "b4bd2c57c266a58d2ff35bb9f5d18ba213d379d568c9b2e26fb88798959c9727",
+        "production_context_pack_sha256": null,
+        "question_id": "synthetic-hybrid-001",
+        "question_text": "Count distinct included loci in this release.",
+        "question_text_sha256": "2d6fa4b5a41fc10fe2bc48db1469d69037eba31093dcb84b5358b85ccc13ae11",
+        "raw_context_segments": [],
+        "structured_success": null
+      },
+      "raw_answer": "{\n  \"abstained\": true,\n  \"answer_text\": \"Evidence is insufficient to count distinct included loci in this release.\",\n  \"cited_chunk_ids\": [\n    \"chunk:sha256:3333333333333333333333333333333333333333333333333333333333333333\"\n  ],\n  \"claims\": [\n    {\n      \"claim_id\": \"C1\",\n      \"text\": \"The provided evidence mentions a viral region with a polinton-like lineage affinity but does not specify distinct loci or their count.\",\n      \"claim_type\": \"literature_fact\"\n    }\n  ],\n  \"limitations\": [\n    \"No explicit information is provided about the number or identity of distinct included loci.\",\n    \"The literature evidence refers to a viral region without detailing specific loci or their count.\"\n  ],\n  \"structured_facts\": null\n}"
+    },
+    {
+      "system_key": "S3",
+      "original_file_sha256": "c0f910bfb44aa89e0402127de0d8daf858c1021a3f483acca50c310179589089",
+      "prompt_policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+      "evidence": {
+        "citations": [
+          {
+            "chunk_key": "chunk:sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "citation_id": "D1",
+            "document_key": "document:sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "locator_text": "synthetic paragraph 1",
+            "text": "Synthetic source B reports viral region B with an adenovirus-like lineage affinity.",
+            "text_sha256": "addfea8ab2140597638375a29c737c7660bf95b091d447c4f6657bb3517251df"
+          },
+          {
+            "chunk_key": "chunk:sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "citation_id": "D2",
+            "document_key": "document:sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "locator_text": "synthetic paragraph 2",
+            "text": "Synthetic source A reports viral region A with a polinton-like lineage affinity.",
+            "text_sha256": "87a75d03d0f0081af956ee6839d7a4f18a5a9279a8c9841a8c2090c72f5b7f59"
+          }
+        ],
+        "construction": {
+          "context_byte_count": 971,
+          "context_token_count": 526,
+          "input_token_count": 2505,
+          "model_context_limit_tokens": 32768,
+          "omitted_segment_count": 0,
+          "omitted_source_keys": [],
+          "policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+          "reserved_output_tokens": 8192,
+          "tokenizer_key": "tokenizer:rag-value:qwen3-4b-instruct-2507",
+          "truncated": false
+        },
+        "oracle_entry_sha256": null,
+        "pack_schema_version": "rag-value-evidence-pack-v1",
+        "pack_sha256": "82c3218f93dd0e66380379f34669f4ca3c9d52df22d484b16e1101722f1bd4aa",
+        "production_context_pack_sha256": null,
+        "question_id": "synthetic-hybrid-001",
+        "question_text": "Count distinct included loci in this release.",
+        "question_text_sha256": "2d6fa4b5a41fc10fe2bc48db1469d69037eba31093dcb84b5358b85ccc13ae11",
+        "raw_context_segments": [],
+        "structured_success": null
+      },
+      "raw_answer": "{\n  \"abstained\": true,\n  \"answer_text\": \"The evidence does not contain sufficient information to determine the count of distinct included loci in this release.\",\n  \"cited_chunk_ids\": [\n    \"chunk:sha256:4444444444444444444444444444444444444444444444444444444444444444\",\n    \"chunk:sha256:3333333333333333333333333333333333333333333333333333333333333333\"\n  ],\n  \"claims\": [\n    {\n      \"claim_id\": \"C1\",\n      \"text\": \"The provided evidence mentions viral region B with an adenovirus-like lineage affinity and viral region A with a polinton-like lineage affinity, but does not specify the number of distinct loci or provide a count of included loci.\",\n      \"claim_type\": \"literature_fact\"\n    }\n  ],\n  \"limitations\": [\n    \"No explicit count of distinct included loci is provided in the evidence.\",\n    \"The evidence describes lineage affinities for specific viral regions but does not define or enumerate the loci or their inclusion status in a way that enables a count.\"\n  ],\n  \"structured_facts\": null\n}"
+    },
+    {
+      "system_key": "S5",
+      "original_file_sha256": "6284165c6b349969e2a3b73df00f92a126bbe20cf89f990e2e38db8fdea1db18",
+      "prompt_policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+      "evidence": {
+        "citations": [
+          {
+            "chunk_key": "chunk:sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "citation_id": "D1",
+            "document_key": "document:sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "locator_text": "synthetic paragraph 1",
+            "text": "Synthetic source B reports viral region B with an adenovirus-like lineage affinity.",
+            "text_sha256": "addfea8ab2140597638375a29c737c7660bf95b091d447c4f6657bb3517251df"
+          },
+          {
+            "chunk_key": "chunk:sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "citation_id": "D2",
+            "document_key": "document:sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "locator_text": "synthetic paragraph 2",
+            "text": "Synthetic source A reports viral region A with a polinton-like lineage affinity.",
+            "text_sha256": "87a75d03d0f0081af956ee6839d7a4f18a5a9279a8c9841a8c2090c72f5b7f59"
+          }
+        ],
+        "construction": {
+          "context_byte_count": 1710,
+          "context_token_count": 758,
+          "input_token_count": 2738,
+          "model_context_limit_tokens": 32768,
+          "omitted_segment_count": 0,
+          "omitted_source_keys": [],
+          "policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+          "reserved_output_tokens": 8192,
+          "tokenizer_key": "tokenizer:rag-value:qwen3-4b-instruct-2507",
+          "truncated": false
+        },
+        "oracle_entry_sha256": null,
+        "pack_schema_version": "rag-value-evidence-pack-v1",
+        "pack_sha256": "423f3d7a5ef16d269f03b50dd983715b610629ad70b2a6f7ccaf6d952d3837f6",
+        "production_context_pack_sha256": null,
+        "question_id": "synthetic-hybrid-001",
+        "question_text": "Count distinct included loci in this release.",
+        "question_text_sha256": "2d6fa4b5a41fc10fe2bc48db1469d69037eba31093dcb84b5358b85ccc13ae11",
+        "raw_context_segments": [],
+        "structured_success": {
+          "error": null,
+          "fact_retrieval_executed": true,
+          "planning_audit": {
+            "extracted_conditions": [
+              {
+                "condition_id": "condition:001:intent",
+                "condition_kind": "intent",
+                "mapped_target": "intent:aggregate",
+                "source_end": 5,
+                "source_start": 0,
+                "source_text": "Count"
+              },
+              {
+                "condition_id": "condition:002:metric",
+                "condition_kind": "metric",
+                "mapped_target": "metric_key:distinct_included_locus_count",
+                "source_end": 28,
+                "source_start": 6,
+                "source_text": "distinct included loci"
+              },
+              {
+                "condition_id": "condition:003:scope",
+                "condition_kind": "scope",
+                "mapped_target": "scope:entire_release",
+                "source_end": 44,
+                "source_start": 29,
+                "source_text": "in this release"
+              }
+            ],
+            "mapped_condition_ids": [
+              "condition:001:intent",
+              "condition:002:metric",
+              "condition:003:scope"
+            ],
+            "unconsumed_semantic_spans": [],
+            "unresolved_condition_ids": []
+          },
+          "query_plan": {
+            "intent": "aggregate",
+            "metric_key": "distinct_included_locus_count",
+            "original_question": "Count distinct included loci in this release.",
+            "plan_version": "endoviho-query-plan-v0.1",
+            "release_key": "release:endoviho-rag:v0:20990101:001",
+            "route": "structured",
+            "scope": {
+              "explicitly_requested": true,
+              "scope_type": "entire_release"
+            }
+          },
+          "resolved_entities": [],
+          "response_kind": "query_success",
+          "response_schema_version": "structured-query-response-v1",
+          "structured_result": {
+            "data": {
+              "deduplication_key": "release_key+locus_key",
+              "kind": "aggregate",
+              "metric_key": "distinct_included_locus_count",
+              "unit": "loci",
+              "value": 2
+            },
+            "limitations": [
+              {
+                "code": "assembly_local_locus_is_not_independent_integration_event",
+                "message": "An assembly-local locus is not evidence of an independent integration event."
+              }
+            ],
+            "plan_sha256": "5bfc69dc9c521cad678787088a91188f6bef8240803a759825bbd4d2d582cad1",
+            "release": {
+              "dataset_key": "dataset:endoviho-rag",
+              "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "published_at": "2099-01-01T00:00:00Z",
+              "release_key": "release:endoviho-rag:v0:20990101:001",
+              "schema_version": "synthetic-phase2-v1",
+              "status": "published"
+            },
+            "result_schema_version": "structured-result-v1",
+            "warnings": []
+          }
+        }
+      },
+      "raw_answer": "{\n  \"abstained\": false,\n  \"answer_text\": \"There are 2 distinct included loci in this release.\",\n  \"cited_chunk_ids\": [\n    \"chunk:sha256:4444444444444444444444444444444444444444444444444444444444444444\",\n    \"chunk:sha256:3333333333333333333333333333333333333333333333333333333333333333\"\n  ],\n  \"claims\": [\n    {\n      \"claim_id\": \"C1\",\n      \"claim_type\": \"structured_fact\",\n      \"text\": \"The release contains two distinct viral region associations: one with a polinton-like lineage affinity and one with an adenovirus-like lineage affinity.\",\n      \"citation_ids\": [\n        \"D1\",\n        \"D2\"\n      ]\n    }\n  ],\n  \"limitations\": [\n    \"An assembly-local locus is not evidence of an independent integration event.\"\n  ],\n  \"structured_facts\": {\n    \"exact_count\": 2,\n    \"detection_call_keys\": [\n      \"det:polinton\",\n      \"det:adenovirus\"\n    ],\n    \"locus_keys\": [\n      \"locus:regionA\",\n      \"locus:regionB\"\n    ],\n    \"record_keys\": [\n      \"rec:sourceA\",\n      \"rec:sourceB\"\n    ],\n    \"release_key\": \"release:endoviho-rag:v0:20990101:001\",\n    \"assembly_accession_versions\": [\n      \"GCA_000001235.1\"\n    ],\n    \"sequence_accession_versions\": [\n      \"MN888888.1\"\n    ],\n    \"coordinates\": [\n      {\n        \"coordinate_convention\": \"0-based-half-open\",\n        \"start0\": 100,\n        \"end0\": 200,\n        \"strand\": \"+\",\n        \"sequence_accession_version\": \"MN888888.1\"\n      },\n      {\n        \"coordinate_convention\": \"0-based-half-open\",\n        \"start0\": 300,\n        \"end0\": 400,\n        \"strand\": \"-\",\n        \"sequence_accession_version\": \"MN888888.1\"\n      }\n    ],\n    \"exact_association_set\": [\n      {\n        \"assembly_accession_version\": \"GCA_000001235.1\",\n        \"assembly_source_taxon\": {\n          \"canonical_name\": \"Homo sapiens\",\n          \"role\": \"assembly_source_taxonomy\",\n          \"snapshot_key\": \"snap:hs:2023\",\n          \"term_key\": \"tax:9606\"\n        },\n        \"association_kind\": \"exact\",\n        \"eve_locus_key\": \"locus:regionA\",\n        \"evidence_source\": {\n          \"evidence_kind\": \"dataset_release\",\n          \"release_key\": \"release:endoviho-rag:v0:20990101:001\",\n          \"release_manifest_sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n          \"source_record_keys\": [\n            \"rec:sourceA\"\n          ]\n        },\n        \"viral_lineage_affinity\": {\n          \"term_key\": \"viral:polinton\",\n          \"canonical_name\": \"Polinton-like\",\n          \"role\": \"study_viral_lineage\",\n          \"snapshot_key\": \"snap:vir:2023\",\n          \"include_descendants\": false\n        }\n      },\n      {\n        \"assembly_accession_version\": \"GCA_000001235.1\",\n        \"assembly_source_taxon\": {\n          \"canonical_name\": \"Homo sapiens\",\n          \"role\": \"assembly_source_taxonomy\",\n          \"snapshot_key\": \"snap:hs:2023\",\n          \"term_key\": \"tax:9606\"\n        },\n        \"association_kind\": \"exact\",\n        \"eve_locus_key\": \"locus:regionB\",\n        \"evidence_source\": {\n          \"evidence_kind\": \"dataset_release\",\n          \"release_key\": \"release:endoviho-rag:v0:20990101:001\",\n          \"release_manifest_sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n          \"source_record_keys\": [\n            \"rec:sourceB\"\n          ]\n        },\n        \"viral_lineage_affinity\": {\n          \"term_key\": \"viral:adenovirus\",\n          \"canonical_name\": \"Adenovirus-like\",\n          \"role\": \"study_viral_lineage\",\n          \"snapshot_key\": \"snap:vir:2023\",\n          \"include_descendants\": false\n        }\n      }\n    ],\n    \"limitation_codes\": [\n      \"assembly_local_locus_is_not_independent_integration_event\"\n    ],\n    \"metric_key\": \"distinct_included_locus_count\"\n  }\n}"
+    },
+    {
+      "system_key": "S6",
+      "original_file_sha256": "07d0f3addaf02fb4afc7eb312535bfd55bcc7bde3497f740025b31d0d3a9e282",
+      "prompt_policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+      "evidence": {
+        "citations": [
+          {
+            "chunk_key": "chunk:sha256:3333333333333333333333333333333333333333333333333333333333333333",
+            "citation_id": "D1",
+            "document_key": "document:sha256:1111111111111111111111111111111111111111111111111111111111111111",
+            "locator_text": "synthetic paragraph 1",
+            "text": "Synthetic source A reports viral region A with a polinton-like lineage affinity.",
+            "text_sha256": "87a75d03d0f0081af956ee6839d7a4f18a5a9279a8c9841a8c2090c72f5b7f59"
+          },
+          {
+            "chunk_key": "chunk:sha256:4444444444444444444444444444444444444444444444444444444444444444",
+            "citation_id": "D2",
+            "document_key": "document:sha256:2222222222222222222222222222222222222222222222222222222222222222",
+            "locator_text": "synthetic paragraph 2",
+            "text": "Synthetic source B reports viral region B with an adenovirus-like lineage affinity.",
+            "text_sha256": "addfea8ab2140597638375a29c737c7660bf95b091d447c4f6657bb3517251df"
+          }
+        ],
+        "construction": {
+          "context_byte_count": 1710,
+          "context_token_count": 758,
+          "input_token_count": 2738,
+          "model_context_limit_tokens": 32768,
+          "omitted_segment_count": 0,
+          "omitted_source_keys": [],
+          "policy_sha256": "fbfc99bda29c60d02cd3136dc70895daf97079fa297952d734d4e3966fb225c6",
+          "reserved_output_tokens": 8192,
+          "tokenizer_key": "tokenizer:rag-value:qwen3-4b-instruct-2507",
+          "truncated": false
+        },
+        "oracle_entry_sha256": "6f549217ed693af58f30194968059648ec41678a4270c21d02b24003ae72942c",
+        "pack_schema_version": "rag-value-evidence-pack-v1",
+        "pack_sha256": "4a0267d61bbd92e011acd0065b93b296cd2a466ea4bb50017fa152130d5d5a4f",
+        "production_context_pack_sha256": null,
+        "question_id": "synthetic-hybrid-001",
+        "question_text": "Count distinct included loci in this release.",
+        "question_text_sha256": "2d6fa4b5a41fc10fe2bc48db1469d69037eba31093dcb84b5358b85ccc13ae11",
+        "raw_context_segments": [],
+        "structured_success": {
+          "error": null,
+          "fact_retrieval_executed": true,
+          "planning_audit": {
+            "extracted_conditions": [
+              {
+                "condition_id": "condition:001:intent",
+                "condition_kind": "intent",
+                "mapped_target": "intent:aggregate",
+                "source_end": 5,
+                "source_start": 0,
+                "source_text": "Count"
+              },
+              {
+                "condition_id": "condition:002:metric",
+                "condition_kind": "metric",
+                "mapped_target": "metric_key:distinct_included_locus_count",
+                "source_end": 28,
+                "source_start": 6,
+                "source_text": "distinct included loci"
+              },
+              {
+                "condition_id": "condition:003:scope",
+                "condition_kind": "scope",
+                "mapped_target": "scope:entire_release",
+                "source_end": 44,
+                "source_start": 29,
+                "source_text": "in this release"
+              }
+            ],
+            "mapped_condition_ids": [
+              "condition:001:intent",
+              "condition:002:metric",
+              "condition:003:scope"
+            ],
+            "unconsumed_semantic_spans": [],
+            "unresolved_condition_ids": []
+          },
+          "query_plan": {
+            "intent": "aggregate",
+            "metric_key": "distinct_included_locus_count",
+            "original_question": "Count distinct included loci in this release.",
+            "plan_version": "endoviho-query-plan-v0.1",
+            "release_key": "release:endoviho-rag:v0:20990101:001",
+            "route": "structured",
+            "scope": {
+              "explicitly_requested": true,
+              "scope_type": "entire_release"
+            }
+          },
+          "resolved_entities": [],
+          "response_kind": "query_success",
+          "response_schema_version": "structured-query-response-v1",
+          "structured_result": {
+            "data": {
+              "deduplication_key": "release_key+locus_key",
+              "kind": "aggregate",
+              "metric_key": "distinct_included_locus_count",
+              "unit": "loci",
+              "value": 2
+            },
+            "limitations": [
+              {
+                "code": "assembly_local_locus_is_not_independent_integration_event",
+                "message": "An assembly-local locus is not evidence of an independent integration event."
+              }
+            ],
+            "plan_sha256": "5bfc69dc9c521cad678787088a91188f6bef8240803a759825bbd4d2d582cad1",
+            "release": {
+              "dataset_key": "dataset:endoviho-rag",
+              "manifest_sha256": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "published_at": "2099-01-01T00:00:00Z",
+              "release_key": "release:endoviho-rag:v0:20990101:001",
+              "schema_version": "synthetic-phase2-v1",
+              "status": "published"
+            },
+            "result_schema_version": "structured-result-v1",
+            "warnings": []
+          }
+        }
+      },
+      "raw_answer": "{\n  \"abstained\": false,\n  \"answer_text\": \"There are 2 distinct included loci in this release.\",\n  \"cited_chunk_ids\": [\n    \"chunk:sha256:3333333333333333333333333333333333333333333333333333333333333333\",\n    \"chunk:sha256:4444444444444444444444444444444444444444444444444444444444444444\"\n  ],\n  \"claims\": [\n    {\n      \"claim_id\": \"C1\",\n      \"claim_type\": \"structured_fact\",\n      \"text\": \"The release contains two distinct viral loci: one with a polinton-like lineage affinity and one with an adenovirus-like lineage affinity.\",\n      \"citation_ids\": [\n        \"D1\",\n        \"D2\"\n      ]\n    }\n  ],\n  \"limitations\": [\n    \"An assembly-local locus is not evidence of an independent integration event.\"\n  ],\n  \"structured_facts\": {\n    \"exact_count\": 2,\n    \"detection_call_keys\": [\n      \"det:polinton\",\n      \"det:adenovirus\"\n    ],\n    \"locus_keys\": [\n      \"locus:polinton\",\n      \"locus:adenovirus\"\n    ],\n    \"record_keys\": [\n      \"rec:sourceA\",\n      \"rec:sourceB\"\n    ],\n    \"release_key\": \"release:endoviho-rag:v0:20990101:001\",\n    \"assembly_accession_versions\": [\n      \"GCA_000001235.1\"\n    ],\n    \"sequence_accession_versions\": [\n      \"MN888888.1\",\n      \"MN999999.1\"\n    ],\n    \"coordinates\": [\n      {\n        \"coordinate_convention\": \"0-based-half-open\",\n        \"start0\": 100,\n        \"end0\": 500,\n        \"strand\": \"+\",\n        \"sequence_accession_version\": \"MN888888.1\"\n      },\n      {\n        \"coordinate_convention\": \"0-based-half-open\",\n        \"start0\": 200,\n        \"end0\": 700,\n        \"strand\": \"-\",\n        \"sequence_accession_version\": \"MN999999.1\"\n      }\n    ],\n    \"exact_association_set\": [\n      {\n        \"assembly_accession_version\": \"GCA_000001235.1\",\n        \"assembly_source_taxon\": {\n          \"canonical_name\": \"Homo sapiens\",\n          \"role\": \"assembly_source_taxonomy\",\n          \"snapshot_key\": \"snap:hs:2023\",\n          \"term_key\": \"tax:9606\"\n        },\n        \"association_kind\": \"exact\",\n        \"eve_locus_key\": \"locus:polinton\",\n        \"evidence_source\": {\n          \"evidence_kind\": \"dataset_release\",\n          \"release_key\": \"release:endoviho-rag:v0:20990101:001\",\n          \"release_manifest_sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n          \"source_record_keys\": [\n            \"rec:sourceA\"\n          ]\n        },\n        \"viral_lineage_affinity\": {\n          \"term_key\": \"viral:polinton\",\n          \"canonical_name\": \"Polinton-like\",\n          \"role\": \"study_viral_lineage\",\n          \"snapshot_key\": \"snap:vir:polinton:2023\",\n          \"include_descendants\": false\n        }\n      },\n      {\n        \"assembly_accession_version\": \"GCA_000001235.1\",\n        \"assembly_source_taxon\": {\n          \"canonical_name\": \"Homo sapiens\",\n          \"role\": \"assembly_source_taxonomy\",\n          \"snapshot_key\": \"snap:hs:2023\",\n          \"term_key\": \"tax:9606\"\n        },\n        \"association_kind\": \"exact\",\n        \"eve_locus_key\": \"locus:adenovirus\",\n        \"evidence_source\": {\n          \"evidence_kind\": \"dataset_release\",\n          \"release_key\": \"release:endoviho-rag:v0:20990101:001\",\n          \"release_manifest_sha256\": \"aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa\",\n          \"source_record_keys\": [\n            \"rec:sourceB\"\n          ]\n        },\n        \"viral_lineage_affinity\": {\n          \"term_key\": \"viral:adenovirus\",\n          \"canonical_name\": \"Adenovirus-like\",\n          \"role\": \"study_viral_lineage\",\n          \"snapshot_key\": \"snap:vir:adenovirus:2023\",\n          \"include_descendants\": false\n        }\n      }\n    ],\n    \"limitation_codes\": [\n      \"assembly_local_locus_is_not_independent_integration_event\"\n    ],\n    \"metric_key\": \"distinct_included_locus_count\"\n  }\n}"
+    }
+  ]
+}

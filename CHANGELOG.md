@@ -1,9 +1,47 @@
 # Changelog
 
-All notable project changes are recorded here. The product remains `V0`; no external software
-release or scientific-data publication is implied by this file.
+All notable project changes are recorded here. The product remains `V0`; artifact status changes
+only where an entry and a self-checksummed release manifest explicitly say so.
 
 ## V0 — Unreleased
+
+### Source-reported RAG-value execution
+
+- Added the `source-reported-v1` S4/S5 extension, complete multi-query evidence, local
+  generation workers, answer validation, and checksum-bound execution and review tools.
+- Completed the fixed 53-question × 7-condition run with 371 terminal records and 162
+  confirmed generations; an independent machine audit verified record integrity. The
+  repository includes aggregate results; full evidence and execution journals remain local.
+- Preserved 73 context overflows, 30 model timeouts, and 10 answer-validation failures.
+  All 48 eligible S2 queries returned no candidates, so this run cannot measure gains from
+  successful keyword retrieval. Expert scientific scoring remains pending.
+
+### Real mini DatasetRelease v1
+
+- Published a portable, self-checksummed 11-locus release across three current Unionidae
+  assemblies, with exact contig coordinates, physical source rows, and explicit `include`
+  decisions.
+- Required complete, unambiguous 20 kb left and right flank evidence for every member and fixed
+  NCBI Taxonomy taxdump `2026-08-29T05:29:15Z`, ICTV MSL41 v1, and corrected VMR
+  `MSL41.v1.20260729` artifact identities.
+- Preserved `HCVR`, `VR Type`, and study `Orthopolintovirales` as source annotations, linked the
+  latter to formal `Amphintovirales` through frozen rename evidence, and assigned no
+  `Transferred gene` / `Integrated virus` class.
+- Kept portable publication separate from live PostgreSQL activation; no running database was
+  mutated by this release build.
+
+### RAG-value association v1
+
+- Simplified the scientific benchmark to the supported chain: assembly-source taxon → EVE locus
+  or reported viral region → viral-lineage affinity → evidence and source.
+- Removed mandatory `Transferred gene` / `Integrated virus` fields and readiness requirements;
+  `HCVR`, `VR Type`, and `Viral Major Taxon` remain source-native annotations with explicit
+  prohibitions against automatic class mapping.
+- Regenerated the 64 pending scientific templates, ten-slot entity-binding worksheet, Gold/output
+  schema, provenance-aware association metrics, preflight evidence contract, and documentation.
+- Limited Phase 3 readiness to the specified S1-S4 retrieval-only scope, deferred S5 to Phase 4,
+  and added a deterministic public-workspace audit that fails closed without constructing database,
+  retrieval, embedding, or generation dependencies.
 
 ### Retrieval ablation framework
 

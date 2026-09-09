@@ -307,7 +307,7 @@ def test_fair_comparison_denominator_and_fake_provider_are_explicit() -> None:
     identity = execution.run.manifest.generation_identity
     assert identity is not None
     assert all(
-        set(json.loads(request.user_payload_json)) == {"evidence", "instruction"}
+        set(json.loads(request.user_payload_json)) == {"evidence", "instruction", "answer_schema"}
         for request in execution.provider_requests
     )
     assert all(

@@ -1,17 +1,18 @@
-"""Isolated deterministic Phase 2 runner for the RAG-value ablation.
+"""Synthetic runner and explicit prepared-evidence rehearsal for the RAG-value ablation.
 
-This module exercises S0--S6 with in-memory synthetic fixtures only.  It never
-reads production configuration, constructs a real provider, opens a database,
-or writes anywhere unless the caller supplies a new output directory.
+The deterministic S0--S6 harness uses in-memory synthetic fixtures only. The
+separate prepared-evidence helper accepts an explicitly constructed local
+provider and always returns untrusted results. Neither path discovers production
+configuration or grants retrieval, scientific approval, or publication authority.
 """
 
 from __future__ import annotations
 
 import hashlib
 from collections.abc import Callable
-from dataclasses import dataclass
+from dataclasses import asdict, dataclass
 from pathlib import Path
-from typing import Literal, TypeVar
+from typing import TYPE_CHECKING, Literal, TypeVar
 
 from eve_relation_rag.experiments.rag_value_ablation.contracts import (
     AnswerStructuredFacts,
@@ -91,6 +92,7 @@ from eve_relation_rag.experiments.rag_value_ablation.synthetic import (
 from eve_relation_rag.experiments.rag_value_ablation.systems import (
     LLM_SYSTEM_KEYS,
     ComparisonInputRecord,
+    build_source_report_system_definitions,
     build_system_definitions,
     validate_evidence_for_system,
     validate_execution_trace,
@@ -120,6 +122,96 @@ from eve_relation_rag.retrieval.structured.results import (
 )
 
 _T = TypeVar("_T")
+
+if TYPE_CHECKING:
+    from eve_relation_rag.experiments.rag_value_ablation.local_generation import (
+        OfflineMlxGenerationProvider,
+    )
+
+
+def generate_prepared_rehearsal(
+    provider: OfflineMlxGenerationProvider,
+    system_key: SystemKey,
+    evidence: EvaluationEvidencePack,
+) -> dict[str, object]:
+    """Reuse common contracts for prepared evidence; this does not certify its retrieval origin.
+
+    Always untrusted, even when a caller supplies approved-looking fields. Live
+    S5/Oracle provenance must still be obtained by their existing upstream gates.
+    """
+    from eve_relation_rag.experiments.rag_value_ablation.local_generation import (
+        ContextOverflow,
+        build_measured_evidence,
+    )
+
+    evidence = EvaluationEvidencePack.model_validate_json(evidence.model_dump_json())
+    record: dict[str, object] = {
+        "system_key": system_key,
+        "question_id": evidence.question_id,
+        "trust_level": "untrusted_rehearsal",
+        "scientific_score": None,
+        "generation_executed": False,
+        "retrieval_provenance_certified": False,
+        "source_evidence_sha256": evidence.pack_sha256,
+    }
+    if contains_forbidden_topic(evidence.question_text):
+        return {**record, "status": "scope_refused"}
+    if system_key not in LLM_SYSTEM_KEYS:
+        raise ValueError("S4 cannot use the common generation adapter")
+    policy = build_prompt_policy()
+    validate_generation_identity(provider.identity, policy)
+    definitions = (
+        build_source_report_system_definitions(provider.identity)
+        if evidence.source_report_groups
+        else build_system_definitions(provider.identity)
+    )
+    system = next(s for s in definitions if s.system_key == system_key)
+    validate_evidence_for_system(system, evidence)
+    try:
+        measured = build_measured_evidence(
+            provider,
+            question_id=evidence.question_id,
+            question_text=evidence.question_text,
+            structured_success=evidence.structured_success,
+            structured_groups=evidence.structured_groups,
+            source_report_groups=evidence.source_report_groups,
+            citations=evidence.citations,
+            raw_context_segments=evidence.raw_context_segments,
+            policy_sha256=evidence.construction.policy_sha256,
+            production_context_pack_sha256=evidence.production_context_pack_sha256,
+            oracle_entry_sha256=evidence.oracle_entry_sha256,
+        )
+    except ContextOverflow as exc:
+        return {
+            **record,
+            "status": "context_overflow",
+            "input_tokens": exc.input_token_count,
+            "truncated": False,
+            "omitted_source_keys": (),
+        }
+    validate_evidence_for_system(system, measured)
+    if evidence.structured_groups != measured.structured_groups:
+        raise ValueError("structured subquery evidence changed during token measurement")
+    if evidence.source_report_groups != measured.source_report_groups:
+        raise ValueError("source report evidence changed during token measurement")
+    preservation = None
+    if evidence.structured_success is not None and measured.structured_success is not None:
+        preservation = prove_structured_result_preserved(
+            evidence.structured_success.structured_result,
+            measured.structured_success.structured_result,
+        )
+    result = provider.generate(measured)
+    return {
+        **record,
+        "status": result.status,
+        "generation_executed": True,
+        "generation_identity": provider.identity,
+        "prompt_policy_sha256": policy.policy_sha256,
+        "runtime": provider.runtime,
+        "result": asdict(result),
+        "structured_preservation": preservation,
+        "structured_preservation_scope": "input_evidence_transport_only",
+    }
 
 
 @dataclass(frozen=True, slots=True)
@@ -270,7 +362,7 @@ def execute_synthetic_harness() -> SyntheticHarnessExecution:
     systems = build_system_definitions(identity)
     validate_system_definitions(systems, identity)
 
-    raw_policy = _raw_context_policy(identity.context_limit_tokens, identity.max_output_tokens)
+    raw_policy = _raw_context_policy(identity)
     retrieval_policy = build_retrieval_policy_identity(embedding_artifact_manifest_sha256=None)
     provider_requests: list[SyntheticGenerationRequest] = []
     outcomes: dict[
@@ -1062,7 +1154,7 @@ def _artifact(
     )
 
 
-def _raw_context_policy(context_limit: int, output_limit: int) -> RawContextPolicy:
+def _raw_context_policy(identity: GenerationIdentity) -> RawContextPolicy:
     segments = synthetic_raw_segments()
     return build_raw_context_policy(
         source_manifest_sha256=canonical_json_sha256(
@@ -1075,8 +1167,11 @@ def _raw_context_policy(context_limit: int, output_limit: int) -> RawContextPoli
         final_partial_segment_allowed=False,
         separator_sha256=hashlib.sha256(b"\n\n").hexdigest(),
         tokenizer_key="tokenizer:synthetic:utf8-byte-v1",
-        model_context_limit_tokens=context_limit,
-        reserved_output_tokens=output_limit,
+        tokenizer_id=identity.tokenizer_id,
+        tokenizer_revision=identity.tokenizer_revision,
+        tokenizer_artifact_manifest_sha256=(identity.tokenizer_artifact_manifest_sha256),
+        model_context_limit_tokens=identity.context_limit_tokens,
+        reserved_output_tokens=identity.max_output_tokens,
     )
 
 

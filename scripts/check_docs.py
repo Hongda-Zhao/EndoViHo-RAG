@@ -18,7 +18,7 @@ def markdown_paths() -> tuple[Path, ...]:
                 ROOT / "README.md",
                 ROOT / "CHANGELOG.md",
                 *(ROOT / "docs").rglob("*.md"),
-                ROOT / "data" / "README.md",
+                *(ROOT / "data").rglob("*.md"),
             }
         )
     )
