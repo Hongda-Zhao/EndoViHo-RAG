@@ -24,6 +24,7 @@ from eve_relation_rag.experiments.rag_value_ablation.contracts import (
     SystemKey,
     build_evidence_pack,
 )
+from eve_relation_rag.experiments.rag_value_ablation.lexical_query import LEXICAL_QUERY_POLICY_KEY
 from eve_relation_rag.experiments.rag_value_ablation.literature_adapter import (
     BgeAssetFiles,
     OfflineBgeQueryProvider,
@@ -40,6 +41,8 @@ from eve_relation_rag.experiments.rag_value_ablation.local_generation import (
 )
 from eve_relation_rag.experiments.rag_value_ablation.prompting import build_prompt_policy
 from eve_relation_rag.experiments.rag_value_ablation.source_corpus import (
+    LEXICAL_QUERY_POLICIES,
+    ORIGINAL_LEXICAL_QUERY_POLICY,
     SourceCorpusEvidenceAdapter,
     SourceDocumentBindings,
     read_pinned,
@@ -85,6 +88,12 @@ class SourceExperiment:
             or c["public_publication"] is not False
         ):
             raise ValueError("unsupported runtime configuration")
+        self._execution_systems()
+        self.lexical_query_policy = c.get(
+            "lexical_query_policy", ORIGINAL_LEXICAL_QUERY_POLICY
+        )
+        if self.lexical_query_policy not in LEXICAL_QUERY_POLICIES:
+            raise ValueError("unknown frozen lexical query policy")
         self.verify_files()
         if json.loads(self.read("amendment"))["accepted_variant"] != c["variant"]:
             raise ValueError("source variant has no matching accepted amendment")
@@ -119,6 +128,22 @@ class SourceExperiment:
         self._hybrid: SourceCorpusEvidenceAdapter | None = None
         self._bindings: SourceDocumentBindings | None = None
 
+    def _execution_systems(self) -> tuple[SystemKey, ...]:
+        if "execution_systems" not in self.config:
+            return ALL_SYSTEM_KEYS
+        requested = self.config["execution_systems"]
+        if (
+            not isinstance(requested, list)
+            or not requested
+            or any(not isinstance(system, str) or system not in ALL_SYSTEM_KEYS
+                   for system in requested)
+        ):
+            raise ValueError("execution_systems must be a nonempty list of valid system keys")
+        canonical = tuple(system for system in ALL_SYSTEM_KEYS if system in requested)
+        if tuple(requested) != canonical:
+            raise ValueError("execution_systems must be unique and in canonical S0-S6 order")
+        return canonical
+
     def path(self, key: str) -> Path:
         return Path(self.config["files"][key]["path"])
 
@@ -130,6 +155,19 @@ class SourceExperiment:
         )
 
     def verify_files(self) -> None:
+        if self.config.get("lexical_query_policy") == LEXICAL_QUERY_POLICY_KEY:
+            required = {
+                Path(__file__).with_name(name).resolve()
+                for name in ("lexical_query.py", "lexical_context.py", "planned_fts.py",
+                             "source_corpus.py", "source_experiment.py")
+            }
+            required.add(
+                Path(__file__).parents[2] / "retrieval" / "literature" / "repository.py"
+            )
+            pinned = {Path(item["path"]).resolve()
+                      for item in self.config["implementation_files"]}
+            if not required <= pinned:
+                raise ValueError("planned lexical policy requires all active implementation pins")
         for key in self.config["files"]:
             self.read(key)
         for item in self.config["implementation_files"]:
@@ -174,6 +212,7 @@ class SourceExperiment:
                 chunks_path=self.path("chunks"),
                 chunks_sha256=self.config["files"]["chunks"]["sha256"],
                 bge=bge,
+                lexical_query_policy=self.lexical_query_policy,
             )
             if hybrid:
                 self._hybrid = current
@@ -263,15 +302,26 @@ class SourceExperiment:
             anchors, provenance = self.bindings().resolve(groups)
             base.update(source_provenance=provenance, anchors=anchors)
             base["events"].append("exact_source_document_anchors")
-            keys, citations, warnings = self.literature(True).retrieve(wording, anchors=anchors)
-            values["citations"] = citations
-            base.update(retrieved_chunk_keys=keys, retrieval_warnings=warnings)
-            base["events"].append("anchored_original_hybrid_retrieval")
+            retrieved = self.literature(True).retrieve_detailed(wording, anchors=anchors)
+            values["citations"] = retrieved.citations
+            base.update(retrieved_chunk_keys=retrieved.keys, retrieval_warnings=retrieved.warnings)
+            if retrieved.diagnostics is not None:
+                base["retrieval_diagnostics"] = retrieved.diagnostics
+            base["events"].append(
+                "anchored_planned_hybrid_retrieval" if retrieved.diagnostics is not None
+                else "anchored_original_hybrid_retrieval"
+            )
         elif system in {"S2", "S3"}:
-            keys, citations, warnings = self.literature(system == "S3").retrieve(wording)
-            values["citations"] = citations
-            base.update(retrieved_chunk_keys=keys, retrieval_warnings=warnings)
-            base["events"].append("original_fts" if system == "S2" else "original_hybrid_retrieval")
+            retrieved = self.literature(system == "S3").retrieve_detailed(wording)
+            values["citations"] = retrieved.citations
+            base.update(retrieved_chunk_keys=retrieved.keys, retrieval_warnings=retrieved.warnings)
+            if retrieved.diagnostics is not None:
+                base["retrieval_diagnostics"] = retrieved.diagnostics
+            base["events"].append(
+                ("planned_fts" if system == "S2" else "planned_hybrid_retrieval")
+                if retrieved.diagnostics is not None
+                else ("original_fts" if system == "S2" else "original_hybrid_retrieval")
+            )
         elif system == "S1":
             values["raw_context_segments"] = self.raw_segments()
             base["events"].append("complete_raw_materials")
@@ -378,6 +428,8 @@ class SourceExperiment:
             raise ValueError("formal run requires explicit input Gold and Oracle approval")
         if self.config["status"] != "frozen_for_formal_execution":
             raise ValueError("formal run requires a final engineering freeze")
+        execution_systems = self._execution_systems()
+        expected_cells = 53 * len(execution_systems)
         review = json.loads(read_pinned(approved_review, approved_review_sha256))
         if (
             review["schema_version"] != "rag-value-source-input-approval-v1"
@@ -403,7 +455,7 @@ class SourceExperiment:
         records = []
         with OfflineMlxGenerationProvider(self.provider_config) as provider:
             for question in self.questions:
-                for system in ALL_SYSTEM_KEYS:
+                for system in execution_systems:
                     self.verify_files()
                     qid = question["question_id"]
                     target = output / f"{qid}.{system}.json"
@@ -465,14 +517,14 @@ class SourceExperiment:
             "schema_version": "rag-value-source-machine-summary-v1",
             "runtime_config_sha256": self.config_sha256,
             "input_approval_file_sha256": approved_review_sha256,
-            "expected_cells": 371,
+            "expected_cells": expected_cells,
             "recorded_cells": len(records),
             "status_counts": dict(counts),
             "generation_calls_confirmed": sum(r["generation_executed"] is True for r in records),
             "generation_requests_timed_out": counts["model_timeout"],
             "scientific_scoring_completed": False,
             "public_publication": False,
-            "execution_complete": len(records) == 371
+            "execution_complete": len(records) == expected_cells
             and not any(
                 counts[s]
                 for s in (
@@ -485,6 +537,15 @@ class SourceExperiment:
                 f"{r['question_id']}.{r['system_key']}": r["record_sha256"] for r in records
             },
         }
+        # Unconfigured full runs retain the legacy summary for exact journal replay.
+        if "execution_systems" in self.config:
+            full_matrix = execution_systems == ALL_SYSTEM_KEYS
+            summary.update({
+                "execution_systems": list(execution_systems),
+                "execution_scope": "full_matrix" if full_matrix else "system_subset",
+                "full_matrix_expected_cells": 53 * len(ALL_SYSTEM_KEYS),
+                "full_matrix_execution_complete": full_matrix and summary["execution_complete"],
+            })
         if not (output / "summary.json").exists():
             atomic_json(output / "summary.json", summary)
         elif json.loads((output / "summary.json").read_bytes()) != summary:

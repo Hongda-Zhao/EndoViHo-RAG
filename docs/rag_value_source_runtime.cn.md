@@ -17,6 +17,10 @@ S4/S5 在纯文献题上记为不适用。共同越界策略先于所有数据�
 
 ## 文件与执行
 
+后续运行可显式选择 `lexical_query_policy: "rag-value-lexical-query-v1"`，使用题面查询规划、对象分配与正文上下文排序；缺省仍是原策略。启用方式和独立验证边界见 [S2 修复说明](rag_value_lexical_query_repair.cn.md)。该选项影响 S2/S3/S5 的关键词分支，需要新的源码与配置冻结，不能覆盖上述历史正式结果。
+
+配置可同时指定 `execution_systems: ["S2", "S3", "S5"]`，只执行这三个受影响条件的 159 个单元。列表必须有效、无重复，并按 S0–S6 顺序排列；省略仍执行全部 371 个单元。子集摘要会明确记录 `execution_scope=system_subset` 和 `full_matrix_execution_complete=false`，不会补造其他条件的记录。历史对照的引用及配对分析规则见[正式改进方案](rag_value_formal_revision.cn.md)。
+
 `corpus_rebuild_report.json` 是实际 BGE 重建结果；`database_reader_receipt.json` 记录实验账号的只读检查。实验库名为 `endoviho_source_report_20260908`，与回归测试库分开。连接凭据保存在权限为 0600 的本地文件中，不应复制进报告或公开分发。
 
 `runtime_config.frozen.json` 是本轮工程冻结配置，`runtime_config.development.json` 保留开发阶段配置。它们绑定材料、模型、解释器、工作进程、共同提示词及源码校验值。带 SHA 后缀的配置快照用于重载已有开发记录；后续配置不能替代原快照。开发输出在 `development_rehearsal/`，不得计入正式 53 题。

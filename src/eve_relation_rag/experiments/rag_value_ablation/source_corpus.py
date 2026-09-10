@@ -8,15 +8,24 @@ from __future__ import annotations
 
 import hashlib
 import json
+from dataclasses import dataclass
 from pathlib import Path
+from typing import Any
 
 from sqlalchemy import Engine
 from sqlalchemy.orm import Session
 
 from eve_relation_rag.experiments.rag_value_ablation.contracts import EvidenceCitation
+from eve_relation_rag.experiments.rag_value_ablation.lexical_query import (
+    LEXICAL_QUERY_POLICY_KEY,
+    plan_lexical_query,
+)
 from eve_relation_rag.experiments.rag_value_ablation.literature_adapter import (
     LiteratureAdapterError,
     OfflineBgeQueryProvider,
+)
+from eve_relation_rag.experiments.rag_value_ablation.planned_fts import (
+    PlannedFtsCandidateProvider,
 )
 from eve_relation_rag.experiments.rag_value_ablation.source_report_queries import (
     SOURCE_FIELD_NAMES,
@@ -32,6 +41,17 @@ from eve_relation_rag.literature.hashing import canonical_json_sha256
 from eve_relation_rag.literature.validation import RebuildValidationReport
 from eve_relation_rag.planning.scope_policy import contains_forbidden_topic
 from eve_relation_rag.retrieval.literature.repository import LiteratureRepository
+
+ORIGINAL_LEXICAL_QUERY_POLICY = "original-question-v1"
+LEXICAL_QUERY_POLICIES = (ORIGINAL_LEXICAL_QUERY_POLICY, LEXICAL_QUERY_POLICY_KEY)
+
+
+@dataclass(frozen=True)
+class SourceRetrievalResult:
+    keys: tuple[str, ...]
+    citations: tuple[EvidenceCitation, ...]
+    warnings: tuple[str, ...]
+    diagnostics: dict[str, Any] | None = None
 
 
 def read_pinned(path: Path, sha256: str, *, interpreter_link: bool = False) -> bytes:
@@ -155,7 +175,11 @@ class SourceCorpusEvidenceAdapter:
         chunks_path: Path,
         chunks_sha256: str,
         bge: OfflineBgeQueryProvider | None = None,
+        lexical_query_policy: str = ORIGINAL_LEXICAL_QUERY_POLICY,
     ) -> None:
+        if lexical_query_policy not in LEXICAL_QUERY_POLICIES:
+            raise LiteratureAdapterError("unknown lexical query policy")
+        self.lexical_query_policy = lexical_query_policy
         if report.provider_kind != "local_bge":
             raise LiteratureAdapterError("actual local-BGE corpus rebuild is required")
         self.capability = ValidatedCandidateGate(engine).authorize(report)
@@ -195,24 +219,46 @@ class SourceCorpusEvidenceAdapter:
         tuple[EvidenceCitation, ...],
         tuple[str, ...],
     ]:
+        result = self.retrieve_detailed(question, anchors=anchors)
+        return result.keys, result.citations, result.warnings
+
+    def retrieve_detailed(
+        self,
+        question: str,
+        *,
+        anchors: tuple[RetrievalAnchor, ...] = (),
+    ) -> SourceRetrievalResult:
         if contains_forbidden_topic(question):
             raise LiteratureAdapterError("shared scope refusal precedes retrieval")
         # Recheck immutable policy and release metadata on each invocation.
         capability = ValidatedCandidateGate(self._engine).authorize(self._report)
         warnings: tuple[str, ...] = ()
+        planned = None
+        repository = self._repository
+        if self.lexical_query_policy == LEXICAL_QUERY_POLICY_KEY:
+            # Planning consumes the original question only, never the answer or Oracle packet.
+            planned = PlannedFtsCandidateProvider(plan_lexical_query(question))
+            repository = LiteratureRepository(self._engine, lexical_candidates=planned)
         if self._bge is None:
             if anchors:
                 raise LiteratureAdapterError("FTS-only S2 cannot receive source anchors")
             with self._engine.connect().execution_options(postgresql_readonly=True) as connection:
                 with Session(bind=connection) as session, session.begin():
-                    if self._repository._fts_has_nodes(session, question):
-                        keys = self._repository._fts_candidates(
+                    if planned is not None:
+                        if planned.has_indexable_terms(session, question):
+                            keys = planned.candidates(
+                                session, capability, question=question, document_ids=None
+                            )
+                        else:
+                            keys, warnings = (), ("fts_no_indexable_terms",)
+                    elif repository._fts_has_nodes(session, question):
+                        keys = repository._fts_candidates(
                             session, capability, question=question, document_ids=None
                         )
                     else:
                         keys, warnings = (), ("fts_no_indexable_terms",)
         else:
-            result = self._repository.retrieve(
+            result = repository.retrieve(
                 capability,
                 question=question,
                 query_vector=self._bge.embed_query(question),
@@ -232,7 +278,17 @@ class SourceCorpusEvidenceAdapter:
                     raise LiteratureAdapterError("database passage differs from frozen source")
         if len(keys) != len(set(keys)) or not set(keys) <= self.chunks.keys():
             raise LiteratureAdapterError("ranked keys repeat or escape the frozen corpus")
-        return keys, self.citations(keys[:GENERATION_CONTEXT_CHUNK_LIMIT]), warnings
+        if planned is not None:
+            context_warnings = () if planned.context is None else planned.context.warnings
+            warnings = tuple(dict.fromkeys((
+                *warnings, *planned.plan.warnings, *context_warnings,
+            )))
+        if not keys:
+            warnings = tuple(dict.fromkeys((*warnings, "no_chunks_retrieved")))
+        return SourceRetrievalResult(
+            keys, self.citations(keys[:GENERATION_CONTEXT_CHUNK_LIMIT]), warnings,
+            None if planned is None else planned.diagnostics(),
+        )
 
     def citations(self, keys: tuple[str, ...]) -> tuple[EvidenceCitation, ...]:
         if len(keys) != len(set(keys)) or not set(keys) <= self.chunks.keys():
