@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from collections import defaultdict
 from dataclasses import dataclass
-from typing import Any, cast
+from typing import Any, Protocol, cast
 
 from pydantic import TypeAdapter, ValidationError
 from sqlalchemy import Engine, desc, func, literal_column, select, text
@@ -32,6 +32,21 @@ from eve_relation_rag.retrieval.literature.fusion import FusedCandidate, fuse_ra
 
 _CANDIDATE_DEPTH = 100
 _LOCATOR_ADAPTER: TypeAdapter[CanonicalLocator] = TypeAdapter(CanonicalLocator)
+
+
+class LexicalCandidateProvider(Protocol):
+    """Explicit experiment override; production keeps its frozen original FTS policy."""
+
+    def has_indexable_terms(self, session: Session, question: str) -> bool: ...
+
+    def candidates(
+        self,
+        session: Session,
+        capability: CorpusCapability,
+        *,
+        question: str,
+        document_ids: tuple[int, ...] | None,
+    ) -> tuple[str, ...]: ...
 
 
 @dataclass(frozen=True, slots=True)
@@ -68,8 +83,11 @@ class RepositoryResult:
 class LiteratureRepository:
     """Run the approved retrieval plan only with a gate-issued corpus capability."""
 
-    def __init__(self, engine: Engine) -> None:
+    def __init__(
+        self, engine: Engine, *, lexical_candidates: LexicalCandidateProvider | None = None
+    ) -> None:
         self._engine = engine
+        self._lexical_candidates = lexical_candidates
 
     def retrieve(
         self,
@@ -94,7 +112,11 @@ class LiteratureRepository:
                     )
                     warnings: list[RetrievalWarning] = []
                     selected: list[tuple[FusedCandidate, RetrievalTier]] = []
-                    fts_indexable = self._fts_has_nodes(session, question)
+                    fts_indexable = (
+                        self._fts_has_nodes(session, question)
+                        if self._lexical_candidates is None
+                        else self._lexical_candidates.has_indexable_terms(session, question)
+                    )
                     if not fts_indexable:
                         warnings.append("fts_no_indexable_terms")
 
@@ -165,8 +187,13 @@ class LiteratureRepository:
     ) -> tuple[FusedCandidate, ...]:
         if document_ids == ():
             return ()
+        lexical_candidates = (
+            self._fts_candidates
+            if self._lexical_candidates is None
+            else self._lexical_candidates.candidates
+        )
         fts_keys = (
-            self._fts_candidates(
+            lexical_candidates(
                 session,
                 capability,
                 question=question,

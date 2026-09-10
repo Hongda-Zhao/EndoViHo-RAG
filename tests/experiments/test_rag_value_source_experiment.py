@@ -18,6 +18,16 @@ def test_formal_run_requires_input_review_before_provider_or_output(tmp_path):
     assert not output.exists()
 
 
+def test_new_lexical_policy_cannot_reuse_an_incomplete_implementation_freeze():
+    runtime = SourceExperiment.__new__(SourceExperiment)
+    runtime.config = {
+        "lexical_query_policy": "rag-value-lexical-query-v1",
+        "implementation_files": [], "files": {},
+    }
+    with pytest.raises(ValueError, match="active implementation pins"):
+        runtime.verify_files()
+
+
 def test_machine_record_is_atomic_and_cannot_replace_an_observation(tmp_path):
     path = tmp_path / "cell.json"
     atomic_json(path, {"status": "invalid_answer", "raw_answer": "original failure"})
@@ -86,7 +96,10 @@ def test_fixed_generation_timeout_is_an_observation_without_retry(monkeypatch):
     assert len(calls) == 1
 
 
-def test_complete_journal_reloads_without_repeating_a_cell(tmp_path, monkeypatch):
+@pytest.mark.parametrize("execution_systems", [None, ["S2", "S3", "S5"]])
+def test_complete_journal_reloads_without_repeating_a_cell(
+    tmp_path, monkeypatch, execution_systems,
+):
     import contextlib
     import hashlib
     import json
@@ -101,6 +114,8 @@ def test_complete_journal_reloads_without_repeating_a_cell(tmp_path, monkeypatch
         "status": "frozen_for_formal_execution",
         "files": {"input_review": {"sha256": "b" * 64}},
     }
+    if execution_systems is not None:
+        runtime.config["execution_systems"] = execution_systems
     runtime.questions = tuple({"question_id": f"tests-only-{i}"} for i in range(53))
     runtime.provider_config = None
     oracles = [
@@ -146,13 +161,64 @@ def test_complete_journal_reloads_without_repeating_a_cell(tmp_path, monkeypatch
     }
     output = tmp_path / "records"
     summary = runtime.run(output, **kwargs)
-    assert summary["recorded_cells"] == 371
-    assert len(calls) == len(set(calls)) == 371
+    selected = execution_systems or list(module.ALL_SYSTEM_KEYS)
+    expected_cells = 53 * len(selected)
+    assert summary["expected_cells"] == summary["recorded_cells"] == expected_cells
+    assert len(calls) == len(set(calls)) == expected_cells
+    assert {system for _, system in calls} == set(selected)
+    assert summary["execution_complete"] is True
+    if execution_systems is None:
+        assert expected_cells == 371
+        assert "execution_systems" not in summary  # Preserve old summary replay identity.
+    else:
+        assert expected_cells == 159
+        assert summary["execution_systems"] == selected
+        assert summary["execution_scope"] == "system_subset"
+        assert summary["full_matrix_expected_cells"] == 371
+        assert summary["full_matrix_execution_complete"] is False
+        assert not list(output.glob("*.S0.json"))
     assert runtime.run(output, **kwargs) == summary
-    assert len(calls) == 371
-    saved = output / "tests-only-0.S0.json"
+    assert len(calls) == expected_cells
+    saved = output / f"tests-only-0.{selected[0]}.json"
     value = json.loads(saved.read_bytes())
+    assert value["run_mode"] == "formal_machine_execution"
+    assert value["runtime_config_sha256"] == runtime.config_sha256
+    assert value["input_approval_file_sha256"] == kwargs["approved_review_sha256"]
     value["status"] = "tampered"
     saved.write_bytes(canonical_json_bytes(value))
     with pytest.raises(ValueError, match="existing record differs"):
         runtime.run(output, **kwargs)
+
+
+@pytest.mark.parametrize("execution_systems", [
+    [], None, "S2", ("S2",), ["S7"], ["S2", "S2"], ["S5", "S2"], [2], [True],
+])
+def test_invalid_execution_systems_reject_before_inputs_provider_or_output(
+    tmp_path, execution_systems,
+):
+    import hashlib
+
+    from eve_relation_rag.literature.hashing import canonical_json_bytes
+
+    config = {
+        "schema_version": "rag-value-source-runtime-v1",
+        "variant": "source-reported-v1",
+        "public_publication": False,
+        "execution_systems": execution_systems,
+        "status": "frozen_for_formal_execution",
+    }
+    # Tuples are not JSON values distinct from lists; test direct config validation below.
+    if not isinstance(execution_systems, tuple):
+        path = tmp_path / "config.json"
+        path.write_bytes(canonical_json_bytes(config))
+        with pytest.raises(ValueError, match="execution_systems"):
+            SourceExperiment(path, hashlib.sha256(path.read_bytes()).hexdigest())
+    runtime = SourceExperiment.__new__(SourceExperiment)
+    runtime.config = config
+    output = tmp_path / "records"
+    with pytest.raises(ValueError, match="execution_systems"):
+        runtime.run(
+            output, approved_review=tmp_path / "absent-review.json",
+            approved_review_sha256="a" * 64,
+        )
+    assert not output.exists()
